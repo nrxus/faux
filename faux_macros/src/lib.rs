@@ -76,7 +76,7 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                     match &self.0 {
                         faux::MaybeQuack::Quack(q) => {
                             let mut q = q.borrow_mut();
-                            q.call_mock(#str_ident, (#(#arg_idents),*))
+                            unsafe { q.call_mock(#str_ident, (#(#arg_idents),*)) }
                         },
                         faux::MaybeQuack::Real(r) => r.#ident(#(#arg_idents),*),
                     }

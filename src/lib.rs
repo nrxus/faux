@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, cell::RefCell};
+use std::{any::Any, cell::RefCell, collections::HashMap};
 
 pub enum MaybeQuack<T> {
     Real(T),
@@ -7,10 +7,12 @@ pub enum MaybeQuack<T> {
 
 impl<T> MaybeQuack<T> {
     pub fn quack() -> Self {
-        MaybeQuack::Quack(RefCell::new(Quack::default()))
+        MaybeQuack::Quack(RefCell::new(Quack {
+            mocks: HashMap::new(),
+        }))
     }
 
-    pub fn mock<I: 'static, O: 'static>(
+    pub fn mock<I, O: 'static>(
         &mut self,
         name: &'static str,
         mock: impl (FnOnce(I) -> O) + 'static,
@@ -22,29 +24,23 @@ impl<T> MaybeQuack<T> {
     }
 }
 
-#[derive(Default)]
 pub struct Quack {
-    mocks: HashMap<&'static str, Box<dyn FnOnce(Box<dyn Any>) -> Box<dyn Any>>>,
+    mocks: HashMap<&'static str, Box<dyn FnOnce(*mut ()) -> Box<dyn Any>>>,
 }
 
 impl Quack {
-    pub fn mock<I: 'static, O: 'static>(
-        &mut self,
-        name: &'static str,
-        mock: impl (FnOnce(I) -> O) + 'static,
-    ) {
-        let x: Box<dyn FnOnce(Box<dyn Any>) -> Box<dyn Any>> = Box::new(|input| {
-            let input = *(input.downcast::<I>().unwrap());
-            Box::new(mock(input)) as Box<dyn Any>
-        });
-        self.mocks.insert(name, x);
+    pub fn mock<I, O: 'static>(&mut self, name: &'static str, mock: impl FnOnce(I) -> O + 'static) {
+        let mock = Box::new(mock) as Box<dyn FnOnce(_) -> _>;
+        let mock = unsafe { std::mem::transmute(mock) };
+        self.mocks.insert(name, mock);
     }
 
-    pub fn call_mock<I: 'static, O: 'static>(&mut self, name: &str, input: I) -> O {
+    pub unsafe fn call_mock<I, O: 'static>(&mut self, name: &str, input: I) -> O {
         let mock = self
             .mocks
             .remove(name)
             .expect(&format!("no mock for method '{}'", name));
-        *(mock(Box::new(input)).downcast::<O>().unwrap())
+        let mock: Box<dyn FnOnce(I) -> O> = std::mem::transmute(mock);
+        mock(input)
     }
 }
