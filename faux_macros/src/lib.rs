@@ -3,7 +3,7 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 
 #[proc_macro_attribute]
 pub fn duck(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
@@ -69,14 +69,16 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
             let arg_types: Vec<_> = args.iter().map(|(_, ty)| ty).collect();
             let ident = &m.sig.ident;
             let output = &m.sig.output;
-            let str_ident = ident.to_string();
+            let error_msg = format!("Function '{}::{}' is not mocked", ty.to_token_stream(), ident);
             let is_mockable = args.len() != m.sig.inputs.len();
             m.block = syn::parse2(if is_mockable {
                 quote! {{
                     match &self.0 {
                         faux::MaybeQuack::Quack(q) => {
                             let mut q = q.borrow_mut();
-                            unsafe { q.call_mock(#str_ident, (#(#arg_idents),*)) }
+                            use std::any::Any as _;
+                            unsafe { q.call_mock(&#ty::#ident.type_id(), (#(#arg_idents),*)) }
+                                .expect(#error_msg)
                         },
                         faux::MaybeQuack::Real(r) => r.#ident(#(#arg_idents),*),
                     }
@@ -103,7 +105,8 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                 );
                 let tokens = quote! {
                     pub fn #mock_ident(&mut self, mock: impl FnOnce((#(#arg_types),*)) #output + 'static) {
-                        self.0.mock(#str_ident, mock);
+                        use std::any::Any as _;
+                        self.0.mock(#ty::#ident.type_id(), mock);
                     }
                 };
 

@@ -56,7 +56,7 @@ fn ducks_quack_arguments() {
 fn ducks_ref_arguments() {
     let mut mock = Foo::quack();
     //TODO: Add macro that looks like when!(mock::add_stuff).then(|a| 90);
-    mock._mock_once_some_ref(|(a)| *a);
+    mock._mock_once_some_ref(|a| *a);
     let x = 30 + 30;
     assert_eq!(mock.some_ref(&x), 60);
 }
