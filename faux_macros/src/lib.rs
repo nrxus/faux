@@ -106,7 +106,7 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                 let tokens = quote! {
                     pub fn #mock_ident(&mut self, mock: impl FnOnce((#(#arg_types),*)) #output + 'static) {
                         use std::any::Any as _;
-                        self.0.mock(#ty::#ident.type_id(), mock);
+                        self.0.mock_once(#ty::#ident.type_id(), mock);
                     }
                 };
 

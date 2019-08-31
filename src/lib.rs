@@ -14,9 +14,9 @@ impl<T> MaybeQuack<T> {
         MaybeQuack::Quack(RefCell::new(Quack::default()))
     }
 
-    pub fn mock<I, O: 'static>(&mut self, id: TypeId, mock: impl (FnOnce(I) -> O) + 'static) {
+    pub fn mock_once<I, O: 'static>(&mut self, id: TypeId, mock: impl (FnOnce(I) -> O) + 'static) {
         match self {
-            MaybeQuack::Quack(quack) => quack.get_mut().mock(id, mock),
+            MaybeQuack::Quack(quack) => quack.get_mut().mock_once(id, mock),
             MaybeQuack::Real(_) => panic!("not allowed to mock a real instance!"),
         }
     }

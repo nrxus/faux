@@ -5,9 +5,11 @@ authors = ["Andres <andresnrx@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-syn = { version = "1.0.3", features = ["full", "extra-traits"] }
+syn = { version = "1.0.5", features = ["full", "extra-traits"] }
 quote = "1.0.2"
 proc-macro2 = "1.0.1"
+
+[dev-dependencies]
 faux = { path = "../"}
 
 [lib]
