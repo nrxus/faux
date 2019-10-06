@@ -104,7 +104,7 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                     proc_macro2::Span::call_site(),
                 );
                 let tokens = quote! {
-                    pub fn #mock_ident(&mut self, mock: impl FnOnce((#(#arg_types),*)) #output + 'static) {
+                    pub unsafe fn #mock_ident(&mut self, mock: impl FnOnce((#(#arg_types),*)) #output + 'static) {
                         use std::any::Any as _;
                         self.0.mock_once(#ty::#ident.type_id(), mock);
                     }

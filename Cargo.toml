@@ -5,3 +5,4 @@ authors = ["Andres <andresnrx@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+faux_macros = { path = "./faux_macros" }
