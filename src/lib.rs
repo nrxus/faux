@@ -31,7 +31,7 @@
 //!
 //!   // while providing a method to create a mock
 //!   let mut mock = Foo::quack();
-//!   unsafe { mock._mock_once_get_stuff(|_| 10) };
+//!   unsafe { mock._when_get_stuff().then(|_| 10) };
 //!   # // when!(mock.get_stuff).then(|_| 10);
 //!   assert_eq!(mock.get_stuff(), 10);
 //! }
@@ -43,6 +43,18 @@ pub use faux_macros::{duck, quack};
 pub use quack::Quack;
 use std::{any::TypeId, cell::RefCell};
 
+pub struct WhenHolder<'q, I, O> {
+    pub id: TypeId,
+    pub quack: &'q mut Quack,
+    pub _marker: std::marker::PhantomData<(I, O)>,
+}
+
+impl<'q, I, O> WhenHolder<'q, I, O> {
+    pub unsafe fn then(self, mock: impl FnOnce(I) -> O) {
+	self.quack.mock_once(self.id, mock);
+    }
+}
+
 #[doc(hidden)]
 pub enum MaybeQuack<T> {
     Real(T),
@@ -52,16 +64,5 @@ pub enum MaybeQuack<T> {
 impl<T> MaybeQuack<T> {
     pub fn quack() -> Self {
         MaybeQuack::Quack(RefCell::new(Quack::default()))
-    }
-
-    pub unsafe fn mock_once<I, O: 'static>(
-        &mut self,
-        id: TypeId,
-        mock: impl (FnOnce(I) -> O) + 'static,
-    ) {
-        match self {
-            MaybeQuack::Quack(quack) => quack.get_mut().mock_once(id, mock),
-            MaybeQuack::Real(_) => panic!("not allowed to mock a real instance!"),
-        }
     }
 }

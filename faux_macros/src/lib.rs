@@ -69,7 +69,11 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
             let arg_types: Vec<_> = args.iter().map(|(_, ty)| ty).collect();
             let ident = &m.sig.ident;
             let output = &m.sig.output;
-            let error_msg = format!("Function '{}::{}' is not mocked", ty.to_token_stream(), ident);
+            let error_msg = format!(
+                "Function '{}::{}' is not mocked",
+                ty.to_token_stream(),
+                ident
+            );
             let is_mockable = args.len() != m.sig.inputs.len();
             m.block = syn::parse2(if is_mockable {
                 quote! {{
@@ -96,19 +100,31 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                     body
                 }
             })
-                .unwrap();
+            .unwrap();
 
             if is_mockable {
                 let mock_ident = syn::Ident::new(
-                    &format!("_mock_once_{}", ident),
+                    &format!("_when_{}", ident),
                     proc_macro2::Span::call_site(),
                 );
+		let empty = Box::new( syn::parse2(quote! { () }) .unwrap());
+		let output = match output {
+		    syn::ReturnType::Default => &empty,
+		    syn::ReturnType::Type(_, ty) => ty,
+		};
                 let tokens = quote! {
-                    pub unsafe fn #mock_ident(&mut self, mock: impl FnOnce((#(#arg_types),*)) #output + 'static) {
-                        use std::any::Any as _;
-                        self.0.mock_once(#ty::#ident.type_id(), mock);
-                    }
-                };
+                    pub unsafe fn #mock_ident(&mut self) -> faux::WhenHolder<(#(#arg_types),*), #output> {
+			use std::any::Any as _;
+			match &mut self.0 {
+			    faux::MaybeQuack::Quack(quack) => faux::WhenHolder {
+			        quack: quack.get_mut(),
+			        id: #ty::#ident.type_id(),
+			        _marker: std::marker::PhantomData,
+			    },
+			    faux::MaybeQuack::Real(_) => panic!("not allowed to mock a real instace!"),
+			}
+		    }
+		};
 
                 Some(syn::parse2(tokens).unwrap())
             } else {
