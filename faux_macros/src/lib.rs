@@ -114,10 +114,10 @@ pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 		    syn::ReturnType::Type(_, ty) => ty,
 		};
                 let tokens = quote! {
-                    pub fn #mock_ident(&mut self) -> faux::WhenHolder<(#(#arg_types),*), #output> {
+                    pub fn #mock_ident(&mut self) -> faux::When<(#(#arg_types),*), #output> {
 			use std::any::Any as _;
 			match &mut self.0 {
-			    faux::MaybeFaux::Faux(faux) => faux::WhenHolder {
+			    faux::MaybeFaux::Faux(faux) => faux::When {
 			        faux: faux.get_mut(),
 			        id: #ty::#ident.type_id(),
 			        _marker: std::marker::PhantomData,
