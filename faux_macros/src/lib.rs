@@ -3,6 +3,7 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
+use proc_macro_hack::proc_macro_hack;
 use quote::{quote, ToTokens};
 
 #[proc_macro_attribute]
@@ -113,7 +114,7 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 		    syn::ReturnType::Type(_, ty) => ty,
 		};
                 let tokens = quote! {
-                    pub unsafe fn #mock_ident(&mut self) -> faux::WhenHolder<(#(#arg_types),*), #output> {
+                    pub fn #mock_ident(&mut self) -> faux::WhenHolder<(#(#arg_types),*), #output> {
 			use std::any::Any as _;
 			match &mut self.0 {
 			    faux::MaybeQuack::Quack(quack) => faux::WhenHolder {
@@ -171,4 +172,17 @@ fn get_ident_args<'a>(method: &mut syn::ImplItemMethod) -> Vec<(syn::Ident, syn:
             (ident, *arg.ty.clone())
         })
         .collect()
+}
+
+#[proc_macro_hack]
+pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let expr = syn::parse_macro_input!(input as syn::ExprField);
+    let base = expr.base;
+    let method = match expr.member {
+        syn::Member::Named(ident) => ident,
+        syn::Member::Unnamed(_) => panic!("not a method call"),
+    };
+    let when = syn::Ident::new(&format!("_when_{}", method), proc_macro2::Span::call_site());
+
+    TokenStream::from(quote!( { #base.#when() }))
 }

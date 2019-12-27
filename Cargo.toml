@@ -6,3 +6,7 @@ edition = "2018"
 
 [dependencies]
 faux_macros = { path = "./faux_macros" }
+proc-macro-hack = "0.5.11"
+
+[workspace]
+members = ["faux_macros"]
