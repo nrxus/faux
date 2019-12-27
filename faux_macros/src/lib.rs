@@ -7,7 +7,7 @@ use proc_macro_hack::proc_macro_hack;
 use quote::{quote, ToTokens};
 
 #[proc_macro_attribute]
-pub fn duck(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
+pub fn create(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
     let mut to_mock = syn::parse_macro_input!(token_stream as syn::ItemStruct);
     let vis = &to_mock.vis;
     let ident = &to_mock.ident;
@@ -20,26 +20,26 @@ pub fn duck(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
         .into()
     });
 
-    let duck = quote! {
-        #vis struct #ident(faux::MaybeQuack<_quack::#ident>);
+    let faux = quote! {
+        #vis struct #ident(faux::MaybeFaux<_faux::#ident>);
 
         impl #ident {
-            fn quack() -> Self {
-                #ident(faux::MaybeQuack::quack())
+            fn faux() -> Self {
+                #ident(faux::MaybeFaux::faux())
             }
         }
 
-        mod _quack {
+        mod _faux {
             #to_mock
         }
     }
     .into();
 
-    duck
+    faux
 }
 
 #[proc_macro_attribute]
-pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
+pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
     let mut to_mock = syn::parse_macro_input!(token_stream as syn::ItemImpl);
     let ty = match to_mock.self_ty.as_ref() {
         syn::Type::Path(type_path) => type_path.clone(),
@@ -50,7 +50,7 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
     moved_ty.path.segments.insert(
         num_segments - 1,
         syn::PathSegment {
-            ident: syn::Ident::new("_quack", proc_macro2::Span::call_site()),
+            ident: syn::Ident::new("_faux", proc_macro2::Span::call_site()),
             arguments: syn::PathArguments::default(),
         },
     );
@@ -79,13 +79,13 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
             m.block = syn::parse2(if is_mockable {
                 quote! {{
                     match &self.0 {
-                        faux::MaybeQuack::Quack(q) => {
+                        faux::MaybeFaux::Faux(q) => {
                             let mut q = q.borrow_mut();
                             use std::any::Any as _;
                             unsafe { q.call_mock(&#ty::#ident.type_id(), (#(#arg_idents),*)) }
                                 .expect(#error_msg)
                         },
-                        faux::MaybeQuack::Real(r) => r.#ident(#(#arg_idents),*),
+                        faux::MaybeFaux::Real(r) => r.#ident(#(#arg_idents),*),
                     }
                 }}
             } else {
@@ -95,7 +95,7 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                 let self_out = *output == self_out;
                 if self_out {
                     quote! {{
-                        #ty(faux::MaybeQuack::Real(#body))
+                        #ty(faux::MaybeFaux::Real(#body))
                     }}
                 } else {
                     body
@@ -117,12 +117,12 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                     pub fn #mock_ident(&mut self) -> faux::WhenHolder<(#(#arg_types),*), #output> {
 			use std::any::Any as _;
 			match &mut self.0 {
-			    faux::MaybeQuack::Quack(quack) => faux::WhenHolder {
-			        quack: quack.get_mut(),
+			    faux::MaybeFaux::Faux(faux) => faux::WhenHolder {
+			        faux: faux.get_mut(),
 			        id: #ty::#ident.type_id(),
 			        _marker: std::marker::PhantomData,
 			    },
-			    faux::MaybeQuack::Real(_) => panic!("not allowed to mock a real instace!"),
+			    faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instace!"),
 			}
 		    }
 		};
@@ -136,7 +136,7 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 
     to_mock.items.append(&mut mock_methods);
 
-    let quack = quote! {
+    let methods = quote! {
         mod _real_impl {
             type #ty = super::#moved_ty;
 
@@ -147,7 +147,7 @@ pub fn quack(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
     }
     .into();
 
-    return quack;
+    return methods;
 }
 
 fn get_ident_args<'a>(method: &mut syn::ImplItemMethod) -> Vec<(syn::Ident, syn::Type)> {

@@ -1,11 +1,11 @@
 use faux;
 
-#[faux_macros::duck]
+#[faux::create]
 pub struct Foo {
     a: u32,
 }
 
-#[faux_macros::quack]
+#[faux::methods]
 impl Foo {
     pub fn new(a: u32) -> Self {
         Foo { a }
@@ -36,22 +36,22 @@ fn real_struct() {
 }
 
 #[test]
-fn ducks_quack() {
-    let mut mock = Foo::quack();
+fn faux_single_arg() {
+    let mut mock = Foo::faux();
     unsafe { faux::when!(mock.get_stuff).then(|_| 10) }
     assert_eq!(mock.get_stuff(), 10);
 }
 
 #[test]
-fn ducks_quack_arguments() {
-    let mut mock = Foo::quack();
+fn faux_multi_arg() {
+    let mut mock = Foo::faux();
     unsafe { faux::when!(mock.add_stuff_2).then(|(a, _)| a) }
     assert_eq!(mock.add_stuff_2(90, 30), 90);
 }
 
 #[test]
-fn ducks_ref_arguments() {
-    let mut mock = Foo::quack();
+fn faux_ref_arguments() {
+    let mut mock = Foo::faux();
     unsafe { faux::when!(mock.some_ref).then(|a| *a) }
     let x = 30 + 30;
     assert_eq!(mock.some_ref(&x), 60);
@@ -59,7 +59,7 @@ fn ducks_ref_arguments() {
 
 #[test]
 #[should_panic]
-fn ducks_panic_with_no_quacks() {
-    let mock = Foo::quack();
+fn unmocked_faux_panics() {
+    let mock = Foo::faux();
     mock.get_stuff();
 }
