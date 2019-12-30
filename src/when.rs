@@ -1,24 +1,35 @@
-use crate::Faux;
+use crate::MockStore;
 use std::any::TypeId;
 
-/// Stores who and what to mock
+/// Stores who and what to mock and provides methods to mock the
+/// method both safely and unsafely.
+///
+/// See [when](macros.when.html) for how to get a instance of this
+/// struct.
 pub struct When<'q, I, O> {
-    /// TypeId of the method to mock
-    pub id: TypeId,
-    /// Struct to mock
-    pub faux: &'q mut Faux,
-    /// Input and Output markers of the method to mock
-    pub _marker: std::marker::PhantomData<(I, O)>,
+    id: TypeId,
+    store: &'q mut MockStore,
+    // *const for variance -- I think that's what I want.
+    _marker: std::marker::PhantomData<(*const I, *const O)>,
 }
 
 impl<'q, I, O> When<'q, I, O> {
+    #[doc(hidden)]
+    pub fn new(id: TypeId, store: &'q mut MockStore) -> Self {
+        When {
+            id,
+            store,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
     /// Mocks the method stored in the `When` with the given closure
     /// for the saved instance. This mock has no restrictions on the
     /// lifetimes for the inputs, outputs, nor the mocked function
     /// itself for maximum flexibility.
     ///
     /// The input for the given closure is a tuple of all its
-    /// non-receiver parameters (not `self`, `&self`, `&mut
+    /// non-receiver parameters (not `self`, `&self`, nor `&mut
     /// self`). While this method is "type" safe for the types in the
     /// mocked method, it is not lifetime safe. See [safety](#safety).
     ///
@@ -31,15 +42,18 @@ impl<'q, I, O> When<'q, I, O> {
     /// #[faux::methods]
     /// impl Foo {
     ///     pub fn no_args(&mut self) -> &i32 {
-    ///       panic!("will not be called when mocked");
+    ///       /* implementation code */
+    ///       # panic!()
     ///     }
     ///
     ///     pub fn single_arg(&self, a: u8) -> Vec<i8> {
-    ///       panic!("will not be called when mocked");
+    ///       /* implementation code */
+    ///       # panic!()
     ///     }
     ///
     ///     pub fn multi_args(self, a: &i32, b: i8) -> u32 {
-    ///       panic!("will not be called when mocked");
+    ///       /* implementation code */
+    ///       # panic!()
     ///     }
     /// }
     ///
@@ -87,7 +101,8 @@ impl<'q, I, O> When<'q, I, O> {
     /// #[faux::methods]
     /// impl Foo {
     ///     pub fn out_ref(&self, a : &mut i32) -> &mut i32 {
-    ///         panic!("something here")
+    ///       /* implementation code */
+    ///       # panic!()
     ///     }
     /// }
     ///
@@ -97,7 +112,8 @@ impl<'q, I, O> When<'q, I, O> {
     ///   unsafe { faux::when!(mock.out_ref).then(|i| i) }
     ///
     ///   let mut x = 5;
-    ///   // y is now a mutable reference back x, but there is no compile-time link between the two
+    ///   // y is now a mutable reference back x
+    ///   // but there is no compile-time link between the two
     ///   let y = mock.out_ref(&mut x);
     ///
     ///   // We can check that they are both the same value
@@ -116,7 +132,7 @@ impl<'q, I, O> When<'q, I, O> {
     /// }
     /// ```
     pub unsafe fn then(self, mock: impl FnOnce(I) -> O) {
-        self.faux.unsafe_mock_once(self.id, mock);
+        self.store.unsafe_mock_once(self.id, mock);
     }
 
     /// Mocks the method stored in the `When` with the given closure
@@ -125,7 +141,8 @@ impl<'q, I, O> When<'q, I, O> {
     /// it allows for a purely safe interface. See [then](#method.then) for the unsafe version.
     ///
     /// The input for the given closure is a tuple of all its
-    /// non-receiver parameters (not `self`, `&self`, `&mut self`).
+    /// non-receiver parameters (not `self`, `&self`, nor `&mut
+    /// self`).
     ///
     /// # Usage
     ///
@@ -136,15 +153,18 @@ impl<'q, I, O> When<'q, I, O> {
     /// #[faux::methods]
     /// impl Foo {
     ///     pub fn no_args(&mut self) -> i32 {
-    ///       panic!("will not be called when mocked");
+    ///       /* implementation code */
+    ///       # panic!()
     ///     }
     ///
     ///     pub fn single_arg(&self, a: u8) -> Vec<i8> {
-    ///       panic!("will not be called when mocked");
+    ///       /* implementation code */
+    ///       # panic!()
     ///     }
     ///
     ///     pub fn multi_args(self, a: &i32, b: i8) -> u32 {
-    ///       panic!("will not be called when mocked");
+    ///       /* implementation code */
+    ///       # panic!()
     ///     }
     /// }
     ///
@@ -152,7 +172,7 @@ impl<'q, I, O> When<'q, I, O> {
     ///   let mut mock = Foo::faux();
     ///
     ///   // closure still has an argument, it is just an empty tuple
-    ///   faux::when!(mock.no_args).safe_then(|_empty: ()| 5); 
+    ///   faux::when!(mock.no_args).safe_then(|_empty: ()| 5);
     ///   assert_eq!(mock.no_args(), 5);
     ///
     ///   // unit tuples do not need parentheses
@@ -170,6 +190,6 @@ impl<'q, I, O> When<'q, I, O> {
         I: 'static,
         O: 'static,
     {
-        self.faux.mock_once(self.id, mock);
+        self.store.mock_once(self.id, mock);
     }
 }

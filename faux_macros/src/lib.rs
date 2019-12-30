@@ -126,11 +126,10 @@ pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                     pub fn #mock_ident(&mut self) -> faux::When<(#(#arg_types),*), #output> {
 			use std::any::Any as _;
 			match &mut self.0 {
-			    faux::MaybeFaux::Faux(faux) => faux::When {
-			        faux: faux.get_mut(),
-			        id: #ty::#ident.type_id(),
-			        _marker: std::marker::PhantomData,
-			    },
+			    faux::MaybeFaux::Faux(faux) => faux::When::new(
+				#ty::#ident.type_id(),
+				faux.get_mut()
+			    ),
 			    faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instace!"),
 			}
 		    }
