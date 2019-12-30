@@ -42,6 +42,8 @@
 //! }
 //! ```
 
+mod when;
+
 use proc_macro_hack::proc_macro_hack;
 use std::{
     any::{Any, TypeId},
@@ -69,73 +71,7 @@ pub use faux_macros::methods;
 #[proc_macro_hack]
 pub use faux_macros::when;
 
-/// Stores who and what to mock
-pub struct When<'q, I, O> {
-    /// TypeId of the method to mock
-    pub id: TypeId,
-    /// Struct to mock
-    pub faux: &'q mut Faux,
-    /// Input and Output markers of the method to mock
-    pub _marker: std::marker::PhantomData<(I, O)>,
-}
-
-impl<'q, I, O> When<'q, I, O> {
-    /// Mocks the method stored in the `When` with the given closure.
-    ///
-    /// # Safety:
-    ///
-    /// This function effectively erases the lifetime relationships of
-    /// the inputs and outputs It is the user's responsability to not
-    /// pass a mock that would capture a variable that would be used
-    /// after it has been deallocated.
-    ///
-    /// Another way in which this function is unsafe is if the output
-    /// of this function has a logical lifetime link to the input.  At
-    /// the moment the mock gets called, that link would be erased
-    /// which could create multiple mutable references to the same
-    /// object.
-    ///
-    /// Example:
-    ///
-    /// ```
-    /// #[faux::create]
-    /// pub struct Foo {}
-    ///
-    /// #[faux::methods]
-    /// impl Foo {
-    ///     pub fn out_ref(&self, a : &mut i32) -> &mut i32 {
-    ///         panic!("something here")
-    ///     }
-    /// }
-    ///
-    /// fn main() {
-    ///   let mut mock = Foo::faux();
-    ///   // set up the mock such that the output is the same reference as the input
-    ///   unsafe { faux::when!(mock.out_ref).then(|i| i) }
-    ///
-    ///   let mut x = 5;
-    ///   // y is now a mutable reference back x, but there is no compile-time link between the two
-    ///   let y = mock.out_ref(&mut x);
-    ///
-    ///   // We can check that they are both the same value
-    ///   assert_eq!(*y, 5);
-    ///   assert_eq!(x, 5);
-    ///
-    ///   // x now changes y. This is UB and is not allowed in safe Rust!
-    ///   x += 1;
-    ///   assert_eq!(x, 6);
-    ///   assert_eq!(*y, 6);
-    ///
-    ///   // and if we change y then x also gets changed
-    ///   *y += 1;
-    ///   assert_eq!(x, 7);
-    ///   assert_eq!(*y, 7);
-    /// }
-    /// ```
-    pub unsafe fn then(self, mock: impl FnOnce(I) -> O) {
-        self.faux.mock_once(self.id, mock);
-    }
-}
+pub use when::When;
 
 #[doc(hidden)]
 pub enum MaybeFaux<T> {
@@ -152,40 +88,69 @@ impl<T> MaybeFaux<T> {
 /// Fake struct storing the mocked methods
 #[derive(Default)]
 pub struct Faux {
-    one_time_mocks: HashMap<TypeId, Box<dyn FnOnce(()) -> ()>>,
-    safe_one_time_mocks: HashMap<TypeId, Box<dyn FnOnce(Box<dyn Any>) -> Box<dyn Any>>>,
+    mocks: HashMap<TypeId, Mock>,
 }
 
 #[doc(hidden)]
 impl Faux {
-    pub unsafe fn mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O) {
-        let mock = Box::new(mock) as Box<dyn FnOnce(_) -> _>;
-        let mock = std::mem::transmute(mock);
-        self.one_time_mocks.insert(id, mock);
+    /// # Safety
+    /// Do not use this function without going through [When](When).
+    pub unsafe fn unsafe_mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O) {
+        self.mocks.insert(id, Mock::r#unsafe(mock));
     }
 
-    pub unsafe fn call_mock<I, O>(&mut self, id: &TypeId, input: I) -> Option<O> {
-        let mock = self.one_time_mocks.remove(&id)?;
-        let mock: Box<dyn FnOnce(I) -> O> = std::mem::transmute(mock);
-        Some(mock(input))
+    pub fn mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O + 'static)
+    where
+        I: 'static,
+        O: 'static,
+    {
+        self.mocks.insert(id, Mock::safe(mock));
     }
 
-    pub fn mock_once_safe<I: 'static, O: 'static>(
-        &mut self,
-        id: TypeId,
-        mock: impl FnOnce(I) -> O + 'static,
-    ) {
+    pub fn get_mock(&mut self, id: TypeId) -> Option<Mock> {
+        self.mocks.remove(&id)
+    }
+}
+
+#[doc(hidden)]
+pub enum Mock {
+    OnceUnsafe(UnsafeMock),
+    OnceSafe(SafeMock),
+}
+
+impl Mock {
+    fn safe<I: 'static, O: 'static>(mock: impl FnOnce(I) -> O + 'static) -> Self {
         let mock = |input: Box<dyn Any>| {
             let input = *(input.downcast().unwrap());
             let output = mock(input);
             Box::new(output) as Box<dyn Any>
         };
-        self.safe_one_time_mocks.insert(id, Box::new(mock));
+        Mock::OnceSafe(SafeMock(Box::new(mock)))
     }
 
-    pub fn safe_call_mock<I: 'static, O: 'static>(&mut self, id: &TypeId, input: I) -> Option<O> {
-        let mock = self.safe_one_time_mocks.remove(&id)?;
-        let output = mock(Box::new(input) as Box<dyn Any>);
-        Some(*(output.downcast().unwrap()))
+    unsafe fn r#unsafe<I, O>(mock: impl FnOnce(I) -> O) -> Self {
+        let mock = Box::new(mock) as Box<dyn FnOnce(_) -> _>;
+        let mock = std::mem::transmute(mock);
+        Mock::OnceUnsafe(UnsafeMock(mock))
+    }
+}
+
+#[doc(hidden)]
+pub struct SafeMock(Box<dyn FnOnce(Box<dyn Any>) -> Box<dyn Any>>);
+
+impl SafeMock {
+    pub fn call<I: 'static, O: 'static>(self, input: I) -> O {
+        let input = Box::new(input) as Box<dyn Any>;
+        *self.0(input).downcast().unwrap()
+    }
+}
+
+#[doc(hidden)]
+pub struct UnsafeMock(Box<dyn FnOnce(()) -> ()>);
+
+impl UnsafeMock {
+    pub unsafe fn call<I, O>(self, input: I) -> O {
+        let mock: Box<dyn FnOnce(I) -> O> = std::mem::transmute(self.0);
+        mock(input)
     }
 }

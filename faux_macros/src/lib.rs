@@ -78,14 +78,23 @@ pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
             let is_mockable = args.len() != m.sig.inputs.len();
             m.block = syn::parse2(if is_mockable {
                 quote! {{
-                    match &self.0 {
-                        faux::MaybeFaux::Faux(q) => {
+                    match self {
+                        #ty(faux::MaybeFaux::Faux(q)) => {
                             let mut q = q.borrow_mut();
                             use std::any::Any as _;
-                            unsafe { q.call_mock(&#ty::#ident.type_id(), (#(#arg_idents),*)) }
-                                .expect(#error_msg)
+			    match q.get_mock(#ty::#ident.type_id()).expect(#error_msg) {
+				faux::Mock::OnceUnsafe(mock) => unsafe { mock.call((#(#arg_idents),*)) },
+				faux::Mock::OnceSafe(mock) => {
+				    // make all the inputs have a static lifetime
+				    // needed to allow the Mock::OnceUnsafe branch to exist
+				    let input: (#(#arg_types),*) = unsafe {
+					std::mem::transmute((#(#arg_idents),*))
+				    };
+				    mock.call(input)
+				},
+			    }
                         },
-                        faux::MaybeFaux::Real(r) => r.#ident(#(#arg_idents),*),
+                        #ty(faux::MaybeFaux::Real(r)) => r.#ident(#(#arg_idents),*),
                     }
                 }}
             } else {
@@ -150,7 +159,7 @@ pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
     return methods;
 }
 
-fn get_ident_args<'a>(method: &mut syn::ImplItemMethod) -> Vec<(syn::Ident, syn::Type)> {
+fn get_ident_args(method: &mut syn::ImplItemMethod) -> Vec<(syn::Ident, syn::Type)> {
     method
         .sig
         .inputs
