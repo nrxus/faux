@@ -1,5 +1,3 @@
-#![feature(proc_macro_diagnostic, proc_macro_def_site)]
-
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
