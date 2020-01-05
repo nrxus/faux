@@ -8,10 +8,10 @@ pub enum Mock {
 
 impl Mock {
     pub(crate) fn safe<I: 'static, O: 'static>(mock: impl FnOnce(I) -> O + 'static) -> Self {
-        let mock = |input: Box<dyn Any>| {
+        let mock = |input: BoxedAny| {
             let input = *(input.downcast().unwrap());
             let output = mock(input);
-            Box::new(output) as Box<dyn Any>
+            Box::new(output) as BoxedAny
         };
         Mock::OnceSafe(SafeMock(Box::new(mock)))
     }
@@ -24,11 +24,11 @@ impl Mock {
 }
 
 #[doc(hidden)]
-pub struct SafeMock(Box<dyn FnOnce(Box<dyn Any>) -> Box<dyn Any>>);
+pub struct SafeMock(Box<dyn FnOnce(BoxedAny) -> BoxedAny>);
 
 impl SafeMock {
     pub fn call<I: 'static, O: 'static>(self, input: I) -> O {
-        let input = Box::new(input) as Box<dyn Any>;
+        let input = Box::new(input) as BoxedAny;
         *self.0(input).downcast().unwrap()
     }
 }
@@ -39,11 +39,14 @@ pub struct UnsafeMock(Box<dyn FnOnce(()) -> ()>);
 impl UnsafeMock {
     /// # Safety
     ///
-    /// [#[methods]](methods) makes sure this function is
-    /// called correctly when the method is invoked.  Do not use this
-    /// function directly.
+    /// [#[methods]] makes sure this function is called correctly when
+    /// the method is invoked.  Do not use this function directly.
+    ///
+    /// [#\[methods\]]: methods
     pub unsafe fn call<I, O>(self, input: I) -> O {
         let mock: Box<dyn FnOnce(I) -> O> = std::mem::transmute(self.0);
         mock(input)
     }
 }
+
+type BoxedAny = Box<dyn Any>;

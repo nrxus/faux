@@ -6,56 +6,73 @@ use quote::{quote, ToTokens};
 
 #[proc_macro_attribute]
 pub fn create(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
-    let mut to_mock = syn::parse_macro_input!(token_stream as syn::ItemStruct);
-    let vis = &to_mock.vis;
-    let ident = &to_mock.ident;
-    to_mock.fields.iter_mut().for_each(|f| {
-        f.vis = syn::VisPublic {
-            pub_token: syn::token::Pub {
-                span: proc_macro2::Span::call_site(),
-            },
-        }
-        .into()
-    });
+    let mut original = syn::parse_macro_input!(token_stream as syn::ItemStruct);
+    let original_name = original.ident.clone();
 
-    let faux = quote! {
-        #vis struct #ident(faux::MaybeFaux<_faux::#ident>);
+    original.ident = original_struct_ident(&original_name);
 
-        impl #ident {
-            fn faux() -> Self {
-                #ident(faux::MaybeFaux::faux())
+    let modified_name = &original.ident;
+    let original_vis = &original.vis;
+
+    TokenStream::from(quote! {
+        #original_vis struct #original_name(#original_vis faux::MaybeFaux<#modified_name>);
+
+        impl #original_name {
+            pub fn faux() -> Self {
+                #original_name(faux::MaybeFaux::faux())
             }
         }
 
-        mod _faux {
-            #to_mock
-        }
-    }
-    .into();
-
-    faux
+        #[allow(non_camel_case_types)]
+        #original
+    })
 }
 
 #[proc_macro_attribute]
-pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
-    let mut to_mock = syn::parse_macro_input!(token_stream as syn::ItemImpl);
-    let ty = match to_mock.self_ty.as_ref() {
-        syn::Type::Path(type_path) => type_path.clone(),
-        _ => panic!("not supported"),
-    };
-    let mut moved_ty = ty.clone();
-    let num_segments = ty.path.segments.len();
-    moved_ty.path.segments.insert(
-        num_segments - 1,
-        syn::PathSegment {
-            ident: syn::Ident::new("_faux", proc_macro2::Span::call_site()),
-            arguments: syn::PathArguments::default(),
-        },
-    );
+pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
+    let mut impl_block = syn::parse_macro_input!(token_stream as syn::ItemImpl);
 
-    let original = to_mock.clone();
-    let self_out: syn::ReturnType = syn::parse2(quote! { -> Self }).unwrap();
-    let mut mock_methods: Vec<syn::ImplItem> = to_mock
+    if let Some(_) = impl_block.trait_ {
+        panic!("#[faux::methods] does no support trait implementations")
+    }
+
+    let ty = match impl_block.self_ty.as_ref() {
+        syn::Type::Path(type_path) => type_path,
+        _ => panic!(
+            "#[faux::methods] does not support implementing types that are not a simple path"
+        ),
+    };
+
+    let ident = &ty.path.segments.last().unwrap().ident;
+
+    let original_struct = {
+        let mut ty = if attrs.is_empty() {
+            ty.clone()
+        } else {
+            let ty = ty.clone();
+            let mut path = syn::parse_macro_input!(attrs as syn::Path);
+            path.segments.extend(ty.path.segments);
+            syn::TypePath { path, ..ty }
+        };
+
+        ty.path.segments.last_mut().unwrap().ident = original_struct_ident(ident);
+        ty
+    };
+
+    let mut original = impl_block.clone();
+    publicize_methods(&mut original);
+
+    let self_return: syn::ReturnType = syn::parse2(quote! { -> Self}).unwrap();
+    let ty_return: syn::ReturnType = syn::parse2(quote! { -> #ty }).unwrap();
+    let ignore_unused_mut_attr = syn::Attribute {
+        pound_token: Default::default(),
+        style: syn::AttrStyle::Outer,
+        bracket_token: Default::default(),
+        path: syn::parse2(quote! { allow }).unwrap(),
+        tokens: "(unused_mut)".parse().unwrap(),
+    };
+
+    let mut when_methods: Vec<syn::ImplItem> = impl_block
         .items
         .iter_mut()
         .filter_map(|item| match item {
@@ -63,20 +80,39 @@ pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
             _ => None,
         })
         .filter_map(|mut m| {
-            let args = get_ident_args(m);
+	    // in case a method has `mut self` as a parameter since we
+	    // are not modifying self directly; only proxying to
+	    // either mock or real instance
+	    m.attrs.push(ignore_unused_mut_attr.clone());
+            let args = method_args(m);
             let arg_idents: Vec<_> = args.iter().map(|(ident, _)| ident).collect();
             let arg_types: Vec<_> = args.iter().map(|(_, ty)| ty).collect();
             let ident = &m.sig.ident;
             let output = &m.sig.output;
             let error_msg = format!(
-                "Function '{}::{}' is not mocked",
+                "'{}::{}' is not mocked",
                 ty.to_token_stream(),
                 ident
             );
-            let is_mockable = args.len() != m.sig.inputs.len();
-            m.block = syn::parse2(if is_mockable {
-                quote! {{
+            let is_method = args.len() != m.sig.inputs.len();
+	    let is_private = m.vis == syn::Visibility::Inherited;
+	    let returns_self = m.sig.output == self_return || m.sig.output == ty_return;
+	    let mut block = if !is_method {
+		// associated function; cannot be mocked
+		// proxy to real associated function
+		quote! {{
+                    <#original_struct>::#ident(#(#arg_idents),*)
+                }}
+	    } else {
+		quote! {{
                     match self {
+			// not a mock; proxy to real instance
+			#ty(faux::MaybeFaux::Real(r)) => r.#ident(#(#arg_idents),*),
+			// not allowed; panic at runtime
+			#ty(faux::MaybeFaux::Faux(_)) if #is_private => {
+			    panic!("attempted to call private method on mocked instance")
+			},
+			// mock
                         #ty(faux::MaybeFaux::Faux(q)) => {
                             let mut q = q.borrow_mut();
                             use std::any::Any as _;
@@ -92,25 +128,19 @@ pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 				},
 			    }
                         },
-                        #ty(faux::MaybeFaux::Real(r)) => r.#ident(#(#arg_idents),*),
                     }
                 }}
-            } else {
-                let body = quote! {{
-                    <#moved_ty>::#ident(#(#arg_idents),*)
-                }};
-                let self_out = *output == self_out;
-                if self_out {
-                    quote! {{
-                        #ty(faux::MaybeFaux::Real(#body))
-                    }}
-                } else {
-                    body
-                }
-            })
-            .unwrap();
+	    };
 
-            if is_mockable {
+	    // wrap inside MaybeFaux if we are returning ourselves
+	    if returns_self {
+		block = quote! {{ #ty(faux::MaybeFaux::Real(#block)) }}
+	    }
+
+            m.block = syn::parse2(block).unwrap();
+
+	    // return _when_{} methods for all mocked methods
+            if is_method && !is_private {
                 let mock_ident = syn::Ident::new(
                     &format!("_when_{}", ident),
                     proc_macro2::Span::call_site(),
@@ -128,7 +158,7 @@ pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 				#ty::#ident.type_id(),
 				faux.get_mut()
 			    ),
-			    faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instace!"),
+			    faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instance!"),
 			}
 		    }
 		};
@@ -140,23 +170,35 @@ pub fn methods(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
         })
         .collect();
 
-    to_mock.items.append(&mut mock_methods);
+    impl_block.items.append(&mut when_methods);
 
-    let methods = quote! {
-        mod _real_impl {
-            type #ty = super::#moved_ty;
+    let mod_ident = syn::Ident::new(
+        &format!("_faux_real_impl_{}", ident),
+        proc_macro2::Span::call_site(),
+    );
+
+    let first_path = &original_struct.path.segments.first().unwrap().ident;
+
+    let alias_path = if *first_path == syn::Ident::new("crate", first_path.span()) {
+        quote! { #original_struct }
+    } else {
+        quote! { super::#original_struct }
+    };
+
+    TokenStream::from(quote! {
+    #impl_block
+
+    mod #mod_ident {
+            use super::*;
+
+            type #ty = #alias_path;
 
             #original
-        }
-
-        #to_mock
     }
-    .into();
-
-    return methods;
+    })
 }
 
-fn get_ident_args(method: &mut syn::ImplItemMethod) -> Vec<(syn::Ident, syn::Type)> {
+fn method_args(method: &mut syn::ImplItemMethod) -> Vec<(syn::Ident, syn::Type)> {
     method
         .sig
         .inputs
@@ -191,4 +233,21 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let when = syn::Ident::new(&format!("_when_{}", method), proc_macro2::Span::call_site());
 
     TokenStream::from(quote!( { #base.#when() }))
+}
+
+fn original_struct_ident(original: &syn::Ident) -> syn::Ident {
+    syn::Ident::new(&format!("_FauxOriginal_{}", original), original.span())
+}
+
+fn publicize_methods(impl_block: &mut syn::ItemImpl) {
+    impl_block
+        .items
+        .iter_mut()
+        .filter_map(|item| match item {
+            syn::ImplItem::Method(m) => Some(m),
+            _ => None,
+        })
+        .for_each(|mut method| {
+            method.vis = syn::parse2(quote! { pub }).unwrap();
+        });
 }

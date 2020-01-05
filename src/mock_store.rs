@@ -29,8 +29,11 @@ impl MockStore {
     }
 
     /// # Safety
-    /// Do not use this function without going through [When](When).
-    /// It is the caller's responsability to pass a mock that is safe.
+    ///
+    /// Do not use this function without going through [When].  It is
+    /// the caller's responsability to pass a mock that is safe.
+    ///
+    /// [When]: When
     pub unsafe fn unsafe_mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O) {
         self.mocks.insert(id, Mock::r#unsafe(mock));
     }

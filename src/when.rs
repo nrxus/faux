@@ -4,8 +4,10 @@ use std::any::TypeId;
 /// Stores who and what to mock and provides methods to mock the
 /// method both safely and unsafely.
 ///
-/// See [when](macros.when.html) for how to get a instance of this
+/// See [when!] for how to get a instance of this
 /// struct.
+///
+/// [when!]: macro.when.html
 pub struct When<'q, I, O> {
     id: TypeId,
     store: &'q mut MockStore,
@@ -31,7 +33,9 @@ impl<'q, I, O> When<'q, I, O> {
     /// The input for the given closure is a tuple of all its
     /// non-receiver parameters (not `self`, `&self`, nor `&mut
     /// self`). While this method is "type" safe for the types in the
-    /// mocked method, it is not lifetime safe. See [safety](#safety).
+    /// mocked method, it is not lifetime safe. See [safety].
+    ///
+    /// [safety]: #safety
     ///
     /// # Usage
     ///
@@ -138,11 +142,14 @@ impl<'q, I, O> When<'q, I, O> {
     /// Mocks the method stored in the `When` with the given closure
     /// for the saved instance. This mock is restricted only to static
     /// inputs, outputs, and closures. While this is very restrictive
-    /// it allows for a purely safe interface. See [then](#method.then) for the unsafe version.
+    /// it allows for a purely safe interface. See [then] for the
+    /// unsafe version.
     ///
     /// The input for the given closure is a tuple of all its
     /// non-receiver parameters (not `self`, `&self`, nor `&mut
     /// self`).
+    ///
+    /// [then]: #method.then
     ///
     /// # Usage
     ///
