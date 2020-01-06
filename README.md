@@ -1,4 +1,12 @@
-# faux
+# faux &emsp; [![Latest Version]][crates.io] [![faux: rustc 1.40+]][Rust 1.40] [![docs]][docs.rs]
+
+[Latest Version]: https://img.shields.io/crates/v/faux.svg
+[crates.io]: https://crates.io/crates/faux
+[faux: rustc 1.40+]: https://img.shields.io/badge/faux-rustc_1.40+-lightgray.svg
+[Rust 1.40]: https://blog.rust-lang.org/2019/12/19/Rust-1.40.0.html
+[Latest Version]: https://img.shields.io/crates/v/faux.svg
+[docs]: https://img.shields.io/badge/docs-lightgray.svg
+[docs.rs]: https://docs.rs/faux/
 
 A struct mocking library for stable Rust.
 
