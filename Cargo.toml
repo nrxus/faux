@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Andres <andresnrx@gmail.com>"]
 edition = "2018"
 
+[lib]
+doctest = false
+
 [dependencies]
 faux_macros = { path = "./faux_macros" }
 proc-macro-hack = "0.5.11"

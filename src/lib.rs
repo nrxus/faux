@@ -1,3 +1,4 @@
+#![cfg_attr(doctest, feature(external_doc))]
 #![allow(clippy::needless_doctest_main)]
 
 //! # Faux
@@ -379,3 +380,7 @@ pub use faux_macros::when;
 pub use mock::{Mock, SafeMock, UnsafeMock};
 pub use mock_store::{MaybeFaux, MockStore};
 pub use when::When;
+
+#[doc(include="../README.md")]
+#[cfg(doctest)]
+pub struct ReadmeDoctests;
