@@ -1,15 +1,20 @@
 [package]
 name = "faux"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Andres <andresnrx@gmail.com>"]
+license = "MIT"
+description = "A library to mock structs"
+homepage = "https://github.com/nrxus/faux"
+repository = "https://github.com/nrxus/faux"
 edition = "2018"
+keywords = ["mock", "mocking", "test", "testing", "faux"]
 
 [lib]
 doctest = false
 
 [dependencies]
-faux_macros = { path = "./faux_macros" }
-proc-macro-hack = "0.5.11"
+faux_macros = { path = "./faux_macros", version = "0.0.1" }
+proc-macro-hack = "0.5"
 
 [workspace]
 members = ["faux_macros"]
