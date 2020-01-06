@@ -135,7 +135,7 @@ impl<'q, I, O> When<'q, I, O> {
     ///   assert_eq!(*y, 7);
     /// }
     /// ```
-    pub unsafe fn then(self, mock: impl FnOnce(I) -> O) {
+    pub unsafe fn then(self, mock: impl FnOnce(I) -> O + Send) {
         self.store.unsafe_mock_once(self.id, mock);
     }
 
@@ -192,7 +192,7 @@ impl<'q, I, O> When<'q, I, O> {
     /// }
     ///
     /// ```
-    pub fn safe_then(self, mock: impl FnOnce(I) -> O + 'static)
+    pub fn safe_then(self, mock: impl FnOnce(I) -> O + 'static + Send)
     where
         I: 'static,
         O: 'static,

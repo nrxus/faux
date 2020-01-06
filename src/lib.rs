@@ -381,6 +381,6 @@ pub use mock::{Mock, SafeMock, UnsafeMock};
 pub use mock_store::{MaybeFaux, MockStore};
 pub use when::When;
 
-#[doc(include="../README.md")]
+#[doc(include = "../README.md")]
 #[cfg(doctest)]
 pub struct ReadmeDoctests;

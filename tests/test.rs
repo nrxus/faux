@@ -1,22 +1,6 @@
 use faux;
 
 #[faux::create]
-pub struct MyStruct {
-    data: Vec<u32>,
-}
-
-#[faux::methods]
-impl MyStruct {
-    pub fn new(data: Vec<u32>) -> Self {
-	MyStruct { data }
-    }
-
-    pub fn get(&self) -> usize {
-	self.data.len()
-    }
-}
-
-#[faux::create]
 pub struct Foo {
     a: u32,
 }

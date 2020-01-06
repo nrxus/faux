@@ -14,7 +14,8 @@ readme = "README.md"
 doctest = false
 
 [dependencies]
-faux_macros = "0.0.1"
+# faux_macros = "0.0.1"
+faux_macros = { path = "faux_macros" }
 proc-macro-hack = "0.5"
 
 [workspace]

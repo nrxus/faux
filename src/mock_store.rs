@@ -1,20 +1,34 @@
 use crate::Mock;
-use std::{any::TypeId, cell::RefCell, collections::HashMap};
+use std::{any::TypeId, collections::HashMap};
 
 #[doc(hidden)]
+/// ```
+/// fn implements_sync<T: Sync>(_: T) {}
+///
+/// implements_sync(3);
+/// implements_sync(faux::MaybeFaux::Real(3));
+/// ```
+///
+/// ```
+/// fn implements_debug<T: std::fmt::Debug>(_: T) {}
+///
+/// implements_debug(3);
+/// implements_debug(faux::MaybeFaux::Real(3));
+/// ```
+#[derive(Debug)]
 pub enum MaybeFaux<T> {
     Real(T),
-    Faux(RefCell<MockStore>),
+    Faux(std::sync::Mutex<MockStore>),
 }
 
 impl<T> MaybeFaux<T> {
     pub fn faux() -> Self {
-        MaybeFaux::Faux(RefCell::new(MockStore::new()))
+        MaybeFaux::Faux(std::sync::Mutex::new(MockStore::new()))
     }
 }
 
 /// Stores the mocked methods
-#[derive(Default)]
+#[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
     mocks: HashMap<TypeId, Mock>,
@@ -34,11 +48,11 @@ impl MockStore {
     /// the caller's responsability to pass a mock that is safe.
     ///
     /// [When]: When
-    pub unsafe fn unsafe_mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O) {
+    pub unsafe fn unsafe_mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O + Send) {
         self.mocks.insert(id, Mock::r#unsafe(mock));
     }
 
-    pub fn mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O + 'static)
+    pub fn mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O + 'static + Send)
     where
         I: 'static,
         O: 'static,

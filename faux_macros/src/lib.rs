@@ -110,7 +110,7 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 		    }
 		} else {
 		    quote! {
-			let mut q = q.borrow_mut();
+			let mut q = q.try_lock().unwrap();
                         use std::any::Any as _;
 			match q.get_mock(#ty::#ident.type_id()).expect(#error_msg) {
 			    faux::Mock::OnceUnsafe(mock) => unsafe { mock.call((#(#arg_idents),*)) },
@@ -130,7 +130,7 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 			// not a mock; proxy to real instance
 			#ty(faux::MaybeFaux::Real(r)) => r.#ident(#(#arg_idents),*),
 			// not allowed; panic at runtime
-			#ty(faux::MaybeFaux::Faux(_)) => {
+			#ty(faux::MaybeFaux::Faux(q)) => {
 			    #call_mock
 			},
                     }
@@ -161,7 +161,7 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 			match &mut self.0 {
 			    faux::MaybeFaux::Faux(faux) => faux::When::new(
 				#ty::#ident.type_id(),
-				faux.get_mut()
+				faux.get_mut().unwrap()
 			    ),
 			    faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instance!"),
 			}
