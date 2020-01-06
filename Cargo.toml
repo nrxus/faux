@@ -8,12 +8,13 @@ homepage = "https://github.com/nrxus/faux"
 repository = "https://github.com/nrxus/faux"
 edition = "2018"
 keywords = ["mock", "mocking", "test", "testing", "faux"]
+readme = "README.md"
 
 [lib]
 doctest = false
 
 [dependencies]
-faux_macros = { path = "./faux_macros", version = "0.0.1" }
+faux_macros = "0.0.1"
 proc-macro-hack = "0.5"
 
 [workspace]
