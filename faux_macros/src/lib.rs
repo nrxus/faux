@@ -104,30 +104,35 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                     <#original_struct>::#ident(#(#arg_idents),*)
                 }}
 	    } else {
+		let call_mock = if is_private {
+		    quote! {
+			panic!("attempted to call private method on mocked instance")
+		    }
+		} else {
+		    quote! {
+			let mut q = q.borrow_mut();
+                        use std::any::Any as _;
+			match q.get_mock(#ty::#ident.type_id()).expect(#error_msg) {
+			    faux::Mock::OnceUnsafe(mock) => unsafe { mock.call((#(#arg_idents),*)) },
+			    faux::Mock::OnceSafe(mock) => {
+				// make all the inputs have a static lifetime
+				// needed to allow the Mock::OnceUnsafe branch to exist
+				let input: (#(#arg_types),*) = unsafe {
+				    std::mem::transmute((#(#arg_idents),*))
+				};
+				mock.call(input)
+			    },
+			}
+		    }
+		};
 		quote! {{
                     match self {
 			// not a mock; proxy to real instance
 			#ty(faux::MaybeFaux::Real(r)) => r.#ident(#(#arg_idents),*),
 			// not allowed; panic at runtime
-			#ty(faux::MaybeFaux::Faux(_)) if #is_private => {
-			    panic!("attempted to call private method on mocked instance")
+			#ty(faux::MaybeFaux::Faux(_)) => {
+			    #call_mock
 			},
-			// mock
-                        #ty(faux::MaybeFaux::Faux(q)) => {
-                            let mut q = q.borrow_mut();
-                            use std::any::Any as _;
-			    match q.get_mock(#ty::#ident.type_id()).expect(#error_msg) {
-				faux::Mock::OnceUnsafe(mock) => unsafe { mock.call((#(#arg_idents),*)) },
-				faux::Mock::OnceSafe(mock) => {
-				    // make all the inputs have a static lifetime
-				    // needed to allow the Mock::OnceUnsafe branch to exist
-				    let input: (#(#arg_types),*) = unsafe {
-					std::mem::transmute((#(#arg_idents),*))
-				    };
-				    mock.call(input)
-				},
-			    }
-                        },
                     }
                 }}
 	    };
