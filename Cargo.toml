@@ -1,6 +1,6 @@
 [package]
 name = "faux"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Andres <andresnrx@gmail.com>"]
 license = "MIT"
 description = "A library to mock structs"
@@ -15,7 +15,7 @@ doctest = false
 
 [dependencies]
 # faux_macros = "0.0.1"
-faux_macros = { path = "faux_macros" }
+faux_macros = { path = "faux_macros", version = "0.0.2" }
 proc-macro-hack = "0.5"
 
 [workspace]

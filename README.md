@@ -2,23 +2,25 @@
 
 [Latest Version]: https://img.shields.io/crates/v/faux.svg
 [crates.io]: https://crates.io/crates/faux
-[faux: rustc 1.40+]: https://img.shields.io/badge/faux-rustc_1.40+-lightgray.svg
+[faux: rustc 1.40+]: https://img.shields.io/badge/faux-rustc_1.40+-blue.svg
 [Rust 1.40]: https://blog.rust-lang.org/2019/12/19/Rust-1.40.0.html
 [Latest Version]: https://img.shields.io/crates/v/faux.svg
-[docs]: https://img.shields.io/badge/docs-lightgray.svg
+[docs]: https://img.shields.io/badge/api-docs-blue.svg
 [docs.rs]: https://docs.rs/faux/
 
 A struct mocking library for stable Rust.
 
 This library was inspired by [mocktopus], a mocking library for
-nightly rust that lets you mock any function.
+nightly rust that lets you mock any function. Unlike mocktopus, faux
+deliberately only allows for mocking public methods in structs rather
+than any function.
 
-Unlike mocktopus, faux focuses on mocking methods in structs and not
-any function.
+**Faux is in its early alpha stages and there are no
+guarantees of API stability**
 
 ```rust
 mod client {
-    // #[cfg_attr(test, faux::create)] so it is only mockable in tests
+    // #[cfg_attr(test, faux::create)] for mocking on tests only
     #[faux::create]
     pub struct UserClient { /* data of the client */ }
 
@@ -26,7 +28,7 @@ mod client {
         pub name: String
     }
 
-    // #[cfg_attr(test, faux::create)] so it is only mockable in tests
+    // #[cfg_attr(test, faux::create)] for mocking on tests only
     #[faux::methods]
     impl UserClient {
         pub fn fetch(&self, id: usize) -> User {
@@ -55,15 +57,13 @@ impl Service {
     }
 }
 
-// this would be a #[test] and not main under tests
+// A sample #[test] for Service that mocks the client::UserClient
 fn main() {
     // mutable to mutate the mocks inside it
     let mut client = client::UserClient::faux();
 
     faux::when!(client.fetch).safe_then(|id| {
-        if id != 3 {
-            panic!("we expected the service to look for user #3")
-        }
+	    assert_eq!(id, 3, "expected UserClient.fetch to receive user #3");
         client::User { name: "my user name".into() }
     });
 
@@ -88,7 +88,5 @@ implemented by a single object, then that trait is an undue
 burden. Having to change your function/struct signatures to support
 generics in production code when only tests would ever use a different
 type should be an anti-pattern.
-
-**this library is in its early alpha stages and there are no guarantees of API stability**
 
 [mocktopus]: https://github.com/CodeSandwich/Mocktopus
