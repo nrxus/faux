@@ -165,7 +165,7 @@ pub use faux_macros::create;
 /// impl MyStruct {
 ///     pub fn new(data: Vec<u32>) -> Self {
 ///         /* implementation code */
-/// 	    # MyStruct { data }
+///         # MyStruct { data }
 ///     }
 ///
 ///     pub fn get(&self) -> usize {

@@ -7,17 +7,22 @@ use quote::{quote, ToTokens};
 #[proc_macro_attribute]
 pub fn create(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
     let mut original = syn::parse_macro_input!(token_stream as syn::ItemStruct);
+    let mut mock_version = original.clone();
     let original_name = original.ident.clone();
+    let generics = &original.generics;
 
     original.ident = original_struct_ident(&original_name);
 
     let modified_name = &original.ident;
     let original_vis = &original.vis;
+    mock_version.fields = syn::Fields::Unnamed(
+        syn::parse2(quote! { (#original_vis faux::MaybeFaux<#modified_name #generics>) }).unwrap(),
+    );
 
     TokenStream::from(quote! {
-        #original_vis struct #original_name(#original_vis faux::MaybeFaux<#modified_name>);
+        #mock_version
 
-        impl #original_name {
+        impl #generics #original_name #generics {
             pub fn faux() -> Self {
                 #original_name(faux::MaybeFaux::faux())
             }
@@ -126,15 +131,15 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                 }
                 quote! {{
                     match self {
-                        #ty(faux::MaybeFaux::Real(r)) => { #proxy_real },
-                        #ty(faux::MaybeFaux::Faux(q)) => { #call_mock },
+                        Self(faux::MaybeFaux::Real(r)) => { #proxy_real },
+                        Self(faux::MaybeFaux::Faux(q)) => { #call_mock },
                     }
                 }}
             };
 
             // wrap inside MaybeFaux if we are returning ourselves
             if returns_self {
-                block = quote! {{ #ty(faux::MaybeFaux::Real(#block)) }}
+                block = quote! {{ Self(faux::MaybeFaux::Real(#block)) }}
             }
 
             m.block = syn::parse2(block).unwrap();
