@@ -84,6 +84,7 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 	    // are not modifying self directly; only proxying to
 	    // either mock or real instance
 	    m.attrs.push(ignore_unused_mut_attr.clone());
+	    let is_async = m.sig.asyncness.is_some();
             let args = method_args(m);
             let arg_idents: Vec<_> = args.iter().map(|(ident, _)| ident).collect();
             let arg_types: Vec<_> = args.iter().map(|(_, ty)| ty).collect();
@@ -100,9 +101,11 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 	    let mut block = if !is_method {
 		// associated function; cannot be mocked
 		// proxy to real associated function
-		quote! {{
-                    <#original_struct>::#ident(#(#arg_idents),*)
-                }}
+		let mut inner_body = quote! { <#original_struct>::#ident(#(#arg_idents),*) };
+		if is_async {
+		    inner_body = quote! { #inner_body.await }
+		}
+		quote! {{ #inner_body }}
 	    } else {
 		let call_mock = if is_private {
 		    quote! {
@@ -125,14 +128,14 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 			}
 		    }
 		};
+		let mut proxy_real = quote! { r.#ident(#(#arg_idents),*) };
+		if is_async {
+		    proxy_real = quote! { #proxy_real.await }
+		}
 		quote! {{
                     match self {
-			// not a mock; proxy to real instance
-			#ty(faux::MaybeFaux::Real(r)) => r.#ident(#(#arg_idents),*),
-			// not allowed; panic at runtime
-			#ty(faux::MaybeFaux::Faux(q)) => {
-			    #call_mock
-			},
+			#ty(faux::MaybeFaux::Real(r)) => { #proxy_real },
+			#ty(faux::MaybeFaux::Faux(q)) => { #call_mock },
                     }
                 }}
 	    };
