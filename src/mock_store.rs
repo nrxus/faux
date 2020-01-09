@@ -53,7 +53,7 @@ impl MockStore {
         id: &'static str,
         mock: impl FnOnce(I) -> O + Send,
     ) {
-        self.mocks.insert(id, Mock::r#unsafe(mock));
+        self.mocks.insert(id, Mock::new(mock));
     }
 
     pub fn mock_once<I, O>(&mut self, id: &'static str, mock: impl FnOnce(I) -> O + 'static + Send)
@@ -61,7 +61,9 @@ impl MockStore {
         I: 'static,
         O: 'static,
     {
-        self.mocks.insert(id, Mock::safe(mock));
+        unsafe {
+            self.mocks.insert(id, Mock::new(mock));
+        }
     }
 
     pub fn get_mock(&mut self, id: &str) -> Option<Mock> {

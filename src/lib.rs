@@ -377,7 +377,7 @@ pub use faux_macros::methods;
 #[proc_macro_hack::proc_macro_hack]
 pub use faux_macros::when;
 
-pub use mock::{Mock, SafeMock, UnsafeMock};
+pub use mock::Mock;
 pub use mock_store::{MaybeFaux, MockStore};
 pub use when::When;
 

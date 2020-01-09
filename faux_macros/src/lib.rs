@@ -115,17 +115,8 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                 } else {
                     quote! {
                         let mut q = q.try_lock().unwrap();
-                        use std::any::Any as _;
-                        match q.get_mock(#method_name).expect(#error_msg) {
-                            faux::Mock::OnceUnsafe(mock) => unsafe { mock.call((#(#arg_idents),*)) },
-                            faux::Mock::OnceSafe(mock) => {
-                                // make all the inputs have a static lifetime
-                                // needed to allow the Mock::OnceUnsafe branch to exist
-                                let input: (#(#arg_types),*) = unsafe {
-                                    std::mem::transmute((#(#arg_idents),*))
-                                };
-                                mock.call(input)
-                            },
+                        unsafe {
+                            q.get_mock(#method_name).expect(#error_msg).call((#(#arg_idents),*))
                         }
                     }
                 };
@@ -161,7 +152,6 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                 };
                 let tokens = quote! {
                     pub fn #mock_ident(&mut self) -> faux::When<(#(#arg_types),*), #output> {
-                        use std::any::Any as _;
                         match &mut self.0 {
                             faux::MaybeFaux::Faux(faux) => faux::When::new(
                                 #method_name,
