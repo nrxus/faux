@@ -1,12 +1,12 @@
 #[faux::create]
-pub struct Generic<'a, T, R> {
+pub struct Generic<'a, T: std::fmt::Debug, R> {
     a: T,
     b: i32,
     c: &'a R,
 }
 
 #[faux::methods]
-impl<'a, T, R> Generic<'a, T, R> {
+impl<'a, T: std::fmt::Debug, R> Generic<'a, T, R> {
     pub fn new(a: T, c: &'a R) -> Self {
         Generic { a, c, b: 20 }
     }

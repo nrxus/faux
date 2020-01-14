@@ -9,20 +9,20 @@ pub fn create(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
     let mut original = syn::parse_macro_input!(token_stream as syn::ItemStruct);
     let mut mock_version = original.clone();
     let original_name = original.ident.clone();
-    let generics = &original.generics;
+    let (impl_generics, ty_generics, where_clause) = original.generics.split_for_impl();
 
     original.ident = original_struct_ident(&original_name);
 
     let modified_name = &original.ident;
     let original_vis = &original.vis;
     mock_version.fields = syn::Fields::Unnamed(
-        syn::parse2(quote! { (#original_vis faux::MaybeFaux<#modified_name #generics>) }).unwrap(),
+        syn::parse2(quote! { (#original_vis faux::MaybeFaux<#modified_name #ty_generics>) }).unwrap(),
     );
 
     TokenStream::from(quote! {
         #mock_version
 
-        impl #generics #original_name #generics {
+        impl #impl_generics #original_name #ty_generics #where_clause {
             pub fn faux() -> Self {
                 #original_name(faux::MaybeFaux::faux())
             }
