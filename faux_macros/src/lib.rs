@@ -43,11 +43,20 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
     }
 
     let ty = match impl_block.self_ty.as_ref() {
-        syn::Type::Path(type_path) => type_path,
+        syn::Type::Path(type_path) => type_path.clone(),
         _ => panic!(
             "#[faux::methods] does not support implementing types that are not a simple path"
         ),
     };
+
+    if let Some(segment) = ty
+        .path
+        .segments
+        .iter()
+        .find(|segment| segment.ident == "crate" || segment.ident == "super")
+    {
+        panic!("#[faux::methods] does not support implemeneting types with '{segment}' in the path. Consider importing one level past '{segment}' and using #[faux::methods({segment})]", segment = segment.ident);
+    }
 
     let ident = &ty.path.segments.last().unwrap().ident;
 
@@ -184,22 +193,34 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 
     let first_path = &original_struct.path.segments.first().unwrap().ident;
 
+    let mut path_to_ty = ty.path.segments;
+    let pathless_type = path_to_ty.pop().unwrap();
+
+    let supers = std::iter::repeat(quote! { super }).take(path_to_ty.len() + 1);
+
     let alias_path = if *first_path == syn::Ident::new("crate", first_path.span()) {
         quote! { #original_struct }
     } else {
-        quote! { super::#original_struct }
+        quote! { #(#supers::)*#original_struct }
     };
 
-    TokenStream::from(quote! {
-    #impl_block
+    let alias = quote! {
+        pub type #pathless_type = #alias_path;
+    };
+    let alias = path_to_ty.into_iter().fold(alias, |alias, segment| {
+        quote! { mod #segment { #alias } }
+    });
 
-    mod #mod_ident {
+    TokenStream::from(quote! {
+        #impl_block
+
+        mod #mod_ident {
             use super::*;
 
-            type #ty = #alias_path;
+            #alias
 
             #original
-    }
+        }
     })
 }
 
@@ -244,6 +265,7 @@ fn original_struct_ident(original: &syn::Ident) -> syn::Ident {
     syn::Ident::new(&format!("_FauxOriginal_{}", original), original.span())
 }
 
+// makes methods in this impl block be at least visible to super
 fn publicize_methods(impl_block: &mut syn::ItemImpl) {
     impl_block
         .items
@@ -252,7 +274,8 @@ fn publicize_methods(impl_block: &mut syn::ItemImpl) {
             syn::ImplItem::Method(m) => Some(m),
             _ => None,
         })
+        .filter(|method| method.vis == syn::Visibility::Inherited)
         .for_each(|mut method| {
-            method.vis = syn::parse2(quote! { pub }).unwrap();
+            method.vis = syn::parse2(quote! { pub(super) }).unwrap();
         });
 }

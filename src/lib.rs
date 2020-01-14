@@ -140,15 +140,12 @@ pub use faux_macros::create;
 /// # Known Limitations
 /// [#10]: `impl SomeTrait for SomeStruct {}` is not supported.
 ///
-/// [#11]: `impl path::to::SomeStruct {}` is not supported.
-///
 /// [#13]: Only a simple impl block may exist per module per type.
 ///
 /// [#14]: Methods may not contain instances of the same struct as parameters.
 ///
 /// [#\[create\]]: attr.create.html
 /// [#10]: https://github.com/nrxus/faux/issues/10
-/// [#11]: https://github.com/nrxus/faux/issues/11
 /// [#13]: https://github.com/nrxus/faux/issues/13
 /// [#14]: https://github.com/nrxus/faux/issues/14
 /// [when!]: macro.when.html
