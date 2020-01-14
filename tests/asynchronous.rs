@@ -25,8 +25,8 @@ impl Foo {
 #[test]
 fn real_instance() {
     let fetched = futures::executor::block_on(async {
-	let foo = Foo::new().await;
-	foo.fetch().await
+        let foo = Foo::new().await;
+        foo.fetch().await
     });
 
     assert_eq!(fetched, 3);
@@ -35,7 +35,7 @@ fn real_instance() {
 #[test]
 fn mocked() {
     let mut foo = Foo::faux();
-    faux::when!(foo.fetch).safe_then(|_| { 10 });
+    faux::when!(foo.fetch).safe_then(|_| 10);
     let fetched = futures::executor::block_on(foo.fetch());
     assert_eq!(fetched, 10);
 }

@@ -80,11 +80,11 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
             _ => None,
         })
         .filter_map(|mut m| {
-	    // in case a method has `mut self` as a parameter since we
-	    // are not modifying self directly; only proxying to
-	    // either mock or real instance
-	    m.attrs.push(ignore_unused_mut_attr.clone());
-	    let is_async = m.sig.asyncness.is_some();
+            // in case a method has `mut self` as a parameter since we
+            // are not modifying self directly; only proxying to
+            // either mock or real instance
+            m.attrs.push(ignore_unused_mut_attr.clone());
+            let is_async = m.sig.asyncness.is_some();
             let args = method_args(m);
             let arg_idents: Vec<_> = args.iter().map(|(ident, _)| ident).collect();
             let arg_types: Vec<_> = args.iter().map(|(_, ty)| ty).collect();
@@ -96,80 +96,81 @@ pub fn methods(attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
                 ident
             );
             let is_method = args.len() != m.sig.inputs.len();
-	    let is_private = m.vis == syn::Visibility::Inherited;
-	    let returns_self = m.sig.output == self_return || m.sig.output == ty_return;
-	    let mut block = if !is_method {
-		// associated function; cannot be mocked
-		// proxy to real associated function
-		let mut inner_body = quote! { <#original_struct>::#ident(#(#arg_idents),*) };
-		if is_async {
-		    inner_body = quote! { #inner_body.await }
-		}
-		quote! {{ #inner_body }}
-	    } else {
-		let call_mock = if is_private {
-		    quote! {
-			panic!("attempted to call private method on mocked instance")
-		    }
-		} else {
-		    quote! {
-			let mut q = q.try_lock().unwrap();
+            let is_private = m.vis == syn::Visibility::Inherited;
+            let returns_self = m.sig.output == self_return || m.sig.output == ty_return;
+            let method_name = format!("{}", ident);
+            let mut block = if !is_method {
+                // associated function; cannot be mocked
+                // proxy to real associated function
+                let mut inner_body = quote! { <#original_struct>::#ident(#(#arg_idents),*) };
+                if is_async {
+                    inner_body = quote! { #inner_body.await }
+                }
+                quote! {{ #inner_body }}
+            } else {
+                let call_mock = if is_private {
+                    quote! {
+                        panic!("attempted to call private method on mocked instance")
+                    }
+                } else {
+                    quote! {
+                        let mut q = q.try_lock().unwrap();
                         use std::any::Any as _;
-			match q.get_mock(#ty::#ident.type_id()).expect(#error_msg) {
-			    faux::Mock::OnceUnsafe(mock) => unsafe { mock.call((#(#arg_idents),*)) },
-			    faux::Mock::OnceSafe(mock) => {
-				// make all the inputs have a static lifetime
-				// needed to allow the Mock::OnceUnsafe branch to exist
-				let input: (#(#arg_types),*) = unsafe {
-				    std::mem::transmute((#(#arg_idents),*))
-				};
-				mock.call(input)
-			    },
-			}
-		    }
-		};
-		let mut proxy_real = quote! { r.#ident(#(#arg_idents),*) };
-		if is_async {
-		    proxy_real = quote! { #proxy_real.await }
-		}
-		quote! {{
+                        match q.get_mock(#method_name).expect(#error_msg) {
+                            faux::Mock::OnceUnsafe(mock) => unsafe { mock.call((#(#arg_idents),*)) },
+                            faux::Mock::OnceSafe(mock) => {
+                                // make all the inputs have a static lifetime
+                                // needed to allow the Mock::OnceUnsafe branch to exist
+                                let input: (#(#arg_types),*) = unsafe {
+                                    std::mem::transmute((#(#arg_idents),*))
+                                };
+                                mock.call(input)
+                            },
+                        }
+                    }
+                };
+                let mut proxy_real = quote! { r.#ident(#(#arg_idents),*) };
+                if is_async {
+                    proxy_real = quote! { #proxy_real.await }
+                }
+                quote! {{
                     match self {
-			#ty(faux::MaybeFaux::Real(r)) => { #proxy_real },
-			#ty(faux::MaybeFaux::Faux(q)) => { #call_mock },
+                        #ty(faux::MaybeFaux::Real(r)) => { #proxy_real },
+                        #ty(faux::MaybeFaux::Faux(q)) => { #call_mock },
                     }
                 }}
-	    };
+            };
 
-	    // wrap inside MaybeFaux if we are returning ourselves
-	    if returns_self {
-		block = quote! {{ #ty(faux::MaybeFaux::Real(#block)) }}
-	    }
+            // wrap inside MaybeFaux if we are returning ourselves
+            if returns_self {
+                block = quote! {{ #ty(faux::MaybeFaux::Real(#block)) }}
+            }
 
             m.block = syn::parse2(block).unwrap();
 
-	    // return _when_{} methods for all mocked methods
+            // return _when_{} methods for all mocked methods
             if is_method && !is_private {
                 let mock_ident = syn::Ident::new(
                     &format!("_when_{}", ident),
                     proc_macro2::Span::call_site(),
                 );
-		let empty = Box::new( syn::parse2(quote! { () }) .unwrap());
-		let output = match output {
-		    syn::ReturnType::Default => &empty,
-		    syn::ReturnType::Type(_, ty) => ty,
-		};
+                let empty = Box::new( syn::parse2(quote! { () }) .unwrap());
+                let output = match output {
+                    syn::ReturnType::Default => &empty,
+                    syn::ReturnType::Type(_, ty) => ty,
+                };
                 let tokens = quote! {
                     pub fn #mock_ident(&mut self) -> faux::When<(#(#arg_types),*), #output> {
-			use std::any::Any as _;
-			match &mut self.0 {
-			    faux::MaybeFaux::Faux(faux) => faux::When::new(
-				#ty::#ident.type_id(),
-				faux.get_mut().unwrap()
-			    ),
-			    faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instance!"),
-			}
-		    }
-		};
+                        use std::any::Any as _;
+                        match &mut self.0 {
+                            faux::MaybeFaux::Faux(faux) => faux::When::new(
+                                #method_name,
+                                faux.get_mut().unwrap()
+                            ),
+                            faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instance!"),
+                        }
+                    }
+                };
 
                 Some(syn::parse2(tokens).unwrap())
             } else {

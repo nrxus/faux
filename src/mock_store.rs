@@ -1,5 +1,5 @@
 use crate::Mock;
-use std::{any::TypeId, collections::HashMap};
+use std::collections::HashMap;
 
 #[doc(hidden)]
 /// ```
@@ -31,7 +31,7 @@ impl<T> MaybeFaux<T> {
 #[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: HashMap<TypeId, Mock>,
+    mocks: HashMap<&'static str, Mock>,
 }
 
 #[doc(hidden)]
@@ -48,11 +48,15 @@ impl MockStore {
     /// the caller's responsability to pass a mock that is safe.
     ///
     /// [When]: When
-    pub unsafe fn unsafe_mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O + Send) {
+    pub unsafe fn unsafe_mock_once<I, O>(
+        &mut self,
+        id: &'static str,
+        mock: impl FnOnce(I) -> O + Send,
+    ) {
         self.mocks.insert(id, Mock::r#unsafe(mock));
     }
 
-    pub fn mock_once<I, O>(&mut self, id: TypeId, mock: impl FnOnce(I) -> O + 'static + Send)
+    pub fn mock_once<I, O>(&mut self, id: &'static str, mock: impl FnOnce(I) -> O + 'static + Send)
     where
         I: 'static,
         O: 'static,
@@ -60,7 +64,7 @@ impl MockStore {
         self.mocks.insert(id, Mock::safe(mock));
     }
 
-    pub fn get_mock(&mut self, id: TypeId) -> Option<Mock> {
-        self.mocks.remove(&id)
+    pub fn get_mock(&mut self, id: &str) -> Option<Mock> {
+        self.mocks.remove(id)
     }
 }

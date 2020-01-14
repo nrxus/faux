@@ -1,5 +1,4 @@
 use crate::MockStore;
-use std::any::TypeId;
 
 /// Stores who and what to mock and provides methods to mock the
 /// method both safely and unsafely.
@@ -9,7 +8,7 @@ use std::any::TypeId;
 ///
 /// [when!]: macro.when.html
 pub struct When<'q, I, O> {
-    id: TypeId,
+    id: &'static str,
     store: &'q mut MockStore,
     // *const for variance -- I think that's what I want.
     _marker: std::marker::PhantomData<(*const I, *const O)>,
@@ -17,7 +16,7 @@ pub struct When<'q, I, O> {
 
 impl<'q, I, O> When<'q, I, O> {
     #[doc(hidden)]
-    pub fn new(id: TypeId, store: &'q mut MockStore) -> Self {
+    pub fn new(id: &'static str, store: &'q mut MockStore) -> Self {
         When {
             id,
             store,
