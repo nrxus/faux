@@ -16,7 +16,8 @@ pub fn create(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
     let modified_name = &original.ident;
     let original_vis = &original.vis;
     mock_version.fields = syn::Fields::Unnamed(
-        syn::parse2(quote! { (#original_vis faux::MaybeFaux<#modified_name #ty_generics>) }).unwrap(),
+        syn::parse2(quote! { (#original_vis faux::MaybeFaux<#modified_name #ty_generics>) })
+            .unwrap(),
     );
 
     TokenStream::from(quote! {
@@ -24,7 +25,7 @@ pub fn create(_attrs: TokenStream, token_stream: TokenStream) -> TokenStream {
 
         impl #impl_generics #original_name #ty_generics #where_clause {
             pub fn faux() -> Self {
-                #original_name(faux::MaybeFaux::faux())
+                Self(faux::MaybeFaux::faux())
             }
         }
 

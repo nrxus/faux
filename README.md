@@ -33,7 +33,7 @@ mod client {
     impl UserClient {
         pub fn fetch(&self, id: usize) -> User {
             // does some network calls that we rather not do in tests
-            # User { name: "".into() }
+            User { name: "".into() }
         }
     }
 }
@@ -63,7 +63,7 @@ fn main() {
     let mut client = client::UserClient::faux();
 
     faux::when!(client.fetch).safe_then(|id| {
-	    assert_eq!(id, 3, "expected UserClient.fetch to receive user #3");
+        assert_eq!(id, 3, "expected UserClient.fetch to receive user #3");
         client::User { name: "my user name".into() }
     });
 
