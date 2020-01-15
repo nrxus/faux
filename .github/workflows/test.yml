@@ -1,0 +1,20 @@
+name: test
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+    - name: Build
+      run: cargo build --verbose
+    - name: Tests
+      run: cargo test --verbose
+    - name: Doc tests
+      run: cargo +nightly test --doc --verbose
