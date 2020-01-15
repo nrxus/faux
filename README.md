@@ -1,4 +1,4 @@
-# faux &emsp; [![Latest Version]][crates.io] [![faux: rustc 1.40+]][Rust 1.40] [![docs]][docs.rs]
+# faux &emsp; [![Latest Version]][crates.io] [![faux: rustc 1.40+]][Rust 1.40] [![docs]][docs.rs] ![][build]
 
 [Latest Version]: https://img.shields.io/crates/v/faux.svg
 [crates.io]: https://crates.io/crates/faux
@@ -7,6 +7,7 @@
 [Latest Version]: https://img.shields.io/crates/v/faux.svg
 [docs]: https://img.shields.io/badge/api-docs-blue.svg
 [docs.rs]: https://docs.rs/faux/
+[build]: https://github.com/nrxus/faux/workflows/test/badge.svg
 
 A struct mocking library for stable Rust.
 
