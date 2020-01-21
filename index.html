@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Release - faux</title>
+        <title>Faux - Release - faux</title>
         
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
@@ -81,7 +81,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="expanded affix "><a href="blog/release.html">Release</a></li></ol>
+                <ol class="chapter"><li class="expanded affix "><a href="blog/release.html">Faux - Release</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -149,6 +149,244 @@
                 <div id="content" class="content">
                     <main>
                         <h1><a class="header" href="#--faux-release--" id="--faux-release--">🎉 🎉 faux release 🎉 🎉</a></h1>
+<h2><a class="header" href="#what-is-faux" id="what-is-faux">What is faux?</a></h2>
+<p><a href="https://github.com/nrxus/faux"><code>faux</code></a> is a Rust mocking framework for creating mock objects out of
+user-defined structs without bloating production code.</p>
+<h2><a class="header" href="#why-mock-objects" id="why-mock-objects">Why mock objects?</a></h2>
+<p>Mock objects are fake versions of objects created for testing. For
+example, if your code uses structs that access your file system, make
+network requests, or render graphics, it is often useful to mock the
+methods of those structs. Mocking can help make your tests into true
+&quot;units&quot;. Unit tests should run quickly and produce the same result
+every time without relying on external dependencies. For a deeper dive
+into mocks, read this <a href="https://martinfowler.com/articles/mocksArentStubs.html">post</a>.</p>
+<h2><a class="header" href="#example" id="example">Example</a></h2>
+<pre><pre class="playpen"><code class="language-rust"><span class="boring">extern crate faux;
+</span><span class="boring">
+</span>#[cfg_attr(test, faux::create)]
+<span class="boring">#[faux::create]
+</span>pub struct NetworkClient {
+    /* data here */
+}
+
+#[cfg_attr(test, faux::methods)]
+<span class="boring">#[faux::methods]
+</span>impl NetworkClient {
+    pub fn fetch_id_matching(&amp;self, a: u32) -&gt; i32 {
+        /* does some complicated stuff, maybe network calls */
+<span class="boring">        5
+</span>    }
+}
+
+struct Service {
+    client: NetworkClient,
+}
+
+impl Service {
+    fn do_stuff(&amp;self) -&gt; i32 {
+        self.client.fetch_id_matching(3)
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn service_does_the_right_thing() {
+    //creates a mocked NetworkClient
+    let mut client = NetworkClient::faux();
+
+    //mock the method in client
+    faux::when!(client.fetch_id_matching).safe_then(|i| {
+        assert_eq!(i, 3, &quot;expected service to send '3'&quot;);
+        10
+    });
+
+    // create your service using the mocked client
+    // the service is the subject under test
+    let subject = Service { client };
+    let id = subject.do_stuff();
+    assert_eq!(id, 10);
+}
+<span class="boring">
+</span><span class="boring">fn main() {
+</span><span class="boring">  //creates a mocked NetworkClient
+</span><span class="boring">   let mut client = NetworkClient::faux();
+</span><span class="boring">
+</span><span class="boring">   //mock the method in client
+</span><span class="boring">   faux::when!(client.fetch_id_matching).safe_then(|i| {
+</span><span class="boring">        assert_eq!(i, 3, &quot;expected service to send '3'&quot;);
+</span><span class="boring">        10
+</span><span class="boring">   });
+</span><span class="boring">
+</span><span class="boring">   // create your service using the mocked client
+</span><span class="boring">   // the service is the subject under test
+</span><span class="boring">   let subject = Service { client };
+</span><span class="boring">   let id = subject.do_stuff();
+</span><span class="boring">   assert_eq!(id, 10);
+</span><span class="boring">}
+</span></code></pre></pre>
+<p>In the above code snippet, we have succesfully mocked <code>NetworkClient</code>
+to call a closure specified in the test code. This avoids making the
+request that <code>NetworkClient::fetch_id_matching</code> would normally make,
+thus making our tests dependable and focused. Our test relies does not
+rely external dependency of a network call.</p>
+<p><code>faux</code> provides users with two attributes, <code>#[faux::create]</code> and
+<code>#[faux::methods]</code>. <code>#[faux::create]</code> is required on any struct that
+needs to be mocked. <code>#[faux::methods]</code> is required on an <code>impl</code> block
+whose public methods need to be mocked. <code>faux</code> also provides a <code>when!</code>
+macro to mock the methods that were made mockable by
+<code>#[faux::methods]</code>. More info in the <a href="https://docs.rs/faux/">docs</a>.</p>
+<h2><a class="header" href="#how-is-faux-different-than-existing-mocking-framework" id="how-is-faux-different-than-existing-mocking-framework">How is faux different than ${existing mocking framework}?</a></h2>
+<p><strong>DISCLAIMER: this section is based on the author's knowledge of Rust
+mocking frameworks as of January 2020. Apologies in advance for any
+frameworks I may have overlooked in my searches.</strong></p>
+<p>Currently in Rust, mocking depends heavily on traits.</p>
+<pre><pre class="playpen"><code class="language-rust">
+<span class="boring">#![allow(unused_variables)]
+</span><span class="boring">fn main() {
+</span>struct NetworkClient {
+    /* data here */
+}
+
+impl NetworkClient {
+    fn fetch_id_matching(&amp;self, a: u32) -&gt; i32 {
+        /* does some complicated stuff, maybe network calls */
+<span class="boring">        5
+</span>    }
+}
+
+struct Service {
+    client: NetworkClient,
+}
+
+impl Service {
+    fn do_stuff(&amp;self) -&gt; i32 {
+        self.client.fetch_id_matching(3)
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>In the code snippet above, we want to test <code>Service</code> to make sure it
+does the right thing. However, we do not want to do the fetching work
+in <code>fetch_id_matching</code> on every test, since making a network request
+in our test would be both slow and unreliable. This means we need two
+different implementations of <code>NetworkClient</code>, one for tests and one
+for production. Using traits, we could write the following,</p>
+<pre><pre class="playpen"><code class="language-rust">trait INetworkClient {
+    fn fetch_id_matching(&amp;self, a: u32) -&gt; i32;
+}
+
+struct NetworkClient {
+    /* data here */
+}
+
+impl INetworkClient for NetworkClient {
+    fn fetch_id_matching(&amp;self, a: u32) -&gt; i32 {
+        /* does some complicated stuff, maybe network calls */
+<span class="boring">        5
+</span>    }
+}
+
+struct Service&lt;C: INetworkClient&gt; {
+    client: C,
+}
+
+impl&lt;C: INetworkClient&gt; Service&lt;C&gt; {
+    fn do_stuff(&amp;self) -&gt; i32 {
+        self.client.fetch_id_matching(3)
+    }
+}
+
+#[cfg(test)]
+struct MockNetworkClient {
+    mocked_fetch_id_matching_result: i32,
+    mocked_fetch_id_matching_argument: std::cell::Cell&lt;u32&gt;,
+}
+
+#[cfg(test)]
+impl INetworkClient for MockNetworkClient {
+    fn fetch_id_matching(&amp;self, a: u32) -&gt; i32 {
+        self.mocked_fetch_id_matching_argument.set(a);
+        self.mocked_fetch_id_matching_result
+    }
+}
+
+<span class="boring">struct MockNetworkClient {
+</span><span class="boring">    mocked_fetch_id_matching_result: i32,
+</span><span class="boring">    mocked_fetch_id_matching_argument: std::cell::Cell&lt;u32&gt;,
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">impl INetworkClient for MockNetworkClient {
+</span><span class="boring">    fn fetch_id_matching(&amp;self, a: u32) -&gt; i32 {
+</span><span class="boring">        self.mocked_fetch_id_matching_argument.set(a);
+</span><span class="boring">        self.mocked_fetch_id_matching_result
+</span><span class="boring">    }
+</span><span class="boring">}
+</span><span class="boring">
+</span>
+#[cfg(test)]
+#[test]
+fn service_does_the_right_thing() {
+    //creates a mocked NetworkClient
+    let client = MockNetworkClient {
+        mocked_fetch_id_matching_argument: std::cell::Cell::default(),
+        mocked_fetch_id_matching_result: 10,
+    };
+
+    // create your service using the mocked client
+    // the service is the subject under test
+    let subject = Service { client };
+    let id = subject.do_stuff();
+    assert_eq!(id, 10);
+}
+<span class="boring">
+</span><span class="boring">fn main() {
+</span><span class="boring">    //creates a mocked NetworkClient
+</span><span class="boring">    let client = MockNetworkClient {
+</span><span class="boring">        mocked_fetch_id_matching_argument: std::cell::Cell::default(),
+</span><span class="boring">        mocked_fetch_id_matching_result: 10,
+</span><span class="boring">    };
+</span><span class="boring">
+</span><span class="boring">    // create your service using the mocked client
+</span><span class="boring">    // the service is the subject under test
+</span><span class="boring">    let subject = Service { client };
+</span><span class="boring">    let id = subject.do_stuff();
+</span><span class="boring">    assert_eq!(id, 10);
+</span><span class="boring">}
+</span></code></pre></pre>
+<p>Unfortunately, we have now changed our <em>production</em> code to accomodate
+our <em>tests</em>, not because this is a better design but because of
+testing requirements. Tests should <em>guide</em> the design of your code,
+but should not force you to add undue complexity that only tests
+benefit from. Now every user of <code>Service</code> needs to explicitly call out
+the <code>INetworkClient</code>, thus cluttering the function/struct signature of
+anything dealing with <code>Service</code>. In your production code, there is
+always only a single implementation of <code>INetworkClient</code>, making the
+trait an unncessary layer of abstraction.</p>
+<p>While the code above is a simple example, imagine having to add mock
+interfaces to all the structs in a mature codebase. Most mocking
+frameworks for rust currently are based on this approach, and aim at
+automatically generating the mock structs from traits, but you still
+need to provide hand-written traits for every struct that needs to be
+mocked, and you still have to deal with generics and traits in your
+function/struct signatures.</p>
+<p><code>faux</code> takes a different approach. It provides a separate implementation
+of your struct by transforming your struct into one that can be
+mocked. This transformation can (and should be!) gated to only the
+<code>test</code> cfg, thus having zero impact to your production code.</p>
+<h2><a class="header" href="#closing-note" id="closing-note">Closing note</a></h2>
+<p><code>faux</code> is in its very early stages, still exploring what all is
+possible. While an attempt will be done to keep API stability between
+releases, no promises will be made in case a different API turns out
+to be a better fit.</p>
+<p>The <a href="https://docs.rs/faux/">docs</a> are the source of true for what is capable.</p>
+<p>See the <a href="https://github.com/nrxus/faux/issues">issues</a> in Github for an updated list of limitations and get
+an idea of what might be coming next.</p>
+<p><code>faux</code> is always open to feedback, so feel free to open issues/PRs
+liberally.</p>
+<p>A huge thanks to the author of <a href="https://github.com/CodeSandwich/Mocktopus">mocktopus</a>, another mocking framework
+for Rust that also does not use traits as its building block for
+mocking. <code>faux</code> was heavily inspired by seeing what mocktopus was
+capable of.</p>
 
                     </main>
 
