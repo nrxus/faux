@@ -17,13 +17,15 @@
 //! ## Usage:
 //! ```
 //! // creates the mockable struct
-//! #[faux::create]
+//! #[cfg_attr(test, faux::create)]
+//! # #[faux::create]
 //! pub struct Foo {
 //!     a: u32,
 //! }
 //!
 //! // mocks the methods
-//! #[faux::methods]
+//! #[cfg_attr(test, faux::methods)]
+//! # #[faux::methods]
 //! impl Foo {
 //!     pub fn new(a: u32) -> Self {
 //!         Foo { a }
@@ -38,7 +40,9 @@
 //!     }
 //! }
 //!
-//! fn main() {
+//! #[cfg(test)]
+//! #[test]
+//! fn test() {
 //!   // you can create the original object
 //!   let real = Foo::new(3);
 //!   assert_eq!(real.add_stuff(2), 5);
@@ -55,6 +59,24 @@
 //!   unsafe { faux::when!(mock.add_ref).then(|&x| x + 1) }
 //!   assert_eq!(mock.add_ref(&3), 4);
 //! }
+//! #
+//! # fn main() {
+//! #    // you can create the original object
+//! #    let real = Foo::new(3);
+//! #    assert_eq!(real.add_stuff(2), 5);
+//! #
+//! #    // can create a mock using the auto-generated `faux` method
+//! #    let mut mock = Foo::faux();
+//! #
+//! #    // if the inputs and output for a method are all static types
+//! #    // then it can be mocked safely
+//! #    faux::when!(mock.add_stuff).safe_then(|x| x);
+//! #    assert_eq!(mock.add_stuff(5), 5);
+//! #
+//! #    // other methods can be mocked using unsafe
+//! #    unsafe { faux::when!(mock.add_ref).then(|&x| x + 1) }
+//! #    assert_eq!(mock.add_ref(&3), 4);
+//! #  }
 //! ```
 
 mod mock;
