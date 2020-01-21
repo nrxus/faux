@@ -34,7 +34,7 @@ to the test config only.
 
 ``` rust
 #[cfg_attr(test, faux::create)]
-pub struct MyStructToMock { /*fields */ }
+pub struct MyStructToMock { /* fields */ }
 
 #[cfg_attr(test, faux::methods)]
 impl MyStructToMock { /* methods to mock */ }
