@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## *next release*
+## v0.0.3
 *  Async methods may now be mocked
    * [tests](/tests/asynchronous.rs)
 * Mocked structs may now contain generics
