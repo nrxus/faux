@@ -106,11 +106,8 @@ mod when;
 ///
 /// # Known Limitations
 ///
-/// [#9]: Mocked structs cannot have generic parameters
-///
 /// [#\[methods\]]: attr.methods.html
 /// [cargo-expand]: https://github.com/dtolnay/cargo-expand
-/// [#9]: https://github.com/nrxus/faux/issues/9
 ///
 /// # Usage
 /// ```
