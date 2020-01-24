@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## UPCOMING
+* `self: Box<Self>`, `self: Rc<Self>`, and `self: Arc<Self>` are now
+  allowed in methods inside an impl blocked tagged by `#[methods]`
+
+### Breaking Change
+
+* Specifying a path in `#[methods]` has changed from:
+  `#[methods(path::to::mod)]` to `#[methods(path =
+  "path::to::mod")]`. This is done to allow further current and future
+  arguments to be passed to the attribute.
+
 ## v0.0.3
 *  Async methods may now be mocked
    * [tests](/tests/asynchronous.rs)

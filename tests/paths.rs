@@ -41,7 +41,7 @@ mod foo {
 mod other {
     use crate::foo;
 
-    #[faux::methods(crate)]
+    #[faux::methods(path = "crate")]
     impl foo::Foo {
         pub fn other_new() -> foo::Foo {
             foo::Foo::new("hello")

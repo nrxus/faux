@@ -104,11 +104,6 @@ mod when;
 /// methods of the struct. If `#[methods]` is not used for an impl
 /// block, methods inside the impl may not use any of its fields.
 ///
-/// # Known Limitations
-///
-/// [#\[methods\]]: attr.methods.html
-/// [cargo-expand]: https://github.com/dtolnay/cargo-expand
-///
 /// # Usage
 /// ```
 /// #[faux::create]
@@ -127,6 +122,46 @@ mod when;
 /// let my_mock = MyStruct::faux();
 /// # }
 /// ```
+///
+/// # Attribute arguments
+///
+/// ## self_type
+///
+/// Allowed values:
+/// * `#[methods(self_type = "Rc")]`
+/// * `#[methods(self_type = "Arc")]`
+/// * `#[methods(self_type = "Box")]`
+/// * `#[methods(self_type = "Owned")]`
+///   * this is the default and not necessary
+///
+/// This will tell faux that instead of holding a real value of your
+/// struct (when the struct is not being mocked), to hold your struct
+/// wrapped in the specified `self_type`. This is particularly
+/// required for structs whose methods will have `self: Rc<Self>` or
+/// `self: Arc<Self>` receivers. Iff a `self_type` is specified here,
+/// then it must also be specified in all of the impl blocks tagged
+/// with [#\[methods\]].
+///
+/// # Usage
+/// ```
+/// #[faux::create(self_type = "Arc")]
+/// pub struct MyStruct {
+///     a: i32,
+///     b: Vec<u32>,
+/// }
+///
+/// #[faux::methods(self_type = "Arc")]
+/// impl MyStruct {
+///     /* methods go here */
+/// }
+/// # fn main() {}
+/// ```
+///
+/// # Known Limitations
+///
+/// [#\[methods\]]: attr.methods.html
+/// [cargo-expand]: https://github.com/dtolnay/cargo-expand
+///
 pub use faux_macros::create;
 
 /// Transforms the given methods into mockable versions of themselves
@@ -155,19 +190,6 @@ pub use faux_macros::create;
 /// # Requirements
 ///
 /// [#\[create\]] must have been previously called for this struct.
-///
-/// # Known Limitations
-/// [#10]: `impl SomeTrait for SomeStruct {}` is not supported.
-///
-/// [#13]: Only a simple impl block may exist per module per type.
-///
-/// [#14]: Methods may not contain instances of the same struct as parameters.
-///
-/// [#\[create\]]: attr.create.html
-/// [#10]: https://github.com/nrxus/faux/issues/10
-/// [#13]: https://github.com/nrxus/faux/issues/13
-/// [#14]: https://github.com/nrxus/faux/issues/14
-/// [when!]: macro.when.html
 ///
 /// # Usage
 /// ```
@@ -199,6 +221,126 @@ pub use faux_macros::create;
 /// faux::when!(fake.get).safe_then(|_| 3);
 /// assert_eq!(fake.get(), 3);
 /// # }
+/// ```
+/// # Attribute arguments
+///
+/// There are times when faux needs a little extra information to
+/// properly mock your struct and its methods. Use `path =
+/// "path::to::imported::mod"` when you are mocking methods from a
+/// struct imported from a different module. Use `self_type =
+/// "{self_type}"` when your method receivers would not allow faux to
+/// get an owned value from it, this is particularly important for
+/// `self: Rc<Self>` and `self: Arc<Self>` receivers.
+///
+/// ## path
+///
+/// Faux supports mocking structs from a different module as long as
+/// we tell `#[methods]` where we are importing the struct from.
+///
+/// ```
+/// mod foo {
+///     #[faux::create]
+///     pub struct MyStruct {}
+///
+///     // no need to tell #[faux::methods] where to find `MyStruct`
+///     // if defined in the same module
+///     #[faux::methods]
+///     impl MyStruct {
+///         pub fn three(&self) -> i32 {
+///             3
+///         }
+///     }
+///
+///     mod foo_inner {
+///         // the type is being imported from somewhere else
+///         use super::MyStruct;
+///
+///         // so we have to tell faux where it came from
+///         #[faux::methods(path = "super")]
+///         impl MyStruct {
+///             pub fn four(&self) -> i32 {
+///                 self.three() + 1
+///             }
+///         }
+///     }
+/// }
+///
+/// mod bar {
+///     // we are importing a module from somewhere else
+///     use crate::foo;
+///
+///     // so we need to tell faux where that module came from
+///     #[faux::methods(path = "crate")]
+///     impl foo::MyStruct {
+///         pub fn five(&self) -> i32 {
+///             self.three() + 2
+///         }
+///     }
+/// }
+///
+/// # fn main() {
+/// let mut x = foo::MyStruct::faux();
+/// faux::when!(x.three).safe_then(|_| 30);
+/// faux::when!(x.four).safe_then(|_| 40);
+/// faux::when!(x.five).safe_then(|_| 50);
+///
+/// assert_eq!(x.three(), 30);
+/// assert_eq!(x.four(), 40);
+/// assert_eq!(x.five(), 50);
+/// # }
+/// ```
+///
+/// ## self_type
+///
+/// Allowed values:
+/// * `#[methods(self_type = "Rc")]`
+/// * `#[methods(self_type = "Arc")]`
+/// * `#[methods(self_type = "Box")]`
+/// * `#[methods(self_type = "Owned")]`
+///   * this is the default and not necessary
+///
+/// The `self_type` specified in methods *must* match the [self_type
+/// in `create`](attr.create.html#self_type) and is required if one
+/// was specified there.
+///
+/// The method receivers for all the methods in the impl block must be
+/// convertable from the `self_type` specified. In particular, while a
+/// `&self` can be obtained from an `Rc<Self>` or an `Arc<Self>`, a
+/// `&mut self` cannot. This means that if you specify `self_type =
+/// "Rc"`, then none of the methods being mocked may take a `&mut
+/// self` as a receiver. If you believe that a certain combination of
+/// specified `self_type` and method receiver is doable but now
+/// allowed in `faux` please file an issue.
+///
+/// Another effect of specifying the `self_type` is gaining the
+/// ability to include methods and associated functions that return
+/// `Self` wrapped in that pointer type.
+///
+/// ```
+/// use std::rc::Rc;
+///
+/// #[faux::create(self_type = "Rc")]
+/// pub struct ByRc {}
+///
+/// #[faux::methods(self_type = "Rc")]
+/// impl ByRc {
+///     // you can still return plain Self
+///     pub fn new() -> Self {
+///         ByRc {}
+///     }
+///
+///     // not do-able without specifying the self_type
+///     pub fn new_rc() -> Rc<Self> {
+///         Rc::new(ByRc {})
+///     }
+///
+///     // not do-able without specifying the self_type
+///     pub fn by_rc(self: Rc<Self>) {}
+///
+///     // this is okay because a &self can be obtained
+///     pub fn by_ref(&self) {}
+/// }
+/// # fn main() {}
 /// ```
 ///
 /// # Panics
@@ -251,7 +393,21 @@ pub use faux_macros::create;
 /// # }
 /// ```
 ///
+/// # Known Limitations
+/// [#10]: `impl SomeTrait for SomeStruct {}` is not supported.
+///
+/// [#13]: Only a single impl block may exist per module per type.
+///
+/// [#14]: Methods may not contain instances of the same struct as parameters.
+///
+/// [#\[create\]]: attr.create.html
+/// [#10]: https://github.com/nrxus/faux/issues/10
+/// [#13]: https://github.com/nrxus/faux/issues/13
+/// [#14]: https://github.com/nrxus/faux/issues/14
+/// [when!]: macro.when.html
+///
 /// # Caveats
+///
 /// ## Methods/functions that return the mocked struct
 ///
 /// Special care is taken for methods and function that return an
@@ -260,7 +416,9 @@ pub use faux_macros::create;
 /// handled.
 ///
 /// Methods/functions that returns your type wrapped as a generic of
-/// another type (e.g., `Result<Self, _>`) cannot be mocked.
+/// another type (e.g., `Result<Self, _>`) cannot be wrapped in a faux
+/// impl.  The exception to this is methods that receive an specified
+/// [self_type](#self_type).
 ///
 /// ```compile_fail
 /// #[faux::create]
@@ -304,62 +462,12 @@ pub use faux_macros::create;
 /// # }
 /// ```
 ///
-/// ## Mocking struct defined elsewhere in the crate
+/// ## Paths in types
 ///
-/// Faux supports mocking structs from a different module as long as
-/// we tell `#[methods]` where we are importing the struct from using
-/// the `#[methods(path::to::module)]`
-///
-/// ```
-/// mod foo {
-///     #[faux::create]
-///     pub struct MyStruct {}
-///
-///     // no need to tell #[faux::methods] where to find `MyStruct`
-///     // if defined in the same module
-///     #[faux::methods]
-///     impl MyStruct {
-///         pub fn three(&self) -> i32 {
-///             3
-///         }
-///     }
-///
-///     mod foo_inner {
-///         use super::MyStruct;
-///
-///         // we have to tell #[faux::methods] where we imported MyStruct from
-///         #[faux::methods(super)]
-///         impl MyStruct {
-///             pub fn four(&self) -> i32 {
-///                 self.three() + 1
-///             }
-///         }
-///     }
-/// }
-///
-/// mod bar {
-///     use crate::foo::MyStruct;
-///
-///     // we have to tell #[faux::methods] where we imported MyStruct from
-///     #[faux::methods(crate::foo)]
-///     impl MyStruct {
-///         pub fn five(&self) -> i32 {
-///             self.three() + 2
-///         }
-///     }
-/// }
-///
-/// # fn main() {
-/// let mut x = foo::MyStruct::faux();
-/// faux::when!(x.three).safe_then(|_| 30);
-/// faux::when!(x.four).safe_then(|_| 40);
-/// faux::when!(x.five).safe_then(|_| 50);
-///
-/// assert_eq!(x.three(), 30);
-/// assert_eq!(x.four(), 40);
-/// assert_eq!(x.five(), 50);
-/// # }
-/// ```
+/// `faux` supports implementing types of the form `path::to::Type` as
+/// long as the path does not contain any `super` or `crate`
+/// keywords. To implement such types use the [`path`](#path)
+/// argument.
 pub use faux_macros::methods;
 
 /// Creates a [When] for a specific instance/method pair
