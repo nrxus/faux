@@ -2,7 +2,10 @@
 
 ## UPCOMING
 * `self: Box<Self>`, `self: Rc<Self>`, and `self: Arc<Self>` are now
-  allowed in methods inside an impl blocked tagged by `#[methods]`
+  allowed in methods inside an impl blocked tagged by
+  `#[methods]`. See the tests for what is possible with arbitray self
+  types.
+  * [tests](/tests/arbitrary_self.rs)
 
 ### Breaking Change
 
