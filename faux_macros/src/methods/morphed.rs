@@ -83,10 +83,10 @@ impl<'a> Signature<'a> {
 
     pub fn create_body(
         &self,
-        real_self: &SelfType,
+        real_self: SelfType,
         real_ty: &syn::TypePath,
         morphed_ty: &syn::TypePath,
-    ) -> syn::Block {
+    ) -> darling::Result<syn::Block> {
         let name = self.name;
         let arg_idents = &self.arg_idents;
 
@@ -168,53 +168,40 @@ impl<'a> Signature<'a> {
             _ => false,
         };
 
-        let wrapped_self = self.output
-            .and_then(|output| match output {
-                syn::Type::Path(ty) => Some(ty),
-                _ => None,
-            })
-            .and_then(|output| {
-                let last_segment = &output.path.segments.last().unwrap();
-                match SelfType::from_segment(last_segment) {
-                    SelfType::Owned if is_self(output) => Some(match real_self {
-                        SelfType::Owned => quote! {{ Self(faux::MaybeFaux::Real(#block))}},
-                        SelfType::Rc => quote! {{ Self(faux::MaybeFaux::Real(std::rc::Rc::new(#block)))}},
-                        SelfType::Arc => quote! {{ Self(faux::MaybeFaux::Real(std::sync::Arc::new(#block)))}},
-                        SelfType::Box => quote! {{ Self(faux::MaybeFaux::Real(std::boxed::Box::new(#block)))}},
-                    }),
-                    SelfType::Rc if self_generic(&last_segment.arguments) => {
-                        Some(match real_self {
-                            SelfType::Rc => {
-                                quote! {{ std::rc::Rc::new(Self(faux::MaybeFaux::Real(#block)))}}
-                            }
-                            _ => panic!("faux cannot create an Rc<Self> from a different SelfType. Consider specifying a different an Rc self_tupe in the faux attributes, or moving this method to a non-faux impl block")
-                        })
+        let wrapped_self = if let Some(syn::Type::Path(output)) = self.output {
+            let last_segment = &output.path.segments.last().unwrap();
+            match SelfType::from_segment(last_segment) {
+                SelfType::Owned if is_self(output) => Some(match real_self {
+                    SelfType::Owned => quote! {{ Self(faux::MaybeFaux::Real(#block))}},
+                    generic => {
+                        let new_path = generic
+                            .new_path()
+                            .expect("Generic self should have new() function");
+                        quote! {{ Self(faux::MaybeFaux::Real(#new_path(#block)))}}
                     }
-                    SelfType::Arc if self_generic(&last_segment.arguments) => {
-                        Some(match real_self {
-                            SelfType::Arc => {
-                                quote! {{ std::sync::Arc::new(Self(faux::MaybeFaux::Real(#block)))}}
-                            }
-                            _ => panic!("faux cannot create an Arc<Self> from a different SelfType. Consider specifying a different an Arc self_tupe in the faux attributes, or moving this method to a non-faux impl block")
-                        })
+                }),
+                generic if self_generic(&last_segment.arguments) => {
+                    if real_self == generic {
+                        let new_path = generic.new_path().expect("return type should not be Self");
+                        Some(quote! {{ #new_path(Self(faux::MaybeFaux::Real(#block)))}})
+                    } else {
+                        return Err(darling::Error::custom(wrong_self_type_error(
+                            generic, real_self,
+                        ))
+                        .with_span(&output));
                     }
-                    SelfType::Box if self_generic(&last_segment.arguments) => {
-                        Some(match real_self {
-                            SelfType::Box => {
-                                quote! {{ std::boxed::Box::new(Self(faux::MaybeFaux::Real(#block)))}}
-                            }
-                            _ => panic!("faux cannot create a Box<Self> from a different SelfType. Consider specifying a different a Box self_tupe in the faux attributes, or moving this method to a non-faux impl block")
-                        })
-                    }
-                    _ => None,
                 }
-            });
+                _ => None,
+            }
+        } else {
+            None
+        };
 
         if let Some(wrapped_self) = wrapped_self {
             block = wrapped_self;
         }
 
-        syn::parse2(quote! {{ #block }}).unwrap()
+        Ok(syn::parse2(quote! {{ #block }}).unwrap())
     }
 
     pub fn create_when(&self) -> Option<syn::ImplItemMethod> {
@@ -251,4 +238,12 @@ impl<'a> MockableData<'a> {
         })
         .unwrap()
     }
+}
+
+fn wrong_self_type_error(expected: SelfType, received: SelfType) -> impl std::fmt::Display {
+    format!(
+        "faux cannot create {expected}<Self> from a self type of {received}. Consider specifying a different self_type in the faux attributes, or moving this method to a non-faux impl block",
+        expected = expected,
+        received = received
+    )
 }

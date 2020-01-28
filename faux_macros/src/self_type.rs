@@ -1,23 +1,16 @@
 use darling::FromMeta;
+use proc_macro2::TokenStream;
+use quote::quote;
+use std::fmt;
 
-#[derive(PartialEq, Eq)]
+#[derive(FromMeta, PartialEq, Eq, Copy, Clone)]
+#[darling(rename_all = "PascalCase")]
 pub enum SelfType {
     Rc,
+    #[darling(rename = "owned")]
     Owned,
     Arc,
     Box,
-}
-
-impl FromMeta for SelfType {
-    fn from_string(value: &str) -> darling::Result<Self> {
-        match value {
-            "owned" => Ok(SelfType::Owned),
-            "Rc" => Ok(SelfType::Rc),
-            "Arc" => Ok(SelfType::Arc),
-            "Box" => Ok(SelfType::Box),
-            unhandled => Err(darling::Error::unknown_value(unhandled)),
-        }
-    }
 }
 
 impl SelfType {
@@ -44,10 +37,33 @@ impl SelfType {
             SelfType::Owned
         }
     }
+
+    /// Get the path to create a new instance of the given self-type, if one is known
+    /// from the standard library.
+    pub fn new_path(self) -> Option<TokenStream> {
+        match self {
+            SelfType::Owned => None,
+            SelfType::Rc => Some(quote!(std::rc::Rc::new)),
+            SelfType::Box => Some(quote!(std::boxed::Box::new)),
+            SelfType::Arc => Some(quote!(std::sync::Arc::new)),
+        }
+    }
 }
 
 impl Default for SelfType {
     fn default() -> Self {
         SelfType::Owned
+    }
+}
+
+impl fmt::Display for SelfType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        (match self {
+            SelfType::Owned => "owned",
+            SelfType::Rc => "Rc",
+            SelfType::Arc => "Arc",
+            SelfType::Box => "Box",
+        })
+        .fmt(f)
     }
 }

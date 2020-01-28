@@ -38,9 +38,10 @@ pub fn methods(args: TokenStream, original: TokenStream) -> TokenStream {
         }
     };
 
-    let mockable = methods::Mockable::new(original, args);
-
-    TokenStream::from(mockable)
+    match methods::Mockable::new(original, args) {
+        Ok(mockable) => TokenStream::from(mockable),
+        Err(e) => e.write_errors().into(),
+    }
 }
 
 #[proc_macro_hack]
@@ -49,7 +50,12 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let base = expr.base;
     let method = match expr.member {
         syn::Member::Named(ident) => ident,
-        syn::Member::Unnamed(_) => panic!("not a method call"),
+        syn::Member::Unnamed(member) => {
+            return darling::Error::custom("Unnamed members cannot be called as methods")
+                .with_span(&member)
+                .write_errors()
+                .into();
+        }
     };
     let when = syn::Ident::new(&format!("_when_{}", method), proc_macro2::Span::call_site());
 
