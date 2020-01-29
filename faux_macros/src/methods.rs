@@ -24,13 +24,13 @@ pub struct Mockable {
 }
 
 impl Mockable {
-    pub fn new(real: syn::ItemImpl, args: Args) -> Self {
+    pub fn new(real: syn::ItemImpl, args: Args) -> darling::Result<Self> {
         // check that we can support this impl
         let morphed_ty = match real.self_ty.as_ref() {
             syn::Type::Path(type_path) => type_path.clone(),
-            _ => panic!(
-                "#[faux::methods] does not support implementing types that are not a simple path"
-            ),
+            node => {
+                return Err(darling::Error::custom("#[faux::methods] does not support implementing types that are not a simple path").with_span(node));
+            }
         };
 
         if let Some(segment) = morphed_ty
@@ -39,7 +39,11 @@ impl Mockable {
             .iter()
             .find(|segment| segment.ident == "crate" || segment.ident == "super")
         {
-            panic!("#[faux::methods] does not support implemeneting types with '{segment}' in the path. Consider importing one level past '{segment}' and using #[faux::methods(path = \"{segment}\")]", segment = segment.ident);
+            return Err(
+                darling::Error::custom(
+                    format!("#[faux::methods] does not support implementing types with '{segment}' in the path. Consider importing one level past '{segment}' and using #[faux::methods(path = \"{segment}\")]", segment = segment.ident)
+                ).with_span(segment)
+            );
         }
 
         // start transforming
@@ -58,7 +62,7 @@ impl Mockable {
         let mut when_methods = vec![];
         for func in &mut methods {
             let signature = Signature::morph(&mut func.sig);
-            func.block = signature.create_body(&args.self_type, &real_ty, &morphed_ty);
+            func.block = signature.create_body(args.self_type, &real_ty, &morphed_ty)?;
             if let Some(when_method) = signature.create_when() {
                 when_methods.push(syn::ImplItem::Method(when_method));
             }
@@ -66,12 +70,12 @@ impl Mockable {
 
         morphed_and_wheres.items.extend(when_methods);
 
-        Mockable {
+        Ok(Mockable {
             real,
             morphed_and_wheres,
             real_ty,
             morphed_ty,
-        }
+        })
     }
 }
 
