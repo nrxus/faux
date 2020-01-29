@@ -1,9 +1,11 @@
 # CHANGELOG
 
 ## UPCOMING
+* Better macro error messages
+  * [PR](https://github.com/nrxus/faux/pull/23). Thanks a lot [@TedDriggs](https://github.com/TedDriggs)!
 * `self: Box<Self>`, `self: Rc<Self>`, and `self: Arc<Self>` are now
   allowed in methods inside an impl blocked tagged by
-  `#[methods]`. See the tests for what is possible with arbitray self
+  `#[methods]`. See the tests for what is possible with arbitrary self
   types.
   * [tests](/tests/arbitrary_self.rs)
 
