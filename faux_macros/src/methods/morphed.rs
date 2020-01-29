@@ -1,5 +1,14 @@
 use crate::self_type::SelfType;
 use quote::{quote, ToTokens};
+use syn::spanned::Spanned;
+
+struct SpanMarker(proc_macro2::Span);
+
+impl Spanned for SpanMarker {
+    fn span(&self) -> proc_macro2::Span {
+        self.0.clone()
+    }
+}
 
 pub struct Signature<'a> {
     name: &'a syn::Ident,
@@ -11,6 +20,7 @@ pub struct Signature<'a> {
 
 pub struct MockableData<'a> {
     receiver: SelfType,
+    receiver_span: SpanMarker,
     name_string: String,
     arg_types: Vec<&'a syn::Type>,
 }
@@ -19,16 +29,15 @@ impl<'a> Signature<'a> {
     pub fn morph(signature: &'a mut syn::Signature) -> Signature<'a> {
         let is_async = signature.asyncness.is_some();
         let name = &signature.ident;
-        let receiver = match signature.inputs.first() {
-            None => None,
-            Some(syn::FnArg::Receiver(_)) => Some(SelfType::Owned),
-            Some(syn::FnArg::Typed(arg)) => match &*arg.pat {
+        let receiver = signature.inputs.first().and_then(|arg| match arg {
+            syn::FnArg::Typed(arg) => match &*arg.pat {
                 syn::Pat::Ident(pat_ident) if pat_ident.ident == "self" => {
-                    Some(SelfType::from_type(&*arg.ty))
+                    Some((SelfType::from_type(&*arg.ty), SpanMarker(arg.ty.span())))
                 }
                 _ => None,
             },
-        };
+            syn::FnArg::Receiver(_) => Some((SelfType::Owned, SpanMarker(arg.span()))),
+        });
 
         let len = signature.inputs.len();
         let output = match &signature.output {
@@ -36,8 +45,9 @@ impl<'a> Signature<'a> {
             syn::ReturnType::Type(_, ty) => Some(ty.as_ref()),
         };
 
-        let mut mockable_data = receiver.map(|receiver| MockableData {
+        let mut mockable_data = receiver.map(|(receiver, receiver_span)| MockableData {
             receiver,
+            receiver_span,
             name_string: format!("{}", name),
             arg_types: Vec::with_capacity(len - 1),
         });
@@ -134,6 +144,12 @@ impl<'a> Signature<'a> {
                             Self(faux::MaybeFaux::Faux(q)) => { #call_mock }
                         }
                     },
+                    (SelfType::Box, SelfType::Box) => quote! {
+                        match *self {
+                            Self(faux::MaybeFaux::Real(r)) => { #proxy_real },
+                            Self(faux::MaybeFaux::Faux(ref q)) => { #call_mock },
+                        }
+                    },
                     (SelfType::Rc, SelfType::Rc) | (SelfType::Arc, SelfType::Arc) => quote! {
                         match *self {
                             Self(faux::MaybeFaux::Real(ref r)) => {
@@ -143,13 +159,35 @@ impl<'a> Signature<'a> {
                             Self(faux::MaybeFaux::Faux(ref q)) => { #call_mock }
                         }
                     },
-                    (SelfType::Box, SelfType::Box) => quote! {
-                        match *self {
-                            Self(faux::MaybeFaux::Real(r)) => { #proxy_real },
-                            Self(faux::MaybeFaux::Faux(ref q)) => { #call_mock },
-                        }
-                    },
-                    _ => todo!(),
+                    (SelfType::Rc, SelfType::Owned) => quote! {
+                    let owned = match std::rc::Rc::try_unwrap(self) {
+                        Ok(owned) => owned,
+                        Err(_) => panic!("faux tried to get a unique instance of Self from Rc<Self> and failed. Consider adding a `self_type = \"Rc\"` to both the #[create] and #[method] attributes tagging this struct and its impl."),
+                    };
+                    match owned {
+                        Self(faux::MaybeFaux::Real(r)) => {
+                        let r = std::rc::Rc::new(r);
+                        #proxy_real
+                        },
+                                    Self(faux::MaybeFaux::Faux(q)) => { #call_mock },
+                    }
+                            },
+                    (SelfType::Arc, SelfType::Owned) => quote! {
+                    let owned = match std::sync::Arc::try_unwrap(self) {
+                                    Ok(owned) => owned,
+                                    Err(_) => panic!("faux tried to get a unique instance of Self from Arc<Self> and failed. Consider adding a `self_type = \"Arc\"` to both the #[create] and #[method] attributes tagging this struct and its impl."),
+                    };
+                    match owned {
+                                    Self(faux::MaybeFaux::Real(r)) => {
+                        let r = std::sync::Arc::new(r);
+                        #proxy_real
+                                    },
+                                    Self(faux::MaybeFaux::Faux(q)) => { #call_mock },
+                    }
+                            },
+                    (receiver, specified) => {
+                        return Err(darling::Error::custom(format!("faux cannot convert from the receiver_type of this method: `{}`, into the self_type specified: `{}`", receiver, specified)).with_span(&mockable_data.receiver_span));
+                    }
                 }
             }
         };
@@ -157,6 +195,7 @@ impl<'a> Signature<'a> {
         let is_self = |ty: &syn::TypePath| {
             ty == morphed_ty || (ty.qself.is_none() && ty.path.is_ident("Self"))
         };
+
         let self_generic = |args: &syn::PathArguments| match args {
             syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
                 args,

@@ -134,25 +134,37 @@ mod when;
 /// * `#[methods(self_type = "Owned")]`
 ///   * this is the default and not necessary
 ///
-/// This will tell faux that instead of holding a real value of your
+/// This argument tells faux that instead of holding a real value of your
 /// struct (when the struct is not being mocked), to hold your struct
-/// wrapped in the specified `self_type`. This is particularly
-/// required for structs whose methods will have `self: Rc<Self>` or
-/// `self: Arc<Self>` receivers. Iff a `self_type` is specified here,
-/// then it must also be specified in all of the impl blocks tagged
-/// with [#\[methods\]].
+/// wrapped in the specified `self_type`. Faux should guide you
+/// towards using this argument through either a compile error or a
+/// panic in your tests.
+///
+/// This argument is helpful when you want your struct to *ONLY* be
+/// publicly viewed through one of these wrappers (i.e., your
+/// functions to create your struct returns an Rc<Self>). Iff a
+/// `self_type` is specified here, then it must also be specified in
+/// all of the impl blocks tagged with [#\[methods\]]. The author's
+/// recommendation is to only use this feature when faux suggests you
+/// to.
 ///
 /// # Usage
 /// ```
+/// use std::sync::Arc;
+///
 /// #[faux::create(self_type = "Arc")]
 /// pub struct MyStruct {
-///     a: i32,
-///     b: Vec<u32>,
+///     /* private fields */
 /// }
 ///
 /// #[faux::methods(self_type = "Arc")]
 /// impl MyStruct {
-///     /* methods go here */
+///     pub fn new() -> Arc<Self> {
+///         /* implementation */
+///         # Arc::new(MyStruct {})
+///     }
+///
+///     /* more methods */
 /// }
 /// # fn main() {}
 /// ```
@@ -300,7 +312,7 @@ pub use faux_macros::create;
 ///   * this is the default and not necessary
 ///
 /// The `self_type` specified in methods *must* match the [self_type
-/// in `create`](attr.create.html#self_type) and is required if one
+/// in `create`](attr.create.html#self_type) and is required iff one
 /// was specified there.
 ///
 /// The method receivers for all the methods in the impl block must be
@@ -329,15 +341,15 @@ pub use faux_macros::create;
 ///         ByRc {}
 ///     }
 ///
-///     // not do-able without specifying the self_type
+///     // but you may also now return the self wrapped in the self_type
 ///     pub fn new_rc() -> Rc<Self> {
 ///         Rc::new(ByRc {})
 ///     }
 ///
-///     // not do-able without specifying the self_type
+///     // can call methods with an Rc<Self> receiver type
 ///     pub fn by_rc(self: Rc<Self>) {}
 ///
-///     // this is okay because a &self can be obtained
+///     // Rc<Self> derefs to &self so this is okay
 ///     pub fn by_ref(&self) {}
 /// }
 /// # fn main() {}
@@ -392,6 +404,48 @@ pub use faux_macros::create;
 /// faux::when!(fake.get); // <~ panics with "not allowed to mock a real instance!"
 /// # }
 /// ```
+///
+/// ## Structs with `self: Rc<Self>` or `self: Arc<Self>` methods that have been cloned
+///
+/// While you do not need to specify `#[self_type = "Rc"]` or
+/// `#[self_type = "Arc"]` even if you have `self: Rc<Self>` or `self:
+/// Arc<Self>` receivers respectively, the real instances that are
+/// created through this *must* be the only reference to the object
+/// when calling these methods or else your test will fail.
+///
+/// ```rust should_panic
+/// use std::rc::Rc;
+///
+/// #[faux::create]
+/// pub struct Owned { /* fields */ }
+///
+/// #[faux::methods]
+/// impl Owned {
+///    pub fn new() -> Owned {
+///        /* implementation */
+///        # Owned {}
+///    }
+///
+///    pub fn by_rc(self: Rc<Self>) {
+///        /* implementation */
+///    }
+/// }
+///
+/// # pub fn main() {
+/// // works if there is only a single reference
+/// let rcd = Rc::new(Owned::new());
+/// rcd.by_rc(); // this works
+///
+/// // panics if there are multiple references
+/// let rcd = Rc::new(Owned::new());
+/// let clone = rcd.clone();
+/// rcd.by_rc(); // this panics because there are now multiple references
+/// # }
+/// ```
+///
+/// In the case of a panic the panic message faux produces should
+/// guide you towards using the `self_type` argument in the faux
+/// attributes
 ///
 /// # Known Limitations
 /// [#10]: `impl SomeTrait for SomeStruct {}` is not supported.
