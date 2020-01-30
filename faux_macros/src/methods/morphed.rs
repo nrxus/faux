@@ -15,18 +15,19 @@ pub struct Signature<'a> {
     arg_idents: Vec<syn::Ident>,
     is_async: bool,
     output: Option<&'a syn::Type>,
-    mockable_data: Option<MockableData<'a>>,
+    method_data: Option<MethodData<'a>>,
 }
 
-pub struct MockableData<'a> {
+pub struct MethodData<'a> {
     receiver: SelfType,
     receiver_span: SpanMarker,
     name_string: String,
     arg_types: Vec<&'a syn::Type>,
+    is_private: bool,
 }
 
 impl<'a> Signature<'a> {
-    pub fn morph(signature: &'a mut syn::Signature) -> Signature<'a> {
+    pub fn morph(signature: &'a mut syn::Signature, vis: &syn::Visibility) -> Signature<'a> {
         let is_async = signature.asyncness.is_some();
         let name = &signature.ident;
         let receiver = signature.inputs.first().and_then(|arg| match arg {
@@ -45,20 +46,21 @@ impl<'a> Signature<'a> {
             syn::ReturnType::Type(_, ty) => Some(ty.as_ref()),
         };
 
-        let mut mockable_data = receiver.map(|(receiver, receiver_span)| MockableData {
+        let mut method_data = receiver.map(|(receiver, receiver_span)| MethodData {
             receiver,
             receiver_span,
             name_string: format!("{}", name),
             arg_types: Vec::with_capacity(len - 1),
+            is_private: *vis == syn::Visibility::Inherited,
         });
 
         let mut arg_idents =
-            Vec::with_capacity(signature.inputs.len() - mockable_data.is_some() as usize);
+            Vec::with_capacity(signature.inputs.len() - method_data.is_some() as usize);
 
         signature
             .inputs
             .iter_mut()
-            .skip(mockable_data.is_some() as usize) // if it's a method; skip first arg
+            .skip(method_data.is_some() as usize) // if it's a method; skip first arg
             .map(|a| match a {
                 syn::FnArg::Typed(arg) => arg,
                 syn::FnArg::Receiver(_) => {
@@ -77,7 +79,7 @@ impl<'a> Signature<'a> {
                     ident: ident.clone(),
                 }));
                 arg_idents.push(ident);
-                if let Some(m) = &mut mockable_data {
+                if let Some(m) = &mut method_data {
                     m.arg_types.push(&*arg.ty);
                 }
             });
@@ -87,7 +89,7 @@ impl<'a> Signature<'a> {
             name,
             arg_idents,
             output,
-            mockable_data,
+            method_data,
         }
     }
 
@@ -100,7 +102,7 @@ impl<'a> Signature<'a> {
         let name = self.name;
         let arg_idents = &self.arg_idents;
 
-        let mut block = match &self.mockable_data {
+        let mut block = match &self.method_data {
             // not mockable
             // proxy to real associated function
             None => {
@@ -112,13 +114,15 @@ impl<'a> Signature<'a> {
             }
             // else we can either proxy for real instances
             // or call the mock store for faux instances
-            Some(mockable_data) => {
+            Some(method_data) => {
                 let mut proxy_real = quote! { r.#name(#(#arg_idents),*) };
                 if self.is_async {
                     proxy_real = quote! { #proxy_real.await }
                 }
-                let name_string = &mockable_data.name_string;
-                let call_mock = {
+                let name_string = &method_data.name_string;
+                let call_mock = if method_data.is_private {
+                    quote! { panic!("faux error: private methods are not mockable; and therefore not directly callable in a mock") }
+                } else {
                     let error_msg =
                         format!("'{}::{}' is not mocked", morphed_ty.to_token_stream(), name);
                     quote! {
@@ -128,7 +132,7 @@ impl<'a> Signature<'a> {
                         }
                     }
                 };
-                match (&mockable_data.receiver, real_self) {
+                match (&method_data.receiver, real_self) {
                     (SelfType::Owned, _) => quote! {
                         match self {
                             Self(faux::MaybeFaux::Real(r)) => { #proxy_real },
@@ -186,7 +190,7 @@ impl<'a> Signature<'a> {
                     }
                             },
                     (receiver, specified) => {
-                        return Err(darling::Error::custom(format!("faux cannot convert from the receiver_type of this method: `{}`, into the self_type specified: `{}`", receiver, specified)).with_span(&mockable_data.receiver_span));
+                        return Err(darling::Error::custom(format!("faux cannot convert from the receiver_type of this method: `{}`, into the self_type specified: `{}`", receiver, specified)).with_span(&method_data.receiver_span));
                     }
                 }
             }
@@ -244,15 +248,16 @@ impl<'a> Signature<'a> {
     }
 
     pub fn create_when(&self) -> Option<syn::ImplItemMethod> {
-        self.mockable_data
+        self.method_data
             .as_ref()
+            .filter(|m| !m.is_private)
             .map(|m| m.create_when(self.output))
     }
 }
 
-impl<'a> MockableData<'a> {
+impl<'a> MethodData<'a> {
     pub fn create_when(&self, output: Option<&syn::Type>) -> syn::ImplItemMethod {
-        let &MockableData {
+        let &MethodData {
             ref name_string,
             ref arg_types,
             ..

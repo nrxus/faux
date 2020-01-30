@@ -61,7 +61,7 @@ impl Mockable {
 
         let mut when_methods = vec![];
         for func in &mut methods {
-            let signature = Signature::morph(&mut func.sig);
+            let signature = Signature::morph(&mut func.sig, &func.vis);
             func.block = signature.create_body(args.self_type, &real_ty, &morphed_ty)?;
             if let Some(when_method) = signature.create_when() {
                 when_methods.push(syn::ImplItem::Method(when_method));
