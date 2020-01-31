@@ -1,4 +1,7 @@
-use crate::self_type::{OwnedType, ReceiverType, SelfType};
+use crate::{
+    methods::receiver::{self, Receiver},
+    self_type::SelfType,
+};
 use quote::{quote, ToTokens};
 use syn::spanned::Spanned;
 
@@ -20,8 +23,7 @@ pub struct Signature<'a> {
 }
 
 pub struct MethodData<'a> {
-    receiver: ReceiverType,
-    receiver_span: SpanMarker,
+    receiver: Receiver,
     name_string: String,
     arg_types: Vec<&'a syn::Type>,
     is_private: bool,
@@ -35,22 +37,7 @@ impl<'a> Signature<'a> {
     ) -> Signature<'a> {
         let is_async = signature.asyncness.is_some();
         let name = &signature.ident;
-        let receiver = signature.inputs.first().and_then(|arg| match arg {
-            syn::FnArg::Typed(arg) => match &*arg.pat {
-                syn::Pat::Ident(pat_ident) if pat_ident.ident == "self" => {
-                    Some((ReceiverType::from_type(&*arg.ty), SpanMarker(arg.ty.span())))
-                }
-                _ => None,
-            },
-            syn::FnArg::Receiver(receiver) => Some((
-                match (&receiver.reference, &receiver.mutability) {
-                    (None, _) => ReceiverType::Owned(OwnedType::Value),
-                    (Some(_), None) => ReceiverType::Owned(OwnedType::Ref),
-                    (Some(_), Some(_)) => ReceiverType::Owned(OwnedType::MutRef),
-                },
-                SpanMarker(arg.span()),
-            )),
-        });
+        let receiver = Receiver::from_signature(signature);
 
         let len = signature.inputs.len();
         let output = match &signature.output {
@@ -58,9 +45,8 @@ impl<'a> Signature<'a> {
             syn::ReturnType::Type(_, ty) => Some(ty.as_ref()),
         };
 
-        let mut method_data = receiver.map(|(receiver, receiver_span)| MethodData {
+        let mut method_data = receiver.map(|receiver| MethodData {
             receiver,
-            receiver_span,
             is_private: trait_path.is_none() && *vis == syn::Visibility::Inherited,
             name_string: format!("{}", name),
             arg_types: Vec::with_capacity(len - 1),
@@ -150,87 +136,10 @@ impl<'a> Signature<'a> {
                         }
                     }
                 };
-                match (&method_data.receiver, real_self) {
-                    (ReceiverType::Owned(_), SelfType::Owned) => quote! {
-                        match self {
-                            Self(faux::MaybeFaux::Real(r)) => { #proxy_real },
-                            Self(faux::MaybeFaux::Faux(q)) => { #call_mock },
-                        }
-                    },
-                    // &self can be deref'd for all receivers
-                    (ReceiverType::Owned(OwnedType::Ref), _) => quote! {
-                        match self {
-                            Self(faux::MaybeFaux::Real(r)) => {
-                                let r = & *r;
-                                #proxy_real
-                            },
-                            Self(faux::MaybeFaux::Faux(q)) => { #call_mock },
-                        }
-                    },
-                    // Box can be turned into anything
-                    (ReceiverType::Owned(owned_type), SelfType::Box) => quote! {
-                        match self {
-                            Self(faux::MaybeFaux::Real(r)) => {
-                                let r = #owned_type *r;
-                                #proxy_real
-                            },
-                            Self(faux::MaybeFaux::Faux(q)) => { #call_mock },
-                        }
-                    },
-                    (ReceiverType::Box, SelfType::Owned) => quote! {
-                        match *self {
-                            Self(faux::MaybeFaux::Real(r)) => {
-                                let r = Box::new(r);
-                                #proxy_real
-                            },
-                            Self(faux::MaybeFaux::Faux(q)) => { #call_mock }
-                        }
-                    },
-                    (ReceiverType::Box, SelfType::Box) => quote! {
-                        match *self {
-                            Self(faux::MaybeFaux::Real(r)) => { #proxy_real },
-                            Self(faux::MaybeFaux::Faux(ref q)) => { #call_mock },
-                        }
-                    },
-                    (ReceiverType::Rc, SelfType::Rc) | (ReceiverType::Arc, SelfType::Arc) => quote! {
-                        match *self {
-                            Self(faux::MaybeFaux::Real(ref r)) => {
-                                let r = r.clone();
-                                #proxy_real
-                            },
-                            Self(faux::MaybeFaux::Faux(ref q)) => { #call_mock }
-                        }
-                    },
-                    (ReceiverType::Rc, SelfType::Owned) => quote! {
-                    let owned = match std::rc::Rc::try_unwrap(self) {
-                        Ok(owned) => owned,
-                        Err(_) => panic!("faux tried to get a unique instance of Self from Rc<Self> and failed. Consider adding a `self_type = \"Rc\"` to both the #[create] and #[method] attributes tagging this struct and its impl."),
-                    };
-                    match owned {
-                        Self(faux::MaybeFaux::Real(r)) => {
-                        let r = std::rc::Rc::new(r);
-                        #proxy_real
-                        },
-                                    Self(faux::MaybeFaux::Faux(q)) => { #call_mock },
-                    }
-                            },
-                    (ReceiverType::Arc, SelfType::Owned) => quote! {
-                    let owned = match std::sync::Arc::try_unwrap(self) {
-                                    Ok(owned) => owned,
-                                    Err(_) => panic!("faux tried to get a unique instance of Self from Arc<Self> and failed. Consider adding a `self_type = \"Arc\"` to both the #[create] and #[method] attributes tagging this struct and its impl."),
-                    };
-                    match owned {
-                                    Self(faux::MaybeFaux::Real(r)) => {
-                        let r = std::sync::Arc::new(r);
-                        #proxy_real
-                                    },
-                                    Self(faux::MaybeFaux::Faux(q)) => { #call_mock },
-                    }
-                            },
-                    (receiver, specified) => {
-                        return Err(darling::Error::custom(format!("faux cannot convert from the receiver_type of this method: `{}`, into the self_type specified: `{}`", receiver, specified)).with_span(&method_data.receiver_span));
-                    }
-                }
+
+                method_data
+                    .receiver
+                    .method_body(real_self, proxy_real, call_mock)?
             }
         };
 
@@ -251,8 +160,8 @@ impl<'a> Signature<'a> {
 
         let wrapped_self = if let Some(syn::Type::Path(output)) = self.output {
             let last_segment = &output.path.segments.last().unwrap();
-            match ReceiverType::from_segment(last_segment) {
-                ReceiverType::Owned(_) if is_self(output) => Some(match real_self {
+            match receiver::Kind::from_segment(last_segment) {
+                receiver::Kind::Owned(_) if is_self(output) => Some(match real_self {
                     SelfType::Owned => quote! {{ Self(faux::MaybeFaux::Real(#block))}},
                     generic => {
                         let new_path = generic
@@ -263,7 +172,9 @@ impl<'a> Signature<'a> {
                 }),
                 generic if self_generic(&last_segment.arguments) => {
                     if generic.matches(&real_self) {
-                        let new_path = real_self.new_path().expect("return type should not be Self");
+                        let new_path = real_self
+                            .new_path()
+                            .expect("return type should not be Self");
                         Some(quote! {{ #new_path(Self(faux::MaybeFaux::Real(#block)))}})
                     } else {
                         return Err(darling::Error::custom(wrong_self_type_error(
@@ -322,7 +233,7 @@ impl<'a> MethodData<'a> {
     }
 }
 
-fn wrong_self_type_error(expected: ReceiverType, received: SelfType) -> impl std::fmt::Display {
+fn wrong_self_type_error(expected: receiver::Kind, received: SelfType) -> impl std::fmt::Display {
     format!(
         "faux cannot create {expected} from a self type of {received}. Consider specifying a different self_type in the faux attributes, or moving this method to a non-faux impl block",
         expected = expected,

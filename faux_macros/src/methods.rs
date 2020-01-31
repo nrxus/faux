@@ -1,4 +1,5 @@
 mod morphed;
+mod receiver;
 
 use crate::{create, self_type::SelfType};
 use darling::FromMeta;
@@ -186,8 +187,10 @@ impl From<Mockable> for proc_macro::TokenStream {
                 };
                 let pathless_type = path_to_ty.pop().unwrap();
                 quote! {
-                    #pub_supers type #pathless_type = #path_to_real_from_alias_mod;
-                }
+                //do not warn for things like Foo<i32> = RealFoo<i32>
+                #[allow(non_camel_case_types)]
+                        #pub_supers type #pathless_type = #path_to_real_from_alias_mod;
+                    }
             };
 
             // nest the type alias in load-bearing mods
