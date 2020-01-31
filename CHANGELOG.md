@@ -1,6 +1,11 @@
 # CHANGELOG
 
 ## UPCOMING
+* trait implementations may now be mocked
+  * [tests](/tests/trait_impl.rs)
+  * This is a very MVP release for the feature. A limitation that may
+    be lifted in the future is that you may not have two methods with
+    the same name, even if one is through a trait implementation.
 * Better macro error messages
   * [PR](https://github.com/nrxus/faux/pull/23). Thanks a lot [@TedDriggs](https://github.com/TedDriggs)!
 * `self: Box<Self>`, `self: Rc<Self>`, and `self: Arc<Self>` are now
