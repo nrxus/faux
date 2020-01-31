@@ -78,6 +78,13 @@
 //! #    assert_eq!(mock.add_ref(&3), 4);
 //! #  }
 //! ```
+//!
+//! ## Features:
+//! * Mock async methods
+//! * Mock trait implementations
+//! * Mock generic structs
+//! * Mock methods with arbitrary self types (e.g., `self: Rc<Self>`). **limited support**
+//! * Mock methods from structs in a different module
 
 mod mock;
 mod mock_store;
@@ -223,8 +230,19 @@ pub use faux_macros::create;
 ///     }
 /// }
 ///
+/// use std::io::{self, Read};
+///
+/// #[faux::methods]
+/// impl Read for MyStruct {
+///     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+///         /* potentially complicated implementation code */
+///         # Ok(3)
+///     }
+/// }
+///
 /// # fn main() {
-/// // #[methods]
+/// // #[methods] will not mock associated functions
+/// // thus allowing you to still create real instances
 /// let real = MyStruct::new(vec![5]);
 /// assert_eq!(real.get(), 20);
 ///
@@ -232,6 +250,9 @@ pub use faux_macros::create;
 /// let mut fake = MyStruct::faux();
 /// faux::when!(fake.get).safe_then(|_| 3);
 /// assert_eq!(fake.get(), 3);
+/// // unsafe because a parameter is a reference. See When's documentation
+/// unsafe { faux::when!(fake.read).then(|a| Ok(a[0] as usize)) }
+/// assert_eq!(fake.read(&mut vec![10]).unwrap(), 10);
 /// # }
 /// ```
 /// # Attribute arguments
@@ -448,9 +469,9 @@ pub use faux_macros::create;
 /// attributes
 ///
 /// # Known Limitations
-/// [#10]: `impl SomeTrait for SomeStruct {}` is not supported.
 ///
-/// [#13]: Only a single impl block may exist per module per type.
+/// [#13]: Only a single inherent impl block and a single trait
+/// implementation per trait per type may exist.
 ///
 /// [#14]: Methods may not contain instances of the same struct as parameters.
 ///
