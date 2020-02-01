@@ -1,7 +1,9 @@
 # CHANGELOG
 
 ## UPCOMING
-* trait implementations may now be mocked
+* Mocks can now be called an infinite number of times
+  * [test](/tests/multi_mock.rs)
+* Trait implementations may now be mocked
   * [tests](/tests/trait_impl.rs)
   * This is a very MVP release for the feature. A limitation that may
     be lifted in the future is that you may not have two methods with
@@ -20,6 +22,11 @@
   `#[methods(path::to::mod)]` to `#[methods(path =
   "path::to::mod")]`. This is done to allow further current and future
   arguments to be passed to the attribute.
+* The default behavior for mocks has changed to be active for multiple
+  calls. As a result, now mocks only accept `FnMut` closures which
+  cannot have environment data moved into. If your mocks used to
+  depend on moving data into the closure for the mock, you can use the
+  `once` method on `When` to go back to the old behavior.
 
 ## v0.0.3
 *  Async methods may now be mocked

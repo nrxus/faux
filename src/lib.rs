@@ -576,9 +576,9 @@ pub use faux_macros::methods;
 #[proc_macro_hack::proc_macro_hack]
 pub use faux_macros::when;
 
-pub use mock::Mock;
+pub use mock::ReturnedMock;
 pub use mock_store::{MaybeFaux, MockStore};
-pub use when::When;
+pub use when::{When, WhenOnce};
 
 #[doc(include = "../README.md")]
 #[cfg(doctest)]
