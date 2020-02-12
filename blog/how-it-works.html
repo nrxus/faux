@@ -212,11 +212,11 @@ fn service_does_the_right_thing() {
 </span></code></pre></pre>
 <h2><a class="header" href="#how-does-it-work" id="how-does-it-work">How does it work?</a></h2>
 <p><em><strong>DISCLAIMER:</strong> this is a simplified version of how <code>faux</code> works as
-of February, 2020, which may change in future versions. To see the
-most up to date transformations of your code, use <code>cargo-expand</code></em></p>
+of February 2020, which may change in future versions. To see the most
+up to date transformations of your code, use <code>cargo-expand</code></em></p>
 <p><code>faux</code> uses attributes to transform your structs into mockable
 versions of themselves at compile time.</p>
-<p>The rest of this section focuses on code that looks like this:</p>
+<p>The rest of the section focuses on code that looks like this:</p>
 <pre><pre class="playpen"><code class="language-rust">
 <span class="boring">#![allow(unused_variables)]
 </span><span class="boring">fn main() {
@@ -241,7 +241,7 @@ impl NetworkClient {
 <p><code>faux</code>, or any other mocking framework, needs to do two things to the
 code snippet above: create a fake version of <code>NetworkClient</code>, and
 provide a way to inject fake implementations of its methods.</p>
-<h3><a class="header" href="#create-mockable-structs" id="create-mockable-structs">Create mockable structs</a></h3>
+<h3><a class="header" href="#creating-mockable-structs" id="creating-mockable-structs">Creating mockable structs</a></h3>
 <p><code>faux</code> provides the attribute macro <code>#[faux::create]</code> to transform a
 struct definition into a mockable version of itself.</p>
 <pre><pre class="playpen"><code class="language-rust">
@@ -256,10 +256,21 @@ pub struct NetworkClient {
 </span></code></pre></pre>
 <p>From <code>faux</code>'s perspective, a mockable version of a struct:</p>
 <ul>
-<li>Is indistinguishable from the original struct, from a user's perspective</li>
-<li>Can instantiate the original version; we do not always want a mocked instance</li>
+<li>Is indistinguishable from the original struct, from a user's
+perspective</li>
+<li>Can instantiate the original version because we do not always want a
+mocked instance</li>
 <li>Can instantiate a mocked version without any additional data</li>
 </ul>
+<p>At a high level, <code>faux</code>'s transformation process consists of the
+following steps:</p>
+<ol>
+<li>Check that all struct fields are private; fail to compile otherwise</li>
+<li>Clones the definition of the struct</li>
+<li>Rename the original definition such that it is saved elsewhere</li>
+<li>Replace the cloned definition's fields with an <code>enum</code> of two
+variants, the fake and the real version</li>
+</ol>
 <pre><pre class="playpen"><code class="language-rust">
 <span class="boring">#![allow(unused_variables)]
 </span><span class="boring">fn main() {
@@ -286,13 +297,16 @@ impl NetworkClient {
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>The code snippet above shows an implementation that satisfies the
-mockable requirements for <code>NetworkClient</code>.</p>
+<p>The code snippet above is a simplified version of the transformation
+<code>#[faux::create]</code> performs on <code>NetworkClient</code>. The mock requirements
+are satisfied:</p>
 <ul>
 <li>Indistinguishable from the original struct
 <ul>
-<li>As long as no one tries to access any public fields</li>
-<li>External information must be kept the same (i.e., visibility,
+<li>Although the transformed struct no longer has its original fields,
+callers that expect a <code>NetworkClient</code> continue to work as expected
+(provided they do not try to directly access those fields)</li>
+<li>External information is kept the same (i.e., visibility,
 attributes)</li>
 </ul>
 </li>
@@ -310,18 +324,9 @@ instantiation</li>
 </ul>
 </li>
 </ul>
-<p>The snippet above was a simplified version of what <code>#[faux::create]</code>
-would do to <code>NetworkClient</code>.</p>
-<ol>
-<li>Check that all the fields are private; fail to compile otherwise</li>
-<li>Clones the definition of the struct</li>
-<li>Rename the original definition such that it is saved elsewhere</li>
-<li>Replace the cloned definition's fields with an enum of a fake or
-real instance.</li>
-</ol>
-<h3><a class="header" href="#create-mockable-methods" id="create-mockable-methods">Create mockable methods</a></h3>
+<h3><a class="header" href="#creating-mockable-methods" id="creating-mockable-methods">Creating mockable methods</a></h3>
 <p><code>faux</code> provides the attribute macro <code>#[faux::methods]</code> to transform
-method definitions inside an impl block into mockable versions of
+method definitions inside an <code>impl</code> block into mockable versions of
 themselves.</p>
 <pre><pre class="playpen"><code class="language-rust"><span class="boring">extern crate faux;
 </span><span class="boring">#[faux::create]
@@ -342,15 +347,24 @@ impl NetworkClient {
 <span class="boring">
 </span><span class="boring">fn main() {}
 </span></code></pre></pre>
-<p>From <code>faux</code>'s perspective a mockable version of a mock:</p>
+<p>From <code>faux</code>'s perspective, a mockable version of a method:</p>
 <ul>
 <li>Is indistinguishable from the original method, from a user's
 perspective</li>
-<li>Can call the real method; we do not always want a mocked method</li>
+<li>Can call the real method because we do not always want a mocked method</li>
 <li>Can run arbitrary code provided by the user</li>
 </ul>
-<p>Following the hand written mockable struct from the previous section,
-to get a mockable method we could hand write this:</p>
+<p>At a high level, <code>faux</code>'s transformation process consists of the following steps:</p>
+<ol>
+<li>Clone the <code>impl</code> block</li>
+<li>Make the original <code>impl</code> block be an <code>impl</code> of the mocked struct
+instead</li>
+<li>Add <code>when_*</code> methods per public method in the cloned <code>impl</code></li>
+<li>Modify the cloned methods to either proxy to or call the real
+instance</li>
+<li>Proxy the associated functions and private methods to the original
+definitions</li>
+</ol>
 <pre><pre class="playpen"><code class="language-rust"><span class="boring">pub struct NetworkClient(MaybeNetworkClient);
 </span><span class="boring">enum MaybeNetworkClient {
 </span><span class="boring">   Fake,
@@ -402,54 +416,62 @@ mod real_impl_of_NetworkClient {
 <span class="boring">
 </span><span class="boring">fn main() {}
 </span></code></pre></pre>
-<p>This is a bit more complicated than making a mockable struct so let's
-go step by step.</p>
+<p>The code snippet above is a simplified version of the transformation
+<code>#[faux::method]</code> performs on the <code>impl</code> block. This is a bit more
+complicated than making a mockable struct and involves the following
+components:</p>
 <ol>
 <li>
 <p>Returning a real instance</p>
 <p>Because we are only worried about mocking instances of methods, we
-can proxy to the real implementation for any associated function
-(functions that do not have a receiver, e.g., <code>&amp;self</code> or <code>self: Rc&lt;Self&gt;</code>)</p>
-<p>However, because this <code>new</code> function returns an instance of the
-mockable struct, while the real implementation returns an instance of
-the real struct, <code>RealNetworkClient</code>, we need to to wrap the
-<code>RealNetworkClient</code> instance around our mockable <code>NetworkClient</code>.</p>
+can proxy to the real implementations of any associated function (a
+function that does not have a receiver, e.g., <code>&amp;self</code> or <code>self: Rc&lt;Self&gt;</code>).</p>
+<p>However, because the <code>new</code> function above returns an instance of
+the mockable struct, while the real implementation returns an instance
+of the real struct, we need to to wrap the <code>RealNetworkClient</code>
+instance inside a <code>NetworkClient</code>.</p>
 </li>
 <li>
 <p>Methods</p>
-<p>Methods are fairly simple, we match on ourselves, and then proxy to
-the real implementation if we are a real instance or <em>somehow</em> get the
-mock data if not. More on this <em>somehow</em> later.</p>
+<p>Methods are fairly simple to handle. We match on the receiver, and
+then proxy to the real implementation if we are a real instance or
+<em>somehow</em> get the mock data if we are not. More on this <em>somehow</em>
+later.</p>
 </li>
 <li>
 <p>The real implementation</p>
-<p>Like in the mockable struct case, we want to keep our real
-implementation <em>somewhere</em>, so it can be called when needed. The hitch
-is that our real implementation refers to <code>NetworkClient</code> assuming it
-is the real struct, e.g., when making a new instance, as a return
-object or as the name in the <code>impl</code> statement. While we could go
+<p>Similar to the mockable struct case, we want to keep our real
+implementation somewhere so it can be called when needed. The hitch is
+that our real implementation refers to <code>NetworkClient</code> as if it were
+the real struct, e.g., when making a new instance, returning an
+object, or as the name in the <code>impl</code> statement. While we could go
 through the entire impl block and try to rename every mention of
 <code>NetworkClient</code> with <code>RealNetworkClient</code>, a lazier approach that works
-just fine is to use a type alias. However, type aliases are not
-allowed inside impl blocks, <em>yet</em>. To get around this we put the alias
-and the real implementation in its own internal mod.</p>
+just fine is to use a type alias. However, type aliases are not yet
+allowed inside <code>impl</code> blocks. To get around this limitation, we put the
+alias and the real implementation in their own internal mod.</p>
 </li>
 </ol>
-<p>We have now satisfied the first two bullets of what constitutes a
+<p>We have now satisfied the first two requirements of what constitutes a
 mockable method.</p>
 <ul>
-<li>By keeping the same function and method signatures, no one from the
-outside looking in can tell that the methods have been transformed.</li>
+<li>Is indistinguishable from the original method
+<ul>
+<li>By keeping the same function and method signatures, external
+callers cannot tell that the methods have been transformed.</li>
+</ul>
+</li>
+<li>Real methods can be called
+<ul>
 <li>The real implementation is saved so it can be called for real
 instances.</li>
 </ul>
-<p>However we have not satisfied the third bullet point. There is no way
-for the user to provide arbitrary code to be run during tests. We have
-a comment saying to just get the fake data, <em>somehow</em>. Let's dig in to
-how.</p>
-<h3><a class="header" href="#inject-mock-methods" id="inject-mock-methods">Inject mock methods</a></h3>
-<p>Ideally we would like our mocks to be defined per mock instance of our
-struct. This would allow us to have two different mock instances of
+</li>
+</ul>
+<p>However, we have not satisfied the third requirement. There is no way
+for the user to provide arbitrary code to be run during tests.</p>
+<h3><a class="header" href="#injecting-mock-methods" id="injecting-mock-methods">Injecting mock methods</a></h3>
+<p>Ideally, we would like to have different mock instances of
 the same struct, each with their own mocked methods. This means that
 the mocked information belongs to the mocked instance. This changes
 our definition of our mockable <code>NetworkClient</code> from:</p>
@@ -505,7 +527,7 @@ when we have a fake instance of <code>NetworkClient</code>.  We derive <code>Def
 for <code>MockStore</code> to denote that it can be created without any
 data. This is important because we need to be able to create a mock
 instance of the <code>NetworkClient</code> from nothing.</p>
-<p>We can now now flesh out the mockable <code>fetch</code> definition</p>
+<p>We can now now flesh out the mockable definition of <code>fetch</code>:</p>
 <pre><pre class="playpen"><code class="language-rust">impl NetworkClient {
     pub fn fetch(&amp;self, a: u32) -&gt; i32 {
         match self {
@@ -551,7 +573,7 @@ instance of the <code>NetworkClient</code> from nothing.</p>
 </span><span class="boring">
 </span><span class="boring">fn main() {}
 </span></code></pre></pre>
-<p>We are now just missing one key piece, saving mocks.</p>
+<p>We are now just missing one key piece: saving mocks.</p>
 <pre><pre class="playpen"><code class="language-rust">
 <span class="boring">#![allow(unused_variables)]
 </span><span class="boring">fn main() {
@@ -596,22 +618,10 @@ impl MockStore {
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>In the snippet above we have added a <code>When</code> struct that allows us to
-save information about the method we want to mock prior to the mock
-being passed to it. <code>When</code> provides a method to that saves the given
-mock inside the <code>MockStore</code>. We have also added a method to
-<code>NetworkClient</code> that returns an instance of <code>When</code> with information
-about the <code>fetch</code> method, thus allowing us to mock <code>fetch</code>.</p>
-<p>This is a simplified version of what <code>#[faux::methods]</code> would do to <code>NetworkClient</code>.</p>
-<ol>
-<li>Clones the <code>impl</code> block</li>
-<li>Make the original <code>impl</code> block be an <code>impl</code> of <code>RealNetworkClient</code>
-instead</li>
-<li>Add <code>when</code> methods per public method in the cloned <code>impl</code></li>
-<li>Modify the cloned methods to either proxy or call the real instance</li>
-<li>Proxy the associated functions and private methods to the original
-definitions</li>
-</ol>
+<p>The <code>When</code> struct above provides a method to that saves the given mock
+inside the <code>MockStore</code>. We have also added a method to <code>NetworkClient</code>
+that returns an instance of <code>When</code> with information about the <code>fetch</code>
+method, thus allowing us to mock <code>fetch</code>.</p>
 <p>We can now write code that looks like this:</p>
 <pre><pre class="playpen"><code class="language-rust should_panic"><span class="boring">fn main() {
 </span>let mut mock = NetworkClient::fake_please();
@@ -688,23 +698,21 @@ assert_eq!(fetched, 3);
 </span><span class="boring">    }
 </span><span class="boring">}
 </span></code></pre></pre>
-<p>You may have noticed that we have largely omitted the implementation
-of <code>MockStore</code> and <code>Mock</code>. The implementations of these are pretty
-hairy, and out of the scope for this blog post, but you may always
-read the source code of <a href="https://github.com/nrxus/faux"><code>faux</code></a> for more information. In reality,
-<code>MockStore</code> and <code>Mock</code> have quite a bit of complexity, and requires a
-few more bounds on the injected mock for safe mocking, while also
-having a version with more relaxed bounds that is gated by <code>unsafe</code>.</p>
+<p>You may have noticed that we largely omitted the implementation of
+<code>MockStore</code> and <code>Mock</code>. The implementations of these are pretty hairy,
+and thus out of scope for this blog post. However, feel free to read
+the source code of <a href="https://github.com/nrxus/faux"><code>faux</code></a> for more information. In reality,
+<code>MockStore</code> and <code>Mock</code> requires a few more bounds on the injected mock
+to both enable safe mocking and provide a version with more relaxed
+bounds that is gated by <code>unsafe</code>.</p>
 <h2><a class="header" href="#final-remarks" id="final-remarks">Final remarks</a></h2>
 <p>You have now seen a simplified version of the code <code>faux</code>
-produces. It's a lot and it is pretty wild but thankfully <code>faux</code> will
-do it all for you! Remember that this expansion should be gated to
-only your <code>test</code> thus having no compile nor run time impact to a
-<code>cargo check</code>, or <code>cargo build</code>. If I missed anything or something was
-not clear feel free to submit an issue to <a href="https://github.com/nrxus/faux"><code>faux</code></a> as the blog also
-lives there and I will do my best to explain to correct the blog or
-explain something better.</p>
-<p>I hope you all get to try <code>faux</code>, and tell me what you think abou it!</p>
+produces. Remember that <code>faux</code>'s expansions should be gated to only
+your <code>test</code> cfg, thus having no compile or run time impact on a <code>cargo check</code> or <code>cargo build</code>. If I missed anything, or if something was not
+clear, feel free to submit an issue or PR to <a href="https://github.com/nrxus/faux"><code>faux</code></a> as the blog also
+lives there as a GitHub page. I will do my best to clarify or to
+update the blog.</p>
+<p>Feedback is always appreciated. Happy mocking!</p>
 
                     </main>
 
