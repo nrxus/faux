@@ -1,6 +1,4 @@
-# faux - an inside look
-
-## What is faux?
+# 🔍 faux - an inside look 🔍
 
 [`faux`] is a traitless Rust mocking framework for creating mock
 objects out of user-defined structs. For more on faux's capabilities,
