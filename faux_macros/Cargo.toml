@@ -1,10 +1,10 @@
 [package]
 name = "faux_macros"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Andres <andresnrx@gmail.com>"]
 edition = "2018"
 license = "MIT"
-description = "Implementaitons for #[create], #[methods], when!"
+description = "Implementations for #[create], #[methods], when!"
 homepage = "https://github.com/nrxus/faux"
 repository = "https://github.com/nrxus/faux"
 keywords = ["mock", "mocking", "test", "testing", "faux"]
