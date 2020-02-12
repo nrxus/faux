@@ -1,4 +1,4 @@
 # Summary
 
-[Faux - Release](./blog/release.md)
-[Faux - How It Works](./blog/how-it-works.md)
+[faux - introducing faux](./blog/release.md)
+[faux - an inside look](./blog/how-it-works.md)
