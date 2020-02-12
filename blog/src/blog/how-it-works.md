@@ -69,13 +69,13 @@ fn service_does_the_right_thing() {
 ## How does it work?
 
 ***DISCLAIMER:** this is a simplified version of how `faux` works as
-of February, 2020, which may change in future versions. To see the
-most up to date transformations of your code, use `cargo-expand`*
+of February 2020, which may change in future versions. To see the most
+up to date transformations of your code, use `cargo-expand`*
 
 `faux` uses attributes to transform your structs into mockable
 versions of themselves at compile time.
 
-The rest of this section focuses on code that looks like this:
+The rest of the section focuses on code that looks like this:
 
 ```rust
 pub struct NetworkClient {
@@ -100,7 +100,7 @@ impl NetworkClient {
 code snippet above: create a fake version of `NetworkClient`, and
 provide a way to inject fake implementations of its methods.
 
-### Create mockable structs
+### Creating mockable structs
 
 `faux` provides the attribute macro `#[faux::create]` to transform a
 struct definition into a mockable version of itself.
@@ -115,9 +115,20 @@ pub struct NetworkClient {
 
 From `faux`'s perspective, a mockable version of a struct:
 
-* Is indistinguishable from the original struct, from a user's perspective
-* Can instantiate the original version; we do not always want a mocked instance
+* Is indistinguishable from the original struct, from a user's
+  perspective
+* Can instantiate the original version because we do not always want a
+  mocked instance
 * Can instantiate a mocked version without any additional data
+
+At a high level, `faux`'s transformation process consists of the
+following steps:
+
+1. Check that all struct fields are private; fail to compile otherwise
+2. Clones the definition of the struct
+3. Rename the original definition such that it is saved elsewhere
+4. Replace the cloned definition's fields with an `enum` of two
+   variants, the fake and the real version
 
 ```rust
 // same name so no one can tell the difference
@@ -143,12 +154,15 @@ impl NetworkClient {
 }
 ```
 
-The code snippet above shows an implementation that satisfies the
-mockable requirements for `NetworkClient`.
+The code snippet above is a simplified version of the transformation
+`#[faux::create]` performs on `NetworkClient`. The mock requirements
+are satisfied:
 
 * Indistinguishable from the original struct
-  * As long as no one tries to access any public fields
-  * External information must be kept the same (i.e., visibility,
+  * Although the transformed struct no longer has its original fields,
+    callers that expect a `NetworkClient` continue to work as expected
+    (provided they do not try to directly access those fields)
+  * External information is kept the same (i.e., visibility,
     attributes)
 * Real instances can be created
   * The internal enum can be either a fake or a real instance
@@ -158,19 +172,10 @@ mockable requirements for `NetworkClient`.
   * The fake variant of the internal enum knows nothing about
     `RealNetworkClient`
 
-The snippet above was a simplified version of what `#[faux::create]`
-would do to `NetworkClient`.
-
-1. Check that all the fields are private; fail to compile otherwise
-2. Clones the definition of the struct
-3. Rename the original definition such that it is saved elsewhere
-4. Replace the cloned definition's fields with an enum of a fake or
-   real instance.
-
-### Create mockable methods
+### Creating mockable methods
 
 `faux` provides the attribute macro `#[faux::methods]` to transform
-method definitions inside an impl block into mockable versions of
+method definitions inside an `impl` block into mockable versions of
 themselves.
 
 ```rust
@@ -194,15 +199,23 @@ impl NetworkClient {
 # fn main() {}
 ```
 
-From `faux`'s perspective a mockable version of a mock:
+From `faux`'s perspective, a mockable version of a method:
 
 * Is indistinguishable from the original method, from a user's
   perspective
-* Can call the real method; we do not always want a mocked method
+* Can call the real method because we do not always want a mocked method
 * Can run arbitrary code provided by the user
 
-Following the hand written mockable struct from the previous section,
-to get a mockable method we could hand write this:
+At a high level, `faux`'s transformation process consists of the following steps:
+
+1. Clone the `impl` block
+2. Make the original `impl` block be an `impl` of the mocked struct
+   instead
+3. Add `when_*` methods per public method in the cloned `impl`
+4. Modify the cloned methods to either proxy to or call the real
+   instance
+5. Proxy the associated functions and private methods to the original
+   definitions
 
 ```rust
 # pub struct NetworkClient(MaybeNetworkClient);
@@ -257,57 +270,59 @@ mod real_impl_of_NetworkClient {
 # fn main() {}
 ```
 
-This is a bit more complicated than making a mockable struct so let's
-go step by step.
+The code snippet above is a simplified version of the transformation
+`#[faux::method]` performs on the `impl` block. This is a bit more
+complicated than making a mockable struct and involves the following
+components:
 
 1. Returning a real instance
 
    Because we are only worried about mocking instances of methods, we
-can proxy to the real implementation for any associated function
-(functions that do not have a receiver, e.g., `&self` or `self:
-Rc<Self>`)
+can proxy to the real implementations of any associated function (a
+function that does not have a receiver, e.g., `&self` or `self:
+Rc<Self>`).
 
-   However, because this `new` function returns an instance of the
-mockable struct, while the real implementation returns an instance of
-the real struct, `RealNetworkClient`, we need to to wrap the
-`RealNetworkClient` instance around our mockable `NetworkClient`.
+   However, because the `new` function above returns an instance of
+the mockable struct, while the real implementation returns an instance
+of the real struct, we need to to wrap the `RealNetworkClient`
+instance inside a `NetworkClient`.
 
 2. Methods
 
-   Methods are fairly simple, we match on ourselves, and then proxy to
-the real implementation if we are a real instance or *somehow* get the
-mock data if not. More on this *somehow* later.
+   Methods are fairly simple to handle. We match on the receiver, and
+then proxy to the real implementation if we are a real instance or
+*somehow* get the mock data if we are not. More on this *somehow*
+later.
 
 3. The real implementation
 
-   Like in the mockable struct case, we want to keep our real
-implementation *somewhere*, so it can be called when needed. The hitch
-is that our real implementation refers to `NetworkClient` assuming it
-is the real struct, e.g., when making a new instance, as a return
-object or as the name in the `impl` statement. While we could go
+   Similar to the mockable struct case, we want to keep our real
+implementation somewhere so it can be called when needed. The hitch is
+that our real implementation refers to `NetworkClient` as if it were
+the real struct, e.g., when making a new instance, returning an
+object, or as the name in the `impl` statement. While we could go
 through the entire impl block and try to rename every mention of
 `NetworkClient` with `RealNetworkClient`, a lazier approach that works
-just fine is to use a type alias. However, type aliases are not
-allowed inside impl blocks, *yet*. To get around this we put the alias
-and the real implementation in its own internal mod.
+just fine is to use a type alias. However, type aliases are not yet
+allowed inside `impl` blocks. To get around this limitation, we put the
+alias and the real implementation in their own internal mod.
 
-We have now satisfied the first two bullets of what constitutes a
+We have now satisfied the first two requirements of what constitutes a
 mockable method.
 
-* By keeping the same function and method signatures, no one from the
-  outside looking in can tell that the methods have been transformed.
-* The real implementation is saved so it can be called for real
+* Is indistinguishable from the original method
+  * By keeping the same function and method signatures, external
+    callers cannot tell that the methods have been transformed.
+* Real methods can be called
+  * The real implementation is saved so it can be called for real
   instances.
 
-However we have not satisfied the third bullet point. There is no way
-for the user to provide arbitrary code to be run during tests. We have
-a comment saying to just get the fake data, *somehow*. Let's dig in to
-how.
+However, we have not satisfied the third requirement. There is no way
+for the user to provide arbitrary code to be run during tests.
 
-### Inject mock methods
+### Injecting mock methods
 
-Ideally we would like our mocks to be defined per mock instance of our
-struct. This would allow us to have two different mock instances of
+Ideally, we would like to have different mock instances of
 the same struct, each with their own mocked methods. This means that
 the mocked information belongs to the mocked instance. This changes
 our definition of our mockable `NetworkClient` from:
@@ -362,7 +377,7 @@ for `MockStore` to denote that it can be created without any
 data. This is important because we need to be able to create a mock
 instance of the `NetworkClient` from nothing.
 
-We can now now flesh out the mockable `fetch` definition
+We can now now flesh out the mockable definition of `fetch`:
 
 ```rust
 impl NetworkClient {
@@ -411,7 +426,7 @@ impl NetworkClient {
 # fn main() {}
 ```
 
-We are now just missing one key piece, saving mocks.
+We are now just missing one key piece: saving mocks.
 
 ```rust
 # pub struct NetworkClient(MaybeNetworkClient);
@@ -455,22 +470,10 @@ impl MockStore {
 }
 ```
 
-In the snippet above we have added a `When` struct that allows us to
-save information about the method we want to mock prior to the mock
-being passed to it. `When` provides a method to that saves the given
-mock inside the `MockStore`. We have also added a method to
-`NetworkClient` that returns an instance of `When` with information
-about the `fetch` method, thus allowing us to mock `fetch`.
-
-This is a simplified version of what `#[faux::methods]` would do to `NetworkClient`.
-
-1. Clones the `impl` block
-2. Make the original `impl` block be an `impl` of `RealNetworkClient`
-   instead
-3. Add `when` methods per public method in the cloned `impl`
-4. Modify the cloned methods to either proxy or call the real instance
-5. Proxy the associated functions and private methods to the original
-   definitions
+The `When` struct above provides a method to that saves the given mock
+inside the `MockStore`. We have also added a method to `NetworkClient`
+that returns an instance of `When` with information about the `fetch`
+method, thus allowing us to mock `fetch`.
    
 We can now write code that looks like this:
 
@@ -551,26 +554,25 @@ assert_eq!(fetched, 3);
 # }
 ```
 
-You may have noticed that we have largely omitted the implementation
-of `MockStore` and `Mock`. The implementations of these are pretty
-hairy, and out of the scope for this blog post, but you may always
-read the source code of [`faux`] for more information. In reality,
-`MockStore` and `Mock` have quite a bit of complexity, and requires a
-few more bounds on the injected mock for safe mocking, while also
-having a version with more relaxed bounds that is gated by `unsafe`.
+You may have noticed that we largely omitted the implementation of
+`MockStore` and `Mock`. The implementations of these are pretty hairy,
+and thus out of scope for this blog post. However, feel free to read
+the source code of [`faux`] for more information. In reality,
+`MockStore` and `Mock` requires a few more bounds on the injected mock
+to both enable safe mocking and provide a version with more relaxed
+bounds that is gated by `unsafe`.
 
 ## Final remarks
 
 You have now seen a simplified version of the code `faux`
-produces. It's a lot and it is pretty wild but thankfully `faux` will
-do it all for you! Remember that this expansion should be gated to
-only your `test` thus having no compile nor run time impact to a
-`cargo check`, or `cargo build`. If I missed anything or something was
-not clear feel free to submit an issue to [`faux`] as the blog also
-lives there and I will do my best to explain to correct the blog or
-explain something better.
+produces. Remember that `faux`'s expansions should be gated to only
+your `test` cfg, thus having no compile or run time impact on a `cargo
+check` or `cargo build`. If I missed anything, or if something was not
+clear, feel free to submit an issue or PR to [`faux`] as the blog also
+lives there as a GitHub page. I will do my best to clarify or to
+update the blog.
 
-I hope you all get to try `faux`, and tell me what you think abou it!
+Feedback is always appreciated. Happy mocking!
 
 [release blog post]: ./release.html
 [documentation]: https://docs.rs/faux/
