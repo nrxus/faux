@@ -27,6 +27,7 @@ pub struct MethodData<'a> {
     name_string: String,
     arg_types: Vec<&'a syn::Type>,
     is_private: bool,
+    generics: &'a syn::Generics,
 }
 
 impl<'a> Signature<'a> {
@@ -45,11 +46,14 @@ impl<'a> Signature<'a> {
             syn::ReturnType::Type(_, ty) => Some(ty.as_ref()),
         };
 
+        let generics = &signature.generics;
+
         let mut method_data = receiver.map(|receiver| MethodData {
             receiver,
             is_private: trait_path.is_none() && *vis == syn::Visibility::Inherited,
             name_string: format!("{}", name),
             arg_types: Vec::with_capacity(len - 1),
+            generics,
         });
 
         let mut arg_idents =
@@ -218,7 +222,7 @@ impl<'a> MethodData<'a> {
         );
         let empty = syn::parse2(quote! { () }).unwrap();
         let output = output.unwrap_or(&empty);
-        syn::parse2(quote! {
+        let mut method: syn::ImplItemMethod = syn::parse2(quote! {
             pub fn #mock_ident(&mut self) -> faux::When<(#(#arg_types),*), #output> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
@@ -229,7 +233,11 @@ impl<'a> MethodData<'a> {
                 }
             }
         })
-        .unwrap()
+        .unwrap();
+
+        method.sig.generics = self.generics.clone();
+
+        method
     }
 }
 
