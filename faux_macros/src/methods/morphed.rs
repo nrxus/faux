@@ -25,8 +25,23 @@ pub struct Signature<'a> {
 pub struct MethodData<'a> {
     receiver: Receiver,
     name_string: String,
-    arg_types: Vec<&'a syn::Type>,
+    arg_types: Vec<WhenArg<'a>>,
     is_private: bool,
+}
+
+#[derive(Debug)]
+pub struct WhenArg<'a>(&'a syn::Type);
+
+impl<'a> ToTokens for WhenArg<'a> {
+    fn to_tokens(&self, token_stream: &mut proc_macro2::TokenStream) {
+        match self.0 {
+            syn::Type::ImplTrait(ty) => {
+                let bounds = &ty.bounds;
+                token_stream.extend(quote! { std::boxed::Box<dyn #bounds> });
+            }
+            ty => ty.to_tokens(token_stream),
+        }
+    }
 }
 
 impl<'a> Signature<'a> {
@@ -78,7 +93,7 @@ impl<'a> Signature<'a> {
                 }));
                 arg_idents.push(ident);
                 if let Some(m) = &mut method_data {
-                    m.arg_types.push(&*arg.ty);
+                    m.arg_types.push(WhenArg(&*arg.ty));
                 }
             });
 
@@ -129,10 +144,23 @@ impl<'a> Signature<'a> {
                 } else {
                     let error_msg =
                         format!("'{}::{}' is not mocked", morphed_ty.to_token_stream(), name);
+                    let args =
+                        arg_idents
+                            .iter()
+                            .zip(method_data.arg_types.iter())
+                            .map(|(ident, ty)| match ty.0 {
+                                syn::Type::ImplTrait(ty) => {
+                                    let bounds = &ty.bounds;
+                                    quote! {
+                                        std::boxed::Box::new(#ident) as std::boxed::Box<dyn #bounds>
+                                    }
+                                }
+                                _ => quote! { #ident },
+                            });
                     quote! {
                         let mut q = q.try_lock().unwrap();
                         unsafe {
-                            q.get_mock(#name_string).expect(#error_msg).call((#(#arg_idents),*))
+                            q.get_mock(#name_string).expect(#error_msg).call((#(#args),*))
                         }
                     }
                 };
