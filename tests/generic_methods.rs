@@ -3,7 +3,7 @@ pub struct Foo {}
 
 #[faux::methods]
 impl Foo {
-    pub fn foo(&self, f: impl Fn(i32) -> i32) -> i32 {
+    pub fn foo(&self, _: impl Fn(i32) -> i32) -> i32 {
         todo!()
     }
 }
