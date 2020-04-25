@@ -473,12 +473,16 @@ pub use faux_macros::create;
 /// [#13]: Only a single inherent impl block and a single trait
 /// implementation per trait per type may exist.
 ///
-/// [#14]: Methods may not contain instances of the same struct as parameters.
+/// [#14]: Methods may not contain instances of the same struct as
+/// parameters.
+///
+/// [#18]: Generic methods and `impl` return types are not allowed
 ///
 /// [#\[create\]]: attr.create.html
 /// [#10]: https://github.com/nrxus/faux/issues/10
 /// [#13]: https://github.com/nrxus/faux/issues/13
 /// [#14]: https://github.com/nrxus/faux/issues/14
+/// [#18]: https://github.com/nrxus/faux/issues/18
 /// [when!]: macro.when.html
 ///
 /// # Caveats
