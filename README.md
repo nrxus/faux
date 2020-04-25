@@ -104,6 +104,87 @@ fn main() {
 `main()` rather than a `#[test]` function. In real life, the faux
 attributes should be gated to `#[cfg(test)]`.**
 
+## Interactions With Other Proc Macros
+
+`faux` makes no guarantees that it will work with other macro
+libraries. `faux` in theory should "just" work although with some
+caveats, in particular if they modify the *signature* of
+methods.
+
+Unfortunately, [the order of proc macros is not
+specified]. However, in practive it *seems* to expand top-down (tested
+in Rust 1.42).
+
+```rust ignore
+#[faux::create]
+struct Foo { /*some items here */ }
+
+#[faux::methods]
+#[another_attribute]
+impl Foo {
+    /* some methods here */
+}
+
+# fn main() {}
+```
+
+In the snippet above, `#[faux::methods]` will expand first followed by
+`#[another_attribute]`.
+
+If `faux` does its expansion first then `faux` will effectively ignore
+the other macro and expand based on the code that the user wrote. If
+you want `faux` to treat the code in the `impl` block (or the
+`struct`) as-is, before the expansion then put it on the top.
+
+If `faux` does its expansion after, then `faux` will morph the
+expanded version of the code, which might have a different signature
+than what you originally wrote. Note that the other proc macro's
+expansion may create code that `faux` cannot handle (e.g., explicit
+lifetimes).
+
+For a concrete example, let's look at
+[`async-trait`](https://github.com/dtolnay/async-trait). `async-trait` effectively converts:
+
+```rust ignore
+async fn run(&self, arg: Arg) -> Out {
+    /* stuff inside */
+}
+```
+
+```rust ignore
+fn run<'async>(&'async self, arg: Arg) -> Pin<Box<dyn std::future::Future<Output = Out> + Send + 'async>> {
+    /* crazier stuff inside */
+}
+```
+
+Because `async-trait` modifies the signature of the function to a
+signature that `faux` cannot handle (explicit lifetimes) then having
+`async-trait` do its expansion *before* `faux` would make `faux` not
+work. Note that even if `faux` could handle explicit lifetimes, our
+signature now it's so unwieldy that it would make mocks hard to work
+with. Because `async-trait` just wants an `async` function signature,
+and `faux` does not modify function signatures, it is okay for `faux`
+to expand first.
+
+```rust ignore
+#[faux::methods]
+#[async_trait]
+impl MyStruct for MyTrait {
+    async fn run(&self, arg: Arg) -> Out {
+        /* stuff inside */
+    }
+}
+```
+
+Since no expansions came before, `faux` sees an `async` function,
+which it supports. `faux` does its magic assuming this is a normal
+`async` function, and then `async-trait` does its magic to convert the
+signature to something that can work on trait `impl`s.
+
+If you find a procedural macro that `faux` cannot handle please submit
+an issue to see if `faux` is doing something unexpected that conflicts
+with that macro.
+
 ## Goal
 
 faux was founded on the belief that traits with single implementations
@@ -123,3 +204,4 @@ their function signatures with either generics or trait objects.
 [mocktopus]: https://github.com/CodeSandwich/Mocktopus
 [build]: https://github.com/nrxus/faux/workflows/test/badge.svg
 [constraints with rustdocs]: https://github.com/rust-lang/rust/issues/45599
+[the order of proc macros is not specified]: https://github.com/rust-lang/reference/issues/578
