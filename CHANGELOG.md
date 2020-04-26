@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## UPCOMING
+## v0.0.5
+* Suppport `impl` arguments in mocked methods
+  * [test](/tests/generic_methods.rs)
+
+## v0.0.4
 * Mocks can now be called an infinite number of times
   * [test](/tests/multi_mock.rs)
 * Trait implementations may now be mocked
