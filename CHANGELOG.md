@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.0.6
+* Removes `proc-macro-hack` dependency.
+  * Starting on rust 1.45, function-like proc macros are allowed in statement expressions
+
+### Breaking Change
+* Minimum rust version changed to 1.45
+
 ## v0.0.5
 * Suppport `impl` arguments in mocked methods
   * [test](/tests/generic_methods.rs)

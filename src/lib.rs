@@ -577,7 +577,6 @@ pub use faux_macros::methods;
 ///     let b: faux::When<(u32, i8), i32> = mock._when_some_method();
 /// }
 /// ```
-#[proc_macro_hack::proc_macro_hack]
 pub use faux_macros::when;
 
 pub use mock::ReturnedMock;

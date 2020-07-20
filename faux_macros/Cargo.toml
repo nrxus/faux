@@ -13,7 +13,6 @@ keywords = ["mock", "mocking", "test", "testing", "faux"]
 syn = { version = "1.0", features = ["full", "extra-traits"] }
 quote = "1.0"
 proc-macro2 = "1.0"
-proc-macro-hack = "0.5"
 darling = "0.10"
 
 [dev-dependencies]

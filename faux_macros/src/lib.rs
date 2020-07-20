@@ -6,7 +6,6 @@ mod self_type;
 
 use darling::FromMeta;
 use proc_macro::TokenStream;
-use proc_macro_hack::proc_macro_hack;
 use quote::quote;
 
 #[proc_macro_attribute]
@@ -44,7 +43,7 @@ pub fn methods(args: TokenStream, original: TokenStream) -> TokenStream {
     }
 }
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let expr = syn::parse_macro_input!(input as syn::ExprField);
     let base = expr.base;
