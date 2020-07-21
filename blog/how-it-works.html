@@ -5,12 +5,19 @@
         <meta charset="UTF-8">
         <title>faux - an inside look - faux</title>
         
+        
+
+
+        <!-- Custom HTML head -->
+        
+
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
+        <link rel="icon" href="../favicon.svg">
         <link rel="shortcut icon" href="../favicon.png">
         <link rel="stylesheet" href="../css/variables.css">
         <link rel="stylesheet" href="../css/general.css">
@@ -19,8 +26,9 @@
 
         <!-- Fonts -->
         <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
-        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+        
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        
 
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="../highlight.css">
@@ -36,7 +44,7 @@
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
             var path_to_root = "../";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "light";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
@@ -153,7 +161,7 @@ objects out of user-defined structs. For more on faux's capabilities,
 take a look at the <a href="./release.html">release blog post</a> or the <a href="https://docs.rs/faux/">documentation</a>.</p>
 <p><code>faux</code> creates mocks of your structs to be used in unit tests, making
 them fast and reliable.</p>
-<pre><pre class="playpen"><code class="language-rust"><span class="boring">extern crate faux;
+<pre><pre class="playground"><code class="language-rust"><span class="boring">extern crate faux;
 </span><span class="boring">
 </span>#[cfg_attr(test, faux::create)]
 <span class="boring">#[faux::create]
@@ -215,8 +223,8 @@ up to date transformations of your code, use <code>cargo-expand</code></em></p>
 <p><code>faux</code> uses attributes to transform your structs into mockable
 versions of themselves at compile time.</p>
 <p>The rest of the section focuses on code that looks like this:</p>
-<pre><pre class="playpen"><code class="language-rust">
-<span class="boring">#![allow(unused_variables)]
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct NetworkClient {
     /* data here */
@@ -242,8 +250,8 @@ provide a way to inject fake implementations of its methods.</p>
 <h3><a class="header" href="#creating-mockable-structs" id="creating-mockable-structs">Creating mockable structs</a></h3>
 <p><code>faux</code> provides the attribute macro <code>#[faux::create]</code> to transform a
 struct definition into a mockable version of itself.</p>
-<pre><pre class="playpen"><code class="language-rust">
-<span class="boring">#![allow(unused_variables)]
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">extern crate faux;
 </span>#[faux::create]
@@ -269,8 +277,8 @@ following steps:</p>
 <li>Replace the cloned definition's fields with an <code>enum</code> of two
 variants, the fake and the real version</li>
 </ol>
-<pre><pre class="playpen"><code class="language-rust">
-<span class="boring">#![allow(unused_variables)]
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// same name so no one can tell the difference
 pub struct NetworkClient(MaybeNetworkClient);
@@ -326,7 +334,7 @@ instantiation</li>
 <p><code>faux</code> provides the attribute macro <code>#[faux::methods]</code> to transform
 method definitions inside an <code>impl</code> block into mockable versions of
 themselves.</p>
-<pre><pre class="playpen"><code class="language-rust"><span class="boring">extern crate faux;
+<pre><pre class="playground"><code class="language-rust"><span class="boring">extern crate faux;
 </span><span class="boring">#[faux::create]
 </span><span class="boring">pub struct NetworkClient {}
 </span>#[faux::methods]
@@ -363,7 +371,7 @@ instance</li>
 <li>Proxy the associated functions and private methods to the original
 definitions</li>
 </ol>
-<pre><pre class="playpen"><code class="language-rust"><span class="boring">pub struct NetworkClient(MaybeNetworkClient);
+<pre><pre class="playground"><code class="language-rust"><span class="boring">pub struct NetworkClient(MaybeNetworkClient);
 </span><span class="boring">enum MaybeNetworkClient {
 </span><span class="boring">   Fake,
 </span><span class="boring">   Real(RealNetworkClient)
@@ -473,8 +481,8 @@ for the user to provide arbitrary code to be run during tests.</p>
 the same struct, each with their own mocked methods. This means that
 the mocked information belongs to the mocked instance. This changes
 our definition of our mockable <code>NetworkClient</code> from:</p>
-<pre><pre class="playpen"><code class="language-rust">
-<span class="boring">#![allow(unused_variables)]
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct NetworkClient(MaybeNetworkClient);
 
@@ -487,8 +495,8 @@ pub struct RealNetworkClient { /* some data */ }
 <span class="boring">}
 </span></code></pre></pre>
 <p>to:</p>
-<pre><pre class="playpen"><code class="language-rust">
-<span class="boring">#![allow(unused_variables)]
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct NetworkClient(MaybeNetworkClient);
 
@@ -526,7 +534,7 @@ for <code>MockStore</code> to denote that it can be created without any
 data. This is important because we need to be able to create a mock
 instance of the <code>NetworkClient</code> from nothing.</p>
 <p>We can now now flesh out the mockable definition of <code>fetch</code>:</p>
-<pre><pre class="playpen"><code class="language-rust">impl NetworkClient {
+<pre><pre class="playground"><code class="language-rust">impl NetworkClient {
     pub fn fetch(&amp;self, a: u32) -&gt; i32 {
         match self {
             Self(MaybeNetworkClient::Real(real)) =&gt; real.fetch(a),
@@ -572,8 +580,8 @@ instance of the <code>NetworkClient</code> from nothing.</p>
 </span><span class="boring">fn main() {}
 </span></code></pre></pre>
 <p>We are now just missing one key piece: saving mocks.</p>
-<pre><pre class="playpen"><code class="language-rust">
-<span class="boring">#![allow(unused_variables)]
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">pub struct NetworkClient(MaybeNetworkClient);
 </span><span class="boring">enum MaybeNetworkClient {
@@ -621,7 +629,7 @@ inside the <code>MockStore</code>. We have also added a method to <code>NetworkC
 that returns an instance of <code>When</code> with information about the <code>fetch</code>
 method, thus allowing us to mock <code>fetch</code>.</p>
 <p>We can now write code that looks like this:</p>
-<pre><pre class="playpen"><code class="language-rust should_panic"><span class="boring">fn main() {
+<pre><pre class="playground"><code class="language-rust should_panic"><span class="boring">fn main() {
 </span>let mut mock = NetworkClient::fake_please();
 mock.when_fetch().then(|i| i as i32);
 let fetched = mock.fetch(3);
@@ -746,10 +754,10 @@ update the blog.</p>
         
 
         
-        
+
         
         <script type="text/javascript">
-            window.playpen_copyable = true;
+            window.playground_copyable = true;
         </script>
         
 
