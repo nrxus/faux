@@ -21,6 +21,15 @@ pub enum MaybeFaux<T> {
     Faux(std::sync::Mutex<MockStore>),
 }
 
+impl<T: Clone> Clone for MaybeFaux<T> {
+    fn clone(&self) -> Self {
+        match self {
+            MaybeFaux::Real(r) => MaybeFaux::Real(r.clone()),
+            MaybeFaux::Faux(_) => panic!("cannot clone a mock")
+        }
+    }
+}
+
 impl<T> MaybeFaux<T> {
     pub fn faux() -> Self {
         MaybeFaux::Faux(std::sync::Mutex::new(MockStore::new()))

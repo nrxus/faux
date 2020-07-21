@@ -12,6 +12,7 @@ jobs:
       with:
         profile: minimal
         toolchain: nightly
+        override: true
     - name: Build
       run: cargo build --verbose
     - name: Tests
