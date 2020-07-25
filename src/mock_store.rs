@@ -78,7 +78,7 @@ impl MockStore {
     /// # Safety
     ///
     /// Do not use this function without going through [When].  It is
-    /// the caller's responsability to pass a mock that is safe.
+    /// the caller's responsibility to pass a mock that is safe.
     ///
     /// [When]: When
     pub unsafe fn unsafe_mock<I, O>(

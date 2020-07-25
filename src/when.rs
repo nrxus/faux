@@ -161,6 +161,100 @@ impl<'q, I, O> When<'q, I, O> {
 
     /// Mocks the method stored in the `When` with the given closure
     /// for the saved instance. This mock is restricted only to static
+    /// outputs, and closures. Unlike [then] or [safe_then], this
+    /// method does not allow the user to get access to the inputs of
+    /// the mocked method. This is a deliberate choice to allow users
+    /// to mock methods with input references through a safe
+    /// interface. If you need access to the inputs and they are are
+    /// all static types, then you may use [safe_then]. If you need
+    /// access to the inputs and at least one of them has a non-static
+    /// lifetime, then you have to use the unsafe [then] method.
+    ///
+    /// By default, this mock will be active for all future calls to
+    /// this method. If you wish to limit the number of calls that are
+    /// doable to this mocked method, you may use [times] prior to
+    /// calling for this method.
+    ///
+    /// [safe_then]: #method.safe_then
+    /// [then]: #method.then
+    ///
+    /// # Usage
+    ///
+    /// ```rust
+    /// #[faux::create]
+    /// pub struct Foo {}
+    ///
+    /// #[faux::methods]
+    /// impl Foo {
+    ///     pub fn multi_args(self, a: &i32, b: i8) -> u32 {
+    ///       /* implementation code */
+    ///       # panic!()
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///   let mut mock = Foo::faux();
+    ///
+    ///   // closure still has an argument, it is just an empty tuple
+    ///   faux::when!(mock.multi_args).then_do(|| 5);
+    ///   assert_eq!(mock.multi_args(&3, 4), 5);
+    /// }
+    ///
+    /// ```
+    pub fn then_do(self, mut mock: impl FnMut() -> O + 'static + Send)
+    where
+        O: 'static,
+    {
+        unsafe { self.then(move |_: I| mock()) }
+    }
+
+    /// Mocks the method stored in the `When` to return the given
+    /// object for the saved instace. Requires the object to be
+    /// cloneable, as the mock may be called multiple times, and
+    /// static. For more complex mocks see [then_do], [safe_then] or
+    /// [then]
+    ///
+    /// By default, this mock will be active for all future calls to
+    /// this method. If you wish to limit the number of calls that are
+    /// doable to this mocked method, you may use [times] prior to
+    /// calling for this method.
+    ///
+    /// [then_do]: #method.then_do
+    /// [safe_then]: #method.safe_then
+    /// [then]: #method.then
+    ///
+    /// # Usage
+    ///
+    /// ```rust
+    /// #[faux::create]
+    /// pub struct Foo {}
+    ///
+    /// #[faux::methods]
+    /// impl Foo {
+    ///     pub fn multi_args(self, a: &i32, b: i8) -> u32 {
+    ///       /* implementation code */
+    ///       # panic!()
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///   let mut mock = Foo::faux();
+    ///
+    ///   // closure still has an argument, it is just an empty tuple
+    ///   faux::when!(mock.multi_args).then_return(5);
+    ///   assert_eq!(mock.multi_args(&2, 3), 5);
+    /// }
+    ///
+    /// ```
+    pub fn then_return(self, mock: O)
+    where
+        O: 'static + Send + Clone,
+    {
+        unsafe { self.then(move |_: I| mock.clone()) }
+    }
+
+    /// Mocks the method stored in the `When` with the given closure
+    /// for the saved instance. This mock is restricted only to static
     /// inputs, outputs, and closures. While this is very restrictive
     /// it allows for a purely safe interface. See [then] for the
     /// unsafe version.
@@ -175,7 +269,6 @@ impl<'q, I, O> When<'q, I, O> {
     /// calling for this method.
     ///
     /// [then]: #method.then
-    /// [once]: #method.once
     ///
     /// # Usage
     ///

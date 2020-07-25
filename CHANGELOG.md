@@ -1,8 +1,20 @@
 # CHANGELOG
 
-## v0.0.6
+## NEXT
 * Removes `proc-macro-hack` dependency.
-  * Starting on rust 1.45, function-like proc macros are allowed in statement expressions
+  * Starting on rust 1.45, function-like proc macros are allowed in
+    statement expressions
+* Allow autoderiving `Clone`.
+  * It will panic when trying to clone a mocked instance but work as
+    expected on real instances
+  * [test](/tests/clone.rs)
+* Added `then_do`
+  * It explicitly avoids letting the user look at the input parameters
+    such that it can be safe to use on methods with non-static
+    arguments
+* Added `then_return`
+  * Allows users to easily and safely mock the return value of methods
+    without using a closure
 
 ### Breaking Change
 * Minimum rust version changed to 1.45
