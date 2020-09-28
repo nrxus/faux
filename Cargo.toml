@@ -15,10 +15,9 @@ doctest = false
 
 [dependencies]
 faux_macros = { path = "faux_macros", version = "0.0.5" }
-proc-macro-hack = "0.5"
 
 [dev-dependencies]
-futures = "0.3.1"
+futures = "0.3"
 
 [workspace]
 members = ["faux_macros"]

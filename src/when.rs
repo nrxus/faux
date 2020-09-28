@@ -1,21 +1,16 @@
 use crate::{mock::MockTimes, mock_store::MockStore};
 
-/// Stores who and what to mock, how many times to mock it, and
-/// provides methods to mock the method both safely and unsafely.
+/// Stores who to mock, what to mock, and how many times to mock it.
 ///
-/// The methods provided for mocking expect an [FnMut] to be passed
-/// in. This means that data may not be moved to the closure, but
-/// rather only borrowed, or mutably borrowed. If you need a way to
-/// pass a closure with data moved into it, and that mock only needs
-/// to be activated once, you may call [once] to get a handle to a
-/// [WhenOnce].
+/// Created using [when!].
 ///
-/// See [when!] for how to get a instance of this
-/// struct.
+/// By default all methods are mocked indefinitely and the mock
+/// closures may not consume captured variables. See the [times] and
+/// [once] methods to override these default.
 ///
 /// [when!]: macro.when.html
-/// [once]: #methods.once
-/// [WhenOnce]: struct.WhenOnce.html
+/// [once]: #method.once
+/// [times]: #method.times
 pub struct When<'q, I, O> {
     id: &'static str,
     store: &'q mut MockStore,
@@ -35,23 +30,17 @@ impl<'q, I, O> When<'q, I, O> {
         }
     }
 
-    /// Mocks the method stored in the `When` with the given closure
-    /// for the saved instance. This mock has no restrictions on the
-    /// lifetimes for the inputs, outputs, nor the mocked function
-    /// itself for maximum flexibility. While this method is "type"
-    /// safe for the types in the mocked method, it is not lifetime
-    /// safe. See [safety].
+    /// Saves a mock without any lifetime checks.
+    ///
+    /// The provided mock has no restrictions on the lifetimes of the
+    /// inputs, outputs, nor the mocked function itself for maximum
+    /// flexibility. While this method is "type" safe for the types in
+    /// the mocked method, it is [not lifetime safe].
     ///
     /// The input for the given closure is a tuple of all its
-    /// non-receiver parameters (e.g., `&mut self`, or `self:
-    /// Rc<Self>`).
+    /// non-receiver parameters.
     ///
-    /// By default, this mock will be active for all future calls to
-    /// this method. If you wish to limit the number of calls that are
-    /// doable to this mocked method, you may use [times] prior to
-    /// calling for this method.
-    ///
-    /// [safety]: #safety
+    /// [not lifetime safe]: #safety
     /// [times]: #method.times
     ///
     /// # Usage
@@ -83,8 +72,8 @@ impl<'q, I, O> When<'q, I, O> {
     ///
     ///   // the output can be a reference to the environment
     ///   // but this can be *very* dangerous so be careful
-    ///   // note that the closure still has an argument, it is just an empty tuple
     ///   let x = 5;
+    ///   // methods with no arguments have mocks with empty tuples
     ///   unsafe { faux::when!(mock.no_args).then(|_empty: ()| &x) }
     ///   assert_eq!(*mock.no_args(), 5);
     ///
@@ -105,16 +94,18 @@ impl<'q, I, O> When<'q, I, O> {
     ///
     /// # Safety
     ///
-    /// This function effectively erases the lifetime relationships of
-    /// the inputs and outputs. It is the user's responsability to not
-    /// pass a mock that would capture a variable that would be used
-    /// after it has been deallocated.
+    /// The lifetimes of the inputs, outputs, and captured variables
+    /// are not checked. While this gives the caller maximum
+    /// flexibility when mocking it also *not* memory safe when used
+    /// incorrectly.
     ///
-    /// Another way in which this function is unsafe is if the output
-    /// of this function has a logical lifetime link to the input.  At
-    /// the moment the mock gets called, that link would be erased
-    /// which could create multiple mutable references to the same
-    /// object.
+    /// Captured variables could be used after-freed if the mock was
+    /// called after them being dropped. This would create undefined
+    /// behavior.
+    ///
+    /// Relationships between inputs, outputs, and captured variable
+    /// lifetimes are lost. This allows for easy violations of Rust's
+    /// aliasing checks, creating undefined behavior.
     ///
     /// Example:
     ///
@@ -132,11 +123,12 @@ impl<'q, I, O> When<'q, I, O> {
     ///
     /// fn main() {
     ///   let mut mock = Foo::faux();
-    ///   // set up the mock such that the output is the same reference as the input
+    ///   // the output is the same reference as the input
+    ///   // the lifetimes of the input and output are thus linked
     ///   unsafe { faux::when!(mock.out_ref).then(|i| i) }
     ///
     ///   let mut x = 5;
-    ///   // y is now a mutable reference back x
+    ///   // y (the output) is a mutable reference back to x (the input)
     ///   // but there is no compile-time link between the two
     ///   let y = mock.out_ref(&mut x);
     ///
@@ -144,7 +136,8 @@ impl<'q, I, O> When<'q, I, O> {
     ///   assert_eq!(*y, 5);
     ///   assert_eq!(x, 5);
     ///
-    ///   // x now changes y. This is UB and is not allowed in safe Rust!
+    ///   // changes in x are reflected in y.
+    ///   // This is UB and is not allowed in safe Rust!
     ///   x += 1;
     ///   assert_eq!(x, 6);
     ///   assert_eq!(*y, 6);
@@ -159,24 +152,11 @@ impl<'q, I, O> When<'q, I, O> {
         self.store.unsafe_mock(self.id, mock, self.times);
     }
 
-    /// Mocks the method stored in the `When` with the given closure
-    /// for the saved instance. This mock is restricted only to static
-    /// outputs, and closures. Unlike [then] or [safe_then], this
-    /// method does not allow the user to get access to the inputs of
-    /// the mocked method. This is a deliberate choice to allow users
-    /// to mock methods with input references through a safe
-    /// interface. If you need access to the inputs and they are are
-    /// all static types, then you may use [safe_then]. If you need
-    /// access to the inputs and at least one of them has a non-static
-    /// lifetime, then you have to use the unsafe [then] method.
+    /// Saves a mock that does not allow a view into its inputs.
     ///
-    /// By default, this mock will be active for all future calls to
-    /// this method. If you wish to limit the number of calls that are
-    /// doable to this mocked method, you may use [times] prior to
-    /// calling for this method.
-    ///
-    /// [safe_then]: #method.safe_then
-    /// [then]: #method.then
+    /// Because the mock does not receive any inputs, it allows for
+    /// safe mocking of methods that have non-static inputs. The
+    /// output and the mock itself must still be a static type.
     ///
     /// # Usage
     ///
@@ -186,7 +166,7 @@ impl<'q, I, O> When<'q, I, O> {
     ///
     /// #[faux::methods]
     /// impl Foo {
-    ///     pub fn multi_args(self, a: &i32, b: i8) -> u32 {
+    ///     pub fn multi_args(&self, a: &i32, b: i8) -> u32 {
     ///       /* implementation code */
     ///       # panic!()
     ///     }
@@ -195,8 +175,10 @@ impl<'q, I, O> When<'q, I, O> {
     /// fn main() {
     ///   let mut mock = Foo::faux();
     ///
-    ///   // closure still has an argument, it is just an empty tuple
+    ///   // mock has no inputs
     ///   faux::when!(mock.multi_args).then_do(|| 5);
+    ///   assert_eq!(mock.multi_args(&3, 4), 5);
+    ///   // mock activates multiple times
     ///   assert_eq!(mock.multi_args(&3, 4), 5);
     /// }
     ///
@@ -208,20 +190,9 @@ impl<'q, I, O> When<'q, I, O> {
         unsafe { self.then(move |_: I| mock()) }
     }
 
-    /// Mocks the method stored in the `When` to return the given
-    /// object for the saved instace. Requires the object to be
-    /// cloneable, as the mock may be called multiple times, and
-    /// static. For more complex mocks see [then_do], [safe_then] or
-    /// [then]
+    /// Saves an object as the return value of the mock.
     ///
-    /// By default, this mock will be active for all future calls to
-    /// this method. If you wish to limit the number of calls that are
-    /// doable to this mocked method, you may use [times] prior to
-    /// calling for this method.
-    ///
-    /// [then_do]: #method.then_do
-    /// [safe_then]: #method.safe_then
-    /// [then]: #method.then
+    /// Requires the object to be cloneable and static.
     ///
     /// # Usage
     ///
@@ -231,7 +202,7 @@ impl<'q, I, O> When<'q, I, O> {
     ///
     /// #[faux::methods]
     /// impl Foo {
-    ///     pub fn multi_args(self, a: &i32, b: i8) -> u32 {
+    ///     pub fn multi_args(&mut self, a: &i32, b: i8) -> u32 {
     ///       /* implementation code */
     ///       # panic!()
     ///     }
@@ -240,8 +211,9 @@ impl<'q, I, O> When<'q, I, O> {
     /// fn main() {
     ///   let mut mock = Foo::faux();
     ///
-    ///   // closure still has an argument, it is just an empty tuple
     ///   faux::when!(mock.multi_args).then_return(5);
+    ///   assert_eq!(mock.multi_args(&2, 3), 5);
+    ///   // mock activates multiple times
     ///   assert_eq!(mock.multi_args(&2, 3), 5);
     /// }
     ///
@@ -253,22 +225,14 @@ impl<'q, I, O> When<'q, I, O> {
         unsafe { self.then(move |_: I| mock.clone()) }
     }
 
-    /// Mocks the method stored in the `When` with the given closure
-    /// for the saved instance. This mock is restricted only to static
-    /// inputs, outputs, and closures. While this is very restrictive
-    /// it allows for a purely safe interface. See [then] for the
-    /// unsafe version.
+    /// Saves a mock where all the mock lifetimes are checked.
+    ///
+    /// The provided mock must be static, and it must be mocking a
+    /// method with static inputs and ouputs. While this is very
+    /// restrictive it allows for a purely safe interface.
     ///
     /// The input for the given closure is a tuple of all its
-    /// non-receiver parameters (e.g., `&mut self`, or `self:
-    /// Rc<Self>`).
-    ///
-    /// By default, this mock will be active for all future calls to
-    /// this method. If you wish to limit the number of calls that are
-    /// doable to this mocked method, you may use [times] prior to
-    /// calling for this method.
-    ///
-    /// [then]: #method.then
+    /// non-receiver parameters.
     ///
     /// # Usage
     ///
@@ -297,10 +261,6 @@ impl<'q, I, O> When<'q, I, O> {
     /// fn main() {
     ///   let mut mock = Foo::faux();
     ///
-    ///   // closure still has an argument, it is just an empty tuple
-    ///   faux::when!(mock.no_args).safe_then(|_empty: ()| 5);
-    ///   assert_eq!(mock.no_args(), 5);
-    ///
     ///   // unit tuples do not need parentheses
     ///   faux::when!(mock.single_arg).safe_then(|input| vec![input as i8]);
     ///   assert_eq!(mock.single_arg(8), vec![8]);
@@ -323,9 +283,40 @@ impl<'q, I, O> When<'q, I, O> {
         self.store.mock(self.id, mock, self.times);
     }
 
-    /// Limits the number of times a mock is active. Any future call
-    /// past that will result in a panic, causing your test to fail.
+    /// Limits the number of times a mock is active.
+    ///
+    /// Calls past the limit results in a panic.
+    ///
     /// # Usage
+    ///
+    /// ```rust
+    /// #[faux::create]
+    /// pub struct Foo {}
+    ///
+    /// #[faux::methods]
+    /// impl Foo {
+    ///     pub fn single_arg(&self, a: u8) -> Vec<i8> {
+    ///       /* implementation code */
+    ///       # panic!()
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///   let mut mock = Foo::faux();
+    ///
+    ///   // limit to 5 times
+    ///   faux::when!(mock.single_arg)
+    ///       .times(5)
+    ///       .safe_then(|input| vec![input as i8]);
+    ///
+    ///   // can be called 5 times safely
+    ///   for _ in 0..5 {
+    ///     assert_eq!(mock.single_arg(8), vec![8]);
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// ## Panics
     ///
     /// ```rust should_panic
     /// #[faux::create]
@@ -342,12 +333,15 @@ impl<'q, I, O> When<'q, I, O> {
     /// fn main() {
     ///   let mut mock = Foo::faux();
     ///
-    ///   // can be called 3 times
-    ///   faux::when!(mock.single_arg).times(3).safe_then(|input| vec![input as i8]);
-    ///   assert_eq!(mock.single_arg(8), vec![8]);
-    ///   assert_eq!(mock.single_arg(8), vec![8]);
-    ///   assert_eq!(mock.single_arg(8), vec![8]);
-    ///   assert_eq!(mock.single_arg(8), vec![8]); //panics on its 4th call
+    ///   // limit to 5 times
+    ///   faux::when!(mock.single_arg)
+    ///       .times(5)
+    ///       .safe_then(|input| vec![input as i8]);
+    ///
+    ///   // panics on the 6th call
+    ///   for _ in 0..6 {
+    ///     assert_eq!(mock.single_arg(8), vec![8]);
+    ///   }
     /// }
     /// ```
     pub fn times(mut self, times: usize) -> Self {
@@ -355,10 +349,36 @@ impl<'q, I, O> When<'q, I, O> {
         self
     }
 
-    /// Returns a handle to a [WhenOnce]. Useful when the closure you
-    /// wish to pass to this mock needs to move data rather than
-    /// borrow it. It, however, makes your mocked method only callable
-    /// once.
+    /// Limits mock to one call, allowing mocks to consume captured variables.
+    ///
+    /// Panics if the mock is called more than once.
+    ///
+    /// # Usage
+    ///
+    /// ```rust
+    /// #[faux::create]
+    /// pub struct Foo {}
+    ///
+    /// #[faux::methods]
+    /// impl Foo {
+    ///     pub fn single_arg(&self, a: u8) -> Vec<i8> {
+    ///       /* implementation code */
+    ///       # panic!()
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///   let mut mock = Foo::faux();
+    ///
+    ///   let vec = vec![25];
+    ///   //moves vec to the closure
+    ///   faux::when!(mock.single_arg).once().safe_then(|_| vec);
+    ///   assert_eq!(mock.single_arg(8), vec![25]);
+    /// }
+    /// ```
+    ///
+    /// # Panics
+    ///
     /// ```rust should_panic
     /// #[faux::create]
     /// pub struct Foo {}
@@ -375,10 +395,10 @@ impl<'q, I, O> When<'q, I, O> {
     ///   let mut mock = Foo::faux();
     ///
     ///   let vec = vec![25];
-    ///   faux::when!(mock.single_arg).once().safe_then(|_| vec); //moves vec to the closure
+    ///   faux::when!(mock.single_arg).once().safe_then(|_| vec);
     ///   assert_eq!(mock.single_arg(8), vec![25]);
-    ///
-    ///   mock.single_arg(8); //panics on its 2nd call
+    ///   //panics on its 2nd call
+    ///   mock.single_arg(8);
     /// }
     /// ```
     pub fn once(self) -> WhenOnce<'q, I, O> {
@@ -390,10 +410,10 @@ impl<'q, I, O> When<'q, I, O> {
     }
 }
 
-/// Similar to [When](struct.When) but its methods will only make the mock active
-/// for a single call. This allows users to pass an FnOnce rather than
-/// an FnMut, thus allowing to move data into the closure through a
-/// move rather than only a borrow or mutable borrow.
+/// Similar to [When](struct.When) but only mocks once.
+///
+/// Mock closures may consume captured variables as the mock will not
+/// be called more than once.
 pub struct WhenOnce<'q, I, O> {
     id: &'static str,
     store: &'q mut MockStore,
@@ -402,12 +422,14 @@ pub struct WhenOnce<'q, I, O> {
 }
 
 impl<'q, I, O> WhenOnce<'q, I, O> {
-    /// A mirror of [When.then](struct.When.html#method.then) but can
-    /// move data to the closure. The mocked method however can only
-    /// be activated once unless its re-mocked.
+    /// A mirror of [When.then] but the mock may consume captured
+    /// variables.
     ///
     /// # Safety
-    /// See [When.then's safety](struct.When.html#safety)
+    /// See [When.then's safety]
+    ///
+    /// [When.then]: struct.When.html#method.then
+    /// [When.then's safety]: (struct.When.html#safety)
     ///
     /// # Usage
     ///
@@ -436,10 +458,82 @@ impl<'q, I, O> WhenOnce<'q, I, O> {
         self.store.unsafe_mock_once(self.id, mock);
     }
 
-    /// A mirror of
-    /// [When.safe_then](struct.When.html#method.safe_then) but can
-    /// move data to the closure. The mocked method however can only
-    /// be activated once unless its re-mocked.
+    /// A mirror of [When.then_do] but the mock may consume captured
+    /// variables.
+    ///
+    /// [When.then_do]: struct.When.html#method_then_do
+    ///
+    /// # Usage
+    ///
+    /// ```rust
+    /// #[faux::create]
+    /// pub struct Foo {}
+    ///
+    /// #[faux::methods]
+    /// impl Foo {
+    ///     pub fn single_arg(&self, a: &u8) -> Vec<i8> {
+    ///       /* implementation code */
+    ///       # panic!()
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///   let mut mock = Foo::faux();
+    ///
+    ///   let vec = vec![25];
+    ///   //moves vec to the closure
+    ///   faux::when!(mock.single_arg).once().then_do(|| vec);
+    ///   assert_eq!(mock.single_arg(&8), vec![25]);
+    /// }
+    /// ```
+    pub fn then_do(self, mock: impl FnOnce() -> O + 'static + Send)
+    where
+        O: 'static,
+    {
+        unsafe { self.then(move |_: I| mock()) }
+    }
+
+    /// A mirror of [When.then_return] but the object does not need to
+    /// be cloneable.
+    ///
+    /// [When.then_return]: struct.When.html#method_then_return
+    ///
+    /// # Usage
+    ///
+    /// ```rust
+    /// // this does not implement Clone
+    /// #[derive(PartialEq, Eq, Debug)]
+    /// pub struct NonCloneableData(i32);
+    ///
+    /// #[faux::create]
+    /// pub struct Foo {}
+    ///
+    /// #[faux::methods]
+    /// impl Foo {
+    ///     pub fn single_arg(&self, a: &u8) -> NonCloneableData {
+    ///       /* implementation code */
+    ///       # panic!()
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///   let mut mock = Foo::faux();
+    ///
+    ///   faux::when!(mock.single_arg).once().then_return(NonCloneableData(2));
+    ///   assert_eq!(mock.single_arg(&8), NonCloneableData(2));
+    /// }
+    /// ```
+    pub fn then_return(self, mock: O)
+    where
+        O: 'static + Send,
+    {
+        unsafe { self.then(move |_: I| mock) }
+    }
+
+    /// A mirror of [When.safe_then] but the mock may consume captured
+    /// variables.
+    ///
+    /// [When.safe_then]: struct.When.html#method.safe_then
     ///
     /// # Usage
     ///

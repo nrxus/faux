@@ -1,7 +1,7 @@
 #[faux::create]
 #[derive(Clone)]
 pub struct Foo {
-    a: i32
+    a: i32,
 }
 
 #[faux::methods]

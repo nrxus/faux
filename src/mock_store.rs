@@ -25,7 +25,7 @@ impl<T: Clone> Clone for MaybeFaux<T> {
     fn clone(&self) -> Self {
         match self {
             MaybeFaux::Real(r) => MaybeFaux::Real(r.clone()),
-            MaybeFaux::Faux(_) => panic!("cannot clone a mock")
+            MaybeFaux::Faux(_) => panic!("cannot clone a mock"),
         }
     }
 }

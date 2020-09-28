@@ -6,8 +6,8 @@
 //! A library to create [mocks] out of `struct`s.
 //!
 //! `faux` provides macros to help you create mocks out of your
-//! structs without the need of generics/trait objects polluting your
-//! function signatures.
+//! structs without the need of generics nor trait objects polluting
+//! your function signatures.
 //!
 //! **`faux` makes liberal use of unsafe rust features, and it is only
 //! recommended for use inside tests.**
@@ -58,6 +58,10 @@
 //!   // other methods can be mocked using unsafe
 //!   unsafe { faux::when!(mock.add_ref).then(|&x| x + 1) }
 //!   assert_eq!(mock.add_ref(&3), 4);
+//!
+//!   // we can avoid unsafe if we do not care about the inputs
+//!   unsafe { faux::when!(mock.add_ref).then_do(|| 10) }
+//!   assert_eq!(mock.add_ref(&1), 10);
 //! }
 //! #
 //! # fn main() {
@@ -76,6 +80,10 @@
 //! #    // other methods can be mocked using unsafe
 //! #    unsafe { faux::when!(mock.add_ref).then(|&x| x + 1) }
 //! #    assert_eq!(mock.add_ref(&3), 4);
+//! #
+//! #    // we can avoid unsafe if we do not care about the inputs
+//! #    unsafe { faux::when!(mock.add_ref).then_do(|| 10) }
+//! #    assert_eq!(mock.add_ref(&1), 10);
 //! #  }
 //! ```
 //!
@@ -90,7 +98,7 @@ mod mock;
 mod mock_store;
 mod when;
 
-/// Transforms the given struct into a mockable version of itself.
+/// Transforms a struct into a mockable version of itself.
 ///
 /// It creates an associated function for the tagged struct called
 /// `faux` and masks the original definition of the struct by changing
@@ -106,10 +114,8 @@ mod when;
 /// to access the field directly when it no longer exists in the
 /// transformed version.
 ///
-/// The transformed struct is useless unless its methods are also
-/// mocked. See [#\[methods\]] for documentation on how to mock the
-/// methods of the struct. If `#[methods]` is not used for an impl
-/// block, methods inside the impl may not use any of its fields.
+/// Only methods within `impl` blocks tagged by [#\[methods\]] may use
+/// any of the struct fields.
 ///
 /// # Usage
 /// ```
@@ -135,27 +141,29 @@ mod when;
 /// ## self_type
 ///
 /// Allowed values:
-/// * `#[methods(self_type = "Rc")]`
-/// * `#[methods(self_type = "Arc")]`
-/// * `#[methods(self_type = "Box")]`
-/// * `#[methods(self_type = "Owned")]`
+/// * `#[create(self_type = "Rc")]`
+/// * `#[create(self_type = "Arc")]`
+/// * `#[create(self_type = "Box")]`
+/// * `#[create(self_type = "Owned")]`
 ///   * this is the default and not necessary
 ///
-/// This argument tells faux that instead of holding a real value of your
-/// struct (when the struct is not being mocked), to hold your struct
-/// wrapped in the specified `self_type`. Faux should guide you
-/// towards using this argument through either a compile error or a
-/// panic in your tests.
+/// Indicates how to wrap the real value of the struct when not being
+/// mocked, e.g., wrap an owned instance vs an `Rc<>`. `faux` will
+/// guide to use this attribute when needed through either a compile
+/// time error or a panic. Do not use unless `faux` asks you to.
 ///
-/// This argument is helpful when you want your struct to *ONLY* be
-/// publicly viewed through one of these wrappers (i.e., your
-/// functions to create your struct returns an Rc<Self>). Iff a
-/// `self_type` is specified here, then it must also be specified in
-/// all of the impl blocks tagged with [#\[methods\]]. The author's
-/// recommendation is to only use this feature when faux suggests you
-/// to.
+/// Be default `faux` wraps owned instance of your struct (i.e.,
+/// `MyStruct`). However, sometimes this is not ideal if the only
+/// interactions for this struct are through a different self type
+/// (e.g., `self: Rc<Mystruct>`). In this case, we can indicate `faux`
+/// to hold a non-owned version (e.g., `Rc<MyStruct>`). This is
+/// particularly useful if the only methods that return an instance of
+/// the struct return a non-owned instance of it.
 ///
-/// # Usage
+/// If this attribute is set, all of the `impl` blocks tagged with
+/// [#\[methods\]] must specify the same `self_type`.
+///
+/// ### Usage
 /// ```
 /// use std::sync::Arc;
 ///
@@ -176,32 +184,15 @@ mod when;
 /// # fn main() {}
 /// ```
 ///
-/// # Known Limitations
-///
 /// [#\[methods\]]: attr.methods.html
 /// [cargo-expand]: https://github.com/dtolnay/cargo-expand
 ///
 pub use faux_macros::create;
 
-/// Transforms the given methods into mockable versions of themselves
-/// and provides a new method to mock them.
+/// Transforms methods in an `impl` block into mockable versions of
+/// themselves.
 ///
-/// The generated methods look like
-///
-/// ```ignore
-/// impl MyStruct {
-///     /* other methods before */
-///
-///     // I is a tuple of all the non-receiver arguments of #{method_name}
-///     // O is the output of #{method_name}
-///     _when_#{method_name}(&mut self) -> When<I,O> {
-///         /* auto generated code */
-///     }
-/// }
-/// ```
-///
-/// These auto-generated methods can be called directly but a more
-/// ergonomic way is by using [when!].
+/// The mockable methods can then be mocked using [when!].
 ///
 /// Associated functions and private methods are not mocked, and are
 /// instead proxied to the real implementation.
@@ -250,25 +241,17 @@ pub use faux_macros::create;
 /// let mut fake = MyStruct::faux();
 /// faux::when!(fake.get).safe_then(|_| 3);
 /// assert_eq!(fake.get(), 3);
-/// // unsafe because a parameter is a reference. See When's documentation
+/// // unsafe because a parameter is a reference.
+/// // See When's documentation
 /// unsafe { faux::when!(fake.read).then(|a| Ok(a[0] as usize)) }
 /// assert_eq!(fake.read(&mut vec![10]).unwrap(), 10);
 /// # }
 /// ```
 /// # Attribute arguments
 ///
-/// There are times when faux needs a little extra information to
-/// properly mock your struct and its methods. Use `path =
-/// "path::to::imported::mod"` when you are mocking methods from a
-/// struct imported from a different module. Use `self_type =
-/// "{self_type}"` when your method receivers would not allow faux to
-/// get an owned value from it, this is particularly important for
-/// `self: Rc<Self>` and `self: Arc<Self>` receivers.
-///
 /// ## path
 ///
-/// Faux supports mocking structs from a different module as long as
-/// we tell `#[methods]` where we are importing the struct from.
+/// Indicates that the struct came from an imported module.
 ///
 /// ```
 /// mod foo {
@@ -332,9 +315,20 @@ pub use faux_macros::create;
 /// * `#[methods(self_type = "Owned")]`
 ///   * this is the default and not necessary
 ///
-/// The `self_type` specified in methods *must* match the [self_type
-/// in `create`](attr.create.html#self_type) and is required iff one
-/// was specified there.
+/// Indicates how the real value of the struct is wrapped when not
+/// being mocked, e.g., wrapped as an owned instance vs an
+/// `Rc<>`. `faux` will guide to use this attribute when needed
+/// through either a compile time error or a panic. Do not use unless
+/// `faux` asks you to.
+///
+/// If this attribute is set, the [#\[create\]] attribute must specify
+/// the same `self_type` in the struct.
+///
+/// By default `faux` assumes that it has access to an owned instance
+/// of the struct. However, the [#\[create\]] macro may have a
+/// `self_type` specified that wraps the instance differently. This is
+/// useful when the method receivers are all the same non-owned
+/// received (e.g., `self: Rc<Self>`).
 ///
 /// The method receivers for all the methods in the impl block must be
 /// convertable from the `self_type` specified. In particular, while a
@@ -342,7 +336,7 @@ pub use faux_macros::create;
 /// `&mut self` cannot. This means that if you specify `self_type =
 /// "Rc"`, then none of the methods being mocked may take a `&mut
 /// self` as a receiver. If you believe that a certain combination of
-/// specified `self_type` and method receiver is doable but now
+/// specified `self_type` and method receiver is doable but not
 /// allowed in `faux` please file an issue.
 ///
 /// Another effect of specifying the `self_type` is gaining the
@@ -357,12 +351,12 @@ pub use faux_macros::create;
 ///
 /// #[faux::methods(self_type = "Rc")]
 /// impl ByRc {
-///     // you can still return plain Self
+///     // you can return plain Self
 ///     pub fn new() -> Self {
 ///         ByRc {}
 ///     }
 ///
-///     // but you may also now return the self wrapped in the self_type
+///     // or the Self wrapped in the self_type
 ///     pub fn new_rc() -> Rc<Self> {
 ///         Rc::new(ByRc {})
 ///     }
@@ -370,7 +364,7 @@ pub use faux_macros::create;
 ///     // can call methods with an Rc<Self> receiver type
 ///     pub fn by_rc(self: Rc<Self>) {}
 ///
-///     // Rc<Self> derefs to &self so this is okay
+///     // Rc<Self> derefs to &self so this is okay too
 ///     pub fn by_ref(&self) {}
 /// }
 /// # fn main() {}
@@ -396,8 +390,8 @@ pub use faux_macros::create;
 ///
 /// # fn main() {
 /// let fake = MyStruct::faux();
-/// // when!(fake.get).then_safe() was not invoked and thus the method was not mocked
-/// fake.get(); // <~ panics with "'MyStruct::get' is not mocked"
+/// // fake.get is not mocked
+/// fake.get(); // <~ panics
 /// # }
 /// ```
 ///
@@ -422,7 +416,7 @@ pub use faux_macros::create;
 ///
 /// # fn main() {
 /// let mut fake = MyStruct::new();
-/// faux::when!(fake.get); // <~ panics with "not allowed to mock a real instance!"
+/// faux::when!(fake.get); // <~ panics
 /// # }
 /// ```
 ///
@@ -460,7 +454,7 @@ pub use faux_macros::create;
 /// // panics if there are multiple references
 /// let rcd = Rc::new(Owned::new());
 /// let clone = rcd.clone();
-/// rcd.by_rc(); // this panics because there are now multiple references
+/// rcd.by_rc(); // <~ panics: reference is not unique
 /// # }
 /// ```
 ///
@@ -549,13 +543,13 @@ pub use faux_macros::create;
 /// argument.
 pub use faux_macros::methods;
 
-/// Creates a [When] for a specific instance/method pair
+/// Creates a [When] instance to mock a specific method in a struct.
 ///
-/// This macro is a wrapper around calling the `_when_{method_name}()`
-/// method that is auto-generated by [#\[methods\]].
+/// The method to mock must be be in an `impl` blocked tagged by
+/// [#\[methods\]]
 ///
 /// [#\[methods\]]: attr.methods.html
-/// [When]: When
+/// [When]: struct.When.html
 ///
 /// ```
 /// #[faux::create]
@@ -571,10 +565,9 @@ pub use faux_macros::methods;
 ///
 /// fn main() {
 ///     let mut mock = Foo::faux();
-///     // input and output types are stored in the type signature of `When`
-///     // calling `when!` or the auto-generated method creates the same `When`
+///     // (u32, i8) is the input of the mocked method
+///     // i32 is the output of the mocked method
 ///     let a: faux::When<(u32, i8), i32> = faux::when!(mock.some_method);
-///     let b: faux::When<(u32, i8), i32> = mock._when_some_method();
 /// }
 /// ```
 pub use faux_macros::when;
