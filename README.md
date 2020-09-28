@@ -1,4 +1,4 @@
-# faux &emsp; [![Latest Version]][crates.io] [![rustc 1.40+]][Rust 1.40] [![docs]][api docs] ![][build]
+# faux &emsp; [![Latest Version]][crates.io] [![rustc 1.45+]][Rust 1.45] [![docs]][api docs] ![][build]
 
 faux is a traitless mocking library for stable Rust. It was inspired
 by [mocktopus], a mocking library for nightly Rust that lets you mock
@@ -196,8 +196,8 @@ their function signatures with either generics or trait objects.
 
 [Latest Version]: https://img.shields.io/crates/v/faux.svg
 [crates.io]: https://crates.io/crates/faux
-[rustc 1.40+]: https://img.shields.io/badge/rustc-1.40+-blue.svg
-[Rust 1.40]: https://blog.rust-lang.org/2019/12/19/Rust-1.40.0.html
+[rustc 1.45+]: https://img.shields.io/badge/rustc-1.45+-blue.svg
+[Rust 1.45]: https://blog.rust-lang.org/2020/07/16/Rust-1.45.0.html
 [Latest Version]: https://img.shields.io/crates/v/faux.svg
 [docs]: https://img.shields.io/badge/api-docs-blue.svg
 [api docs]: https://docs.rs/faux/
