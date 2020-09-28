@@ -20,7 +20,7 @@ prevent usage in production code:
 
 ``` toml
 [dev-dependencies]
-faux = "0.0.5"
+faux = "0.0.6"
 ```
 
 faux provides two attributes: `create` and `methods`. Use these

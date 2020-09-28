@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## NEXT
+## v0.0.6
 * Removes `proc-macro-hack` dependency.
   * Starting on rust 1.45, function-like proc macros are allowed in
     statement expressions
