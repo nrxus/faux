@@ -124,8 +124,6 @@ struct Foo { /*some items here */ }
 impl Foo {
     /* some methods here */
 }
-
-# fn main() {}
 ```
 
 In the snippet above, `#[faux::methods]` will expand first followed by
