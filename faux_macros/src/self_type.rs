@@ -10,6 +10,7 @@ pub enum SelfType {
     Owned,
     Arc,
     Box,
+    Pin,
 }
 
 impl SelfType {
@@ -25,6 +26,7 @@ impl SelfType {
             SelfType::Rc => Some(quote!(std::rc::Rc)),
             SelfType::Box => Some(quote!(std::boxed::Box)),
             SelfType::Arc => Some(quote!(std::sync::Arc)),
+            SelfType::Pin => Some(quote!(std::pin::Arc)),
         }
     }
 }
@@ -42,6 +44,7 @@ impl std::fmt::Display for SelfType {
             SelfType::Rc => "Rc",
             SelfType::Arc => "Arc",
             SelfType::Box => "Box",
+            SelfType::Pin => "Pin",
         })
         .fmt(f)
     }

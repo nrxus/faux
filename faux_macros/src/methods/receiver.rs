@@ -39,6 +39,7 @@ impl Receiver {
             Kind::Owned(_) => quote! { self },
             Kind::Arc | Kind::Rc => quote! { &*self },
             Kind::Box => quote! { *self },
+            Kind::Pin => quote! { unsafe {self.get_unchecked_mut()} },
         };
 
         let kind = &self.kind;
@@ -60,6 +61,12 @@ impl Receiver {
             (Kind::Rc, SelfType::Rc) | (Kind::Arc, SelfType::Arc) => quote! {
                 let r = r.clone();
                 #proxy_real
+            },
+            (Kind::Pin, SelfType::Pin) => {
+                quote! {
+                    let r = unsafe { std::pin::Pin::new_unchecked(r) };
+                    #proxy_real
+                }
             },
             (Kind::Rc, SelfType::Owned) | (Kind::Arc, SelfType::Owned) => {
                 let self_of_receiver = kind.to_self_type();
@@ -98,6 +105,7 @@ pub enum Kind {
     Arc,
     Box,
     Owned(OwnedKind),
+    Pin,
 }
 
 impl Kind {
@@ -106,6 +114,7 @@ impl Kind {
             (Kind::Rc, SelfType::Rc) => true,
             (Kind::Arc, SelfType::Arc) => true,
             (Kind::Box, SelfType::Box) => true,
+            (Kind::Pin, SelfType::Pin) => true,
             (Kind::Owned(_), SelfType::Owned) => true,
             _ => true,
         }
@@ -134,6 +143,8 @@ impl Kind {
             Kind::Arc
         } else if ident == "Box" {
             Kind::Box
+        } else if ident == "Pin" {
+            Kind::Pin
         } else {
             Kind::Owned(OwnedKind::Value)
         }
@@ -144,6 +155,7 @@ impl Kind {
             Kind::Arc => SelfType::Arc,
             Kind::Rc => SelfType::Rc,
             Kind::Box => SelfType::Box,
+            Kind::Pin => SelfType::Pin,
             Kind::Owned(_) => SelfType::Owned,
         }
     }
@@ -168,6 +180,7 @@ impl std::fmt::Display for Kind {
             Kind::Rc => "Rc<Self>",
             Kind::Arc => "Arc<Self>",
             Kind::Box => "Box<Self>",
+            Kind::Pin => "Pin<Self>",
         })
         .fmt(f)
     }
