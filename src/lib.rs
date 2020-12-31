@@ -144,6 +144,7 @@ mod when;
 /// * `#[create(self_type = "Rc")]`
 /// * `#[create(self_type = "Arc")]`
 /// * `#[create(self_type = "Box")]`
+/// * `#[create(self_type = "Pin")]`
 /// * `#[create(self_type = "Owned")]`
 ///   * this is the default and not necessary
 ///
