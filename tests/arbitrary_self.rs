@@ -1,5 +1,5 @@
 use faux;
-use std::{boxed::Box, rc::Rc, sync::Arc};
+use std::{boxed::Box, pin::Pin, rc::Rc, sync::Arc};
 
 #[faux::create]
 pub struct Owned {}
@@ -31,6 +31,15 @@ impl Owned {
     // with a message about using the self_type argument instead
     pub fn by_rc(self: Rc<Self>) {}
     pub fn by_arc(self: Arc<Self>) {}
+
+    pub fn by_pinmut(self: Pin<&mut Self>) {}
+    pub fn by_pinmut2(self: Pin<&mut Owned>) {}
+    pub fn by_pinrc(self: Pin<Rc<Self>>) {}
+    pub fn by_pinrc2(self: Pin<Rc<Owned>>) {}
+    pub fn by_pinarc(self: Pin<Arc<Self>>) {}
+    pub fn by_pinarc2(self: Pin<Arc<Owned>>) {}
+    pub fn by_pinbox(self: Pin<Box<Self>>) {}
+    pub fn by_pinbox2(self: Pin<Box<Owned>>) {}
 }
 
 #[faux::create(self_type = "Rc")]
@@ -168,4 +177,24 @@ fn by_box() {
     let mut faux_boxed = Box::new(ByBox::faux());
     faux::when!(faux_boxed.by_box).safe_then(|_| {});
     faux_boxed.by_box();
+}
+
+#[test]
+fn by_pin_from_owned() {
+    let mut owned = Owned::new();
+    Pin::new(&mut owned).by_pinmut();
+    Pin::new(&mut owned).by_pinmut2();
+    Pin::new(Rc::new(Owned::new())).by_pinrc();
+    Pin::new(Rc::new(Owned::new())).by_pinrc2();
+    Pin::new(Arc::new(Owned::new())).by_pinarc();
+    Pin::new(Arc::new(Owned::new())).by_pinarc2();
+    Pin::new(Box::new(Owned::new())).by_pinbox();
+    Pin::new(Box::new(Owned::new())).by_pinbox2();
+
+    let mut faux = Owned::faux();
+    let mut faux_pinmut = Pin::new(&mut faux);
+
+    faux::when!(faux_pinmut.by_pinmut).safe_then(|_| {});
+    faux::when!(faux_pinmut.by_pinmut2).safe_then(|_| {});
+    faux_pinmut.by_pinmut();
 }

@@ -1,7 +1,4 @@
-use crate::{
-    methods::receiver::{self, Receiver},
-    self_type::SelfType,
-};
+use crate::{methods::receiver::Receiver, self_type::SelfType};
 use quote::{quote, ToTokens};
 use syn::spanned::Spanned;
 
@@ -188,8 +185,8 @@ impl<'a> Signature<'a> {
 
         let wrapped_self = if let Some(syn::Type::Path(output)) = self.output {
             let last_segment = &output.path.segments.last().unwrap();
-            match receiver::Kind::from_segment(last_segment) {
-                receiver::Kind::Owned(_) if is_self(output) => Some(match real_self {
+            match SelfType::from_path(output) {
+                SelfType::Owned if is_self(output) => Some(match real_self {
                     SelfType::Owned => quote! {{ Self(faux::MaybeFaux::Real(#block))}},
                     generic => {
                         let new_path = generic
@@ -199,7 +196,7 @@ impl<'a> Signature<'a> {
                     }
                 }),
                 generic if self_generic(&last_segment.arguments) => {
-                    if generic.matches(&real_self) {
+                    if generic == real_self {
                         let new_path = real_self
                             .new_path()
                             .expect("return type should not be Self");
@@ -261,7 +258,7 @@ impl<'a> MethodData<'a> {
     }
 }
 
-fn wrong_self_type_error(expected: receiver::Kind, received: SelfType) -> impl std::fmt::Display {
+fn wrong_self_type_error(expected: SelfType, received: SelfType) -> impl std::fmt::Display {
     format!(
         "faux cannot create {expected} from a self type of {received}. Consider specifying a different self_type in the faux attributes, or moving this method to a non-faux impl block",
         expected = expected,

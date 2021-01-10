@@ -10,10 +10,10 @@ repository = "https://github.com/nrxus/faux"
 keywords = ["mock", "mocking", "test", "testing", "faux"]
 
 [dependencies]
-syn = { version = "1.0", features = ["full", "extra-traits"] }
-quote = "1.0"
-proc-macro2 = "1.0"
-darling = "0.10"
+syn = { version = "1.0.58", features = ["full", "extra-traits"] }
+quote = "1.0.8"
+proc-macro2 = "1.0.24"
+darling = "0.12.0"
 
 [dev-dependencies]
 faux = { path = "../" }

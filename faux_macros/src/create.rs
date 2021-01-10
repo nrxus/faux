@@ -37,7 +37,6 @@ impl Mockable {
                     SelfType::Arc => quote! { std::sync::Arc<#modified_name #ty_generics> },
                     SelfType::Owned => quote! {#modified_name #ty_generics },
                     SelfType::Box => quote! { std::boxed::Box<#modified_name #ty_generics>},
-                    SelfType::Pin => quote! { std::pin::Pin<#modified_name #ty_generics>},
                 }
             };
             let vis = &morphed.vis;

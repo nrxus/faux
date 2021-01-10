@@ -10,7 +10,6 @@ pub enum SelfType {
     Owned,
     Arc,
     Box,
-    Pin,
 }
 
 impl SelfType {
@@ -26,7 +25,22 @@ impl SelfType {
             SelfType::Rc => Some(quote!(std::rc::Rc)),
             SelfType::Box => Some(quote!(std::boxed::Box)),
             SelfType::Arc => Some(quote!(std::sync::Arc)),
-            SelfType::Pin => Some(quote!(std::pin::Arc)),
+        }
+    }
+
+    pub fn from_path(type_path: &syn::TypePath) -> Self {
+        let segment = type_path.path.segments.last().unwrap();
+        let ident = &segment.ident;
+
+        // can't match on Ident
+        if ident == "Rc" {
+            SelfType::Rc
+        } else if ident == "Arc" {
+            SelfType::Arc
+        } else if ident == "Box" {
+            SelfType::Box
+        } else {
+            SelfType::Owned
         }
     }
 }
@@ -44,7 +58,6 @@ impl std::fmt::Display for SelfType {
             SelfType::Rc => "Rc",
             SelfType::Arc => "Arc",
             SelfType::Box => "Box",
-            SelfType::Pin => "Pin",
         })
         .fmt(f)
     }
