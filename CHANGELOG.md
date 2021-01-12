@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v0.0.7
+* Allow mocking of methods with a `Pin<P>` receiver.
+  * This is limited to `P`s that are *not* nested: `Rc<Self>`,
+    `Box<Self>`, `Arc<Self>`, `&Self`, and `&mut Self>`.
+  * Setting `self_type` to `Pin` for the `create` and `methods` macro
+    is still not supported.
+  * [tests](/tests/arbitrary_self.rs)
+
+### Breaking Change
+* Minimum rust version changed to 1.45
+
 ## v0.0.6
 * Removes `proc-macro-hack` dependency.
   * Starting on rust 1.45, function-like proc macros are allowed in

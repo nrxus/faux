@@ -144,7 +144,6 @@ mod when;
 /// * `#[create(self_type = "Rc")]`
 /// * `#[create(self_type = "Arc")]`
 /// * `#[create(self_type = "Box")]`
-/// * `#[create(self_type = "Pin")]`
 /// * `#[create(self_type = "Owned")]`
 ///   * this is the default and not necessary
 ///
@@ -163,6 +162,9 @@ mod when;
 ///
 /// If this attribute is set, all of the `impl` blocks tagged with
 /// [#\[methods\]] must specify the same `self_type`.
+///
+/// Although a `self_type` of `Pin` is not allowed, `faux` does allow
+/// mocking of methods that take a `Pin<P>` as a receiver.
 ///
 /// ### Usage
 /// ```
