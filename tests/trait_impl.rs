@@ -65,7 +65,7 @@ fn simple_trait() {
     my_struct.method();
 
     let mut faux = MyStruct::faux();
-    faux::when!(faux.method).safe_then(|_| {});
+    faux::when!(faux.method).then(|_| {});
     faux.method();
 }
 
@@ -77,6 +77,6 @@ fn generic_trait() {
     gen_struct.g_method();
 
     let mut faux = GenericStruct::<&'static str, i32>::faux();
-    faux::when!(faux.g_method).safe_then(|_| {});
+    faux::when!(faux.g_method).then(|_| {});
     faux.g_method();
 }

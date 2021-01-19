@@ -52,16 +52,12 @@
 //!
 //!   // if the inputs and output for a method are all static types
 //!   // then it can be mocked safely
-//!   faux::when!(mock.add_stuff).safe_then(|x| x);
+//!   faux::when!(mock.add_stuff).then(|x| x);
 //!   assert_eq!(mock.add_stuff(5), 5);
 //!
 //!   // other methods can be mocked using unsafe
-//!   unsafe { faux::when!(mock.add_ref).then(|&x| x + 1) }
+//!   unsafe { faux::when!(mock.add_ref).then_unchecked(|&x| x + 1) }
 //!   assert_eq!(mock.add_ref(&3), 4);
-//!
-//!   // we can avoid unsafe if we do not care about the inputs
-//!   unsafe { faux::when!(mock.add_ref).then_do(|| 10) }
-//!   assert_eq!(mock.add_ref(&1), 10);
 //! }
 //! #
 //! # fn main() {
@@ -74,16 +70,12 @@
 //! #
 //! #    // if the inputs and output for a method are all static types
 //! #    // then it can be mocked safely
-//! #    faux::when!(mock.add_stuff).safe_then(|x| x);
+//! #    faux::when!(mock.add_stuff).then(|x| x);
 //! #    assert_eq!(mock.add_stuff(5), 5);
 //! #
 //! #    // other methods can be mocked using unsafe
-//! #    unsafe { faux::when!(mock.add_ref).then(|&x| x + 1) }
+//! #    unsafe { faux::when!(mock.add_ref).then_unchecked(|&x| x + 1) }
 //! #    assert_eq!(mock.add_ref(&3), 4);
-//! #
-//! #    // we can avoid unsafe if we do not care about the inputs
-//! #    unsafe { faux::when!(mock.add_ref).then_do(|| 10) }
-//! #    assert_eq!(mock.add_ref(&1), 10);
 //! #  }
 //! ```
 //!
@@ -242,11 +234,11 @@ pub use faux_macros::create;
 ///
 /// // mock instances need to be mutable when mocking their methods
 /// let mut fake = MyStruct::faux();
-/// faux::when!(fake.get).safe_then(|_| 3);
+/// faux::when!(fake.get).then(|_| 3);
 /// assert_eq!(fake.get(), 3);
 /// // unsafe because a parameter is a reference.
 /// // See When's documentation
-/// unsafe { faux::when!(fake.read).then(|a| Ok(a[0] as usize)) }
+/// unsafe { faux::when!(fake.read).then_unchecked(|a| Ok(a[0] as usize)) }
 /// assert_eq!(fake.read(&mut vec![10]).unwrap(), 10);
 /// # }
 /// ```
@@ -299,9 +291,9 @@ pub use faux_macros::create;
 ///
 /// # fn main() {
 /// let mut x = foo::MyStruct::faux();
-/// faux::when!(x.three).safe_then(|_| 30);
-/// faux::when!(x.four).safe_then(|_| 40);
-/// faux::when!(x.five).safe_then(|_| 50);
+/// faux::when!(x.three).then(|_| 30);
+/// faux::when!(x.four).then(|_| 40);
+/// faux::when!(x.five).then(|_| 50);
 ///
 /// assert_eq!(x.three(), 30);
 /// assert_eq!(x.four(), 40);

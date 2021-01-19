@@ -40,7 +40,7 @@ impl Service {
 fn service_does_the_right_thing() {
     let mut client = NetworkClient::faux();
 
-    faux::when!(client.fetch).safe_then(|i| {
+    faux::when!(client.fetch).then(|i| {
         assert_eq!(i, 3, "expected service to send '3'");
         10
     });
@@ -53,7 +53,7 @@ fn service_does_the_right_thing() {
 # fn main() {
 #    let mut client = NetworkClient::faux();
 #
-#    faux::when!(client.fetch).safe_then(|i| {
+#    faux::when!(client.fetch).then(|i| {
 #         assert_eq!(i, 3, "expected service to send '3'");
 #         10
 #    });
@@ -472,7 +472,7 @@ The `When` struct above provides a method to that saves the given mock
 inside the `MockStore`. We have also added a method to `NetworkClient`
 that returns an instance of `When` with information about the `fetch`
 method, thus allowing us to mock `fetch`.
-   
+
 We can now write code that looks like this:
 
 ```rust,should_panic

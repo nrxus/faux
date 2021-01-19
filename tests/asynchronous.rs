@@ -35,7 +35,7 @@ fn real_instance() {
 #[test]
 fn mocked() {
     let mut foo = Foo::faux();
-    faux::when!(foo.fetch).safe_then(|_| 10);
+    faux::when!(foo.fetch).then(|_| 10);
     let fetched = futures::executor::block_on(foo.fetch());
     assert_eq!(fetched, 10);
 }

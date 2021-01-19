@@ -86,7 +86,7 @@ fn main() {
     let mut client = client::UserClient::faux();
 
     // set up what the mock should return
-    faux::when!(client.fetch).safe_then(|id| {
+    faux::when!(client.fetch).then(|id| {
         assert_eq!(id, 3, "expected UserClient.fetch to receive user #3");
         client::User { name: "my user name".into() }
     });

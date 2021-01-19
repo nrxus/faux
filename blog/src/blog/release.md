@@ -55,7 +55,7 @@ fn service_does_the_right_thing() {
     // creates a mocked NetworkClient
     let mut client = NetworkClient::faux();
 
-    faux::when!(client.fetch_id_matching).safe_then(|i| {
+    faux::when!(client.fetch_id_matching).then(|i| {
         // we want to test do_stuff(), which should always call
         // fetch_id_matching with the input 3.
         assert_eq!(i, 3, "expected service to send '3'");
@@ -75,7 +75,7 @@ fn service_does_the_right_thing() {
 #    let mut client = NetworkClient::faux();
 #
 #    // mock fetch_id_matching
-#    faux::when!(client.fetch_id_matching).safe_then(|i| {
+#    faux::when!(client.fetch_id_matching).then(|i| {
 #         assert_eq!(i, 3, "expected service to send '3'");
 #         10
 #    });

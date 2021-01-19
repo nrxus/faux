@@ -78,10 +78,10 @@ fn mocked() {
     use faux::when;
 
     let mut foo = Foo::faux();
-    when!(foo.get_chunk).safe_then(|_| "hello");
+    when!(foo.get_chunk).then(|_| "hello");
     assert_eq!(foo.get_chunk(1), "hello");
 
     let mut bar = Bar::faux();
-    when!(bar.add).safe_then(|_| 3);
+    when!(bar.add).then(|_| 3);
     assert_eq!(bar.add(), 3);
 }

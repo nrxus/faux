@@ -120,7 +120,7 @@ fn by_rc_from_owned() {
     // mocks need a `&mut` when mocking a method
     // so prepare the mock before wrapping it around an Rc
     let mut faux_owned = Owned::faux();
-    faux::when!(faux_owned.by_rc).safe_then(|_| {});
+    faux::when!(faux_owned.by_rc).then(|_| {});
 
     let faux_rcd = Rc::new(faux_owned);
     faux_rcd.by_rc();
@@ -151,7 +151,7 @@ fn by_rc() {
 
     // mocking must be done prior to wrapping it in an Rc
     let mut owned = ByRc::faux();
-    faux::when!(owned.by_rc).safe_then(|_| {});
+    faux::when!(owned.by_rc).then(|_| {});
 
     let rcd = Rc::new(owned);
     rcd.by_rc();
@@ -164,7 +164,7 @@ fn by_box_from_owned() {
 
     // can be boxed right away because a &mut can be obtained from a Box
     let mut faux_boxed = Box::new(Owned::faux());
-    faux::when!(faux_boxed.by_box).safe_then(|_| {});
+    faux::when!(faux_boxed.by_box).then(|_| {});
     faux_boxed.by_box();
 }
 
@@ -175,7 +175,7 @@ fn by_box() {
 
     // can be boxed right away because a &mut can be obtained from a Box
     let mut faux_boxed = Box::new(ByBox::faux());
-    faux::when!(faux_boxed.by_box).safe_then(|_| {});
+    faux::when!(faux_boxed.by_box).then(|_| {});
     faux_boxed.by_box();
 }
 
@@ -194,7 +194,7 @@ fn by_pin_from_owned() {
     let mut faux = Owned::faux();
     let mut faux_pinmut = Pin::new(&mut faux);
 
-    faux::when!(faux_pinmut.by_pinmut).safe_then(|_| {});
-    faux::when!(faux_pinmut.by_pinmut2).safe_then(|_| {});
+    faux::when!(faux_pinmut.by_pinmut).then(|_| {});
+    faux::when!(faux_pinmut.by_pinmut2).then(|_| {});
     faux_pinmut.by_pinmut();
 }

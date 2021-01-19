@@ -38,21 +38,21 @@ fn real_struct() {
 #[test]
 fn faux_single_arg() {
     let mut mock = Foo::faux();
-    unsafe { faux::when!(mock.get_stuff).then(|_| 10) }
+    faux::when!(mock.get_stuff).then(|_| 10);
     assert_eq!(mock.get_stuff(), 10);
 }
 
 #[test]
 fn faux_multi_arg() {
     let mut mock = Foo::faux();
-    unsafe { faux::when!(mock.add_stuff_2).then(|(a, _)| a) }
+    faux::when!(mock.add_stuff_2).then(|(a, _)| a);
     assert_eq!(mock.add_stuff_2(90, 30), 90);
 }
 
 #[test]
 fn faux_ref_arguments() {
     let mut mock = Foo::faux();
-    unsafe { faux::when!(mock.some_ref).then(|a| *a) }
+    unsafe { faux::when!(mock.some_ref).then_unchecked(|a| *a) }
     let x = 30 + 30;
     assert_eq!(mock.some_ref(&x), 60);
 }
