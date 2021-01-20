@@ -39,16 +39,14 @@ fn real() {
 
 #[test]
 fn mocked() {
-    use faux::when;
-
     let mut fake: Generic<String, u32> = Generic::faux();
-    unsafe { when!(fake.get).then_unchecked(|_| &5) }
+    unsafe { faux::when!(fake.get).then_unchecked(|_| &5) }
     assert_eq!(fake.get(), &5);
 
     let goodbye = "goodbye".to_string();
-    unsafe { when!(fake.get_ref).then_unchecked(|_| &goodbye) }
+    unsafe { faux::when!(fake.get_ref).then_unchecked(|_| &goodbye) }
     assert_eq!(fake.get_ref(), &goodbye);
 
-    unsafe { when!(fake.life_ref).then_unchecked(|_| &2) }
+    unsafe { faux::when!(fake.life_ref).then_unchecked(|_| &2) }
     assert_eq!(fake.life_ref(), &2);
 }

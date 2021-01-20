@@ -75,13 +75,11 @@ fn real() {
 #[test]
 fn mocked() {
     use crate::{bar::Bar, foo::Foo};
-    use faux::when;
-
     let mut foo = Foo::faux();
-    when!(foo.get_chunk).then(|_| "hello");
+    faux::when!(foo.get_chunk).then(|_| "hello");
     assert_eq!(foo.get_chunk(1), "hello");
 
     let mut bar = Bar::faux();
-    when!(bar.add).then(|_| 3);
+    faux::when!(bar.add).then(|_| 3);
     assert_eq!(bar.add(), 3);
 }
