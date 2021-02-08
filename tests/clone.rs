@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_clone)]
+
 #[faux::create]
 #[derive(Clone)]
 pub struct Foo {

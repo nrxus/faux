@@ -1,3 +1,5 @@
+#![allow(clippy::blacklisted_name)]
+
 mod bar {
     #[faux::create]
     pub struct Bar {

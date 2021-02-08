@@ -1,4 +1,10 @@
-use faux;
+#![allow(
+    clippy::new_without_default,
+    clippy::needless_arbitrary_self_type,
+    clippy::boxed_local,
+    clippy::redundant_clone
+)]
+
 use std::{boxed::Box, pin::Pin, rc::Rc, sync::Arc};
 
 #[faux::create]

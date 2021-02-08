@@ -51,8 +51,7 @@ impl Receiver {
                 match **p {
                     PointerKind::Ref | PointerKind::MutRef => unpinned,
                     PointerKind::Rc | PointerKind::Arc => {
-                        let panic_msg =
-                            format!("faux tried to get a unique instance of Self and failed");
+                        let panic_msg = "faux tried to get a unique instance of Self and failed";
                         let self_of_receiver = match **p {
                             PointerKind::Arc => SelfType::Arc,
                             PointerKind::Rc => SelfType::Rc,
@@ -68,10 +67,8 @@ impl Receiver {
                     }
                     PointerKind::Box => quote! { *#unpinned },
                     PointerKind::Pin(_) => {
-                        return Err(darling::Error::custom(format!(
-                            "faux does not support nest Pins"
-                        ))
-                        .with_span(self));
+                        return Err(darling::Error::custom("faux does not support nest Pins")
+                            .with_span(self));
                     }
                 }
             }
@@ -223,7 +220,7 @@ impl std::fmt::Display for PointerKind {
 
 impl Spanned for Receiver {
     fn span(&self) -> Span {
-        self.span.clone()
+        self.span
     }
 }
 
@@ -262,30 +259,26 @@ impl PointerKind {
                             let pointer = PointerKind::from_type(arg)?;
                             Ok(PointerKind::Pin(Box::new(pointer)))
                         } else {
-                            return Err(darling::Error::custom(
+                            Err(darling::Error::custom(
                                 "faux does not support this kind of pointer type",
                             )
-                            .with_span(ty));
+                            .with_span(ty))
                         }
                     }
-                    _ => {
-                        return Err(darling::Error::custom(
-                            "faux does not support this kind of path arguments in a self type",
-                        )
-                        .with_span(ty))
-                    }
+                    _ => Err(darling::Error::custom(
+                        "faux does not support this kind of path arguments in a self type",
+                    )
+                    .with_span(ty)),
                 }
             }
             syn::Type::Reference(reference) => match reference.mutability {
                 None => Ok(PointerKind::Ref),
                 Some(_) => Ok(PointerKind::MutRef),
             },
-            _ => {
-                return Err(
-                    darling::Error::custom("faux does not support this kind of self type")
-                        .with_span(ty),
-                )
-            }
+            _ => Err(
+                darling::Error::custom("faux does not support this kind of self type")
+                    .with_span(ty),
+            ),
         }
     }
 }

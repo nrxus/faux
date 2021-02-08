@@ -1,3 +1,5 @@
+#![allow(clippy::blacklisted_name)]
+
 #[faux::create]
 struct Foo {
     a: i32,

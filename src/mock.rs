@@ -1,7 +1,7 @@
 #[doc(hidden)]
 pub enum StoredMock {
-    Once(Box<dyn FnOnce(()) -> () + Send>),
-    Many(Box<dyn FnMut(()) -> () + Send>, MockTimes),
+    Once(Box<dyn FnOnce(()) + Send>),
+    Many(Box<dyn FnMut(()) + Send>, MockTimes),
 }
 
 #[derive(Debug)]
@@ -20,8 +20,8 @@ impl MockTimes {
 
 #[doc(hidden)]
 pub enum ReturnedMock<'a> {
-    Once(Box<dyn FnOnce(()) -> () + Send>),
-    Many(&'a mut (dyn FnMut(()) -> () + Send)),
+    Once(Box<dyn FnOnce(()) + Send>),
+    Many(&'a mut (dyn FnMut(()) + Send)),
 }
 
 impl std::fmt::Debug for StoredMock {

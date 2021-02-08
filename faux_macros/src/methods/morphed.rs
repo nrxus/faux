@@ -6,7 +6,7 @@ struct SpanMarker(proc_macro2::Span);
 
 impl Spanned for SpanMarker {
     fn span(&self) -> proc_macro2::Span {
-        self.0.clone()
+        self.0
     }
 }
 

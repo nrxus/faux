@@ -155,7 +155,7 @@ impl From<Mockable> for proc_macro::TokenStream {
         // make the original methods at least pub(super)
         // since they will be hidden in a nested mod
         let mut real = real;
-        if !real.trait_.is_some() {
+        if real.trait_.is_none() {
             publicize_methods(&mut real);
         }
         let real = real;
@@ -187,10 +187,11 @@ impl From<Mockable> for proc_macro::TokenStream {
                 };
                 let pathless_type = path_to_ty.pop().unwrap();
                 quote! {
-                //do not warn for things like Foo<i32> = RealFoo<i32>
-                #[allow(non_camel_case_types)]
-                        #pub_supers type #pathless_type = #path_to_real_from_alias_mod;
-                    }
+                    //do not warn for things like Foo<i32> = RealFoo<i32>
+                    #[allow(non_camel_case_types)]
+                    #[allow(clippy::builtin_type_shadow)]
+                    #pub_supers type #pathless_type = #path_to_real_from_alias_mod;
+                }
             };
 
             // nest the type alias in load-bearing mods

@@ -1,5 +1,3 @@
-use faux;
-
 #[faux::create]
 pub struct Foo {
     a: u32,
