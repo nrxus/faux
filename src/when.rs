@@ -14,8 +14,8 @@ use crate::{mock::MockTimes, mock_store::MockStore};
 pub struct When<'q, I, O> {
     id: &'static str,
     store: &'q mut MockStore,
-    // *const for variance -- I think that's what I want.
-    _marker: std::marker::PhantomData<(*const I, *const O)>,
+    // contravariant with I but covariant with O
+    _marker: std::marker::PhantomData<fn(I) -> O>,
     times: MockTimes,
 }
 
@@ -457,7 +457,7 @@ pub struct WhenOnce<'q, I, O> {
     id: &'static str,
     store: &'q mut MockStore,
     // *const for variance -- I think that's what I want.
-    _marker: std::marker::PhantomData<(*const I, *const O)>,
+    _marker: std::marker::PhantomData<fn(I) -> O>,
 }
 
 impl<'q, I, O> WhenOnce<'q, I, O> {
