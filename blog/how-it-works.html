@@ -5,36 +5,22 @@
         <meta charset="UTF-8">
         <title>faux - an inside look - faux</title>
         
-        
-
-
-        <!-- Custom HTML head -->
-        
-
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-        
-        <link rel="icon" href="../favicon.svg">
-        
-        
-        <link rel="shortcut icon" href="../favicon.png">
-        
+        <link rel="shortcut icon" href="../">
         <link rel="stylesheet" href="../css/variables.css">
         <link rel="stylesheet" href="../css/general.css">
         <link rel="stylesheet" href="../css/chrome.css">
-        
         <link rel="stylesheet" href="../css/print.css" media="print">
-        
 
         <!-- Fonts -->
         <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        
-        <link rel="stylesheet" href="../fonts/fonts.css">
-        
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
 
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="../highlight.css">
@@ -94,7 +80,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <div class="sidebar-scrollbox">
+            <div id="sidebar-scrollbox" class="sidebar-scrollbox">
                 <ol class="chapter"><li class="chapter-item expanded affix "><a href="../blog/release.html">faux - introducing faux</a></li><li class="chapter-item expanded affix "><a href="../blog/how-it-works.html" class="active">faux - an inside look</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
@@ -104,38 +90,37 @@
 
             <div class="page">
                 
-                <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
-                    <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
-                            <i class="fa fa-bars"></i>
-                        </button>
-                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
-                            <i class="fa fa-paint-brush"></i>
-                        </button>
-                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
-                        </ul>
-                        
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
-                            <i class="fa fa-search"></i>
-                        </button>
-                        
-                    </div>
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
 
-                    <h1 class="menu-title">faux</h1>
+                        <h1 class="menu-title">faux</h1>
 
-                    <div class="right-buttons">
-                        
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
-                            <i id="print-button" class="fa fa-print"></i>
-                        </a>
-                        
-                        
+                        <div class="right-buttons">
+                            <a href="../print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                            
+                        </div>
                     </div>
                 </div>
 
@@ -163,7 +148,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#-faux---an-inside-look-" id="-faux---an-inside-look-">🔍 faux - an inside look 🔍</a></h1>
+                        <h1 id="-faux---an-inside-look-"><a class="header" href="#-faux---an-inside-look-">🔍 faux - an inside look 🔍</a></h1>
 <p><a href="https://github.com/nrxus/faux"><code>faux</code></a> is a traitless Rust mocking framework for creating mock
 objects out of user-defined structs. For more on faux's capabilities,
 take a look at the <a href="./release.html">release blog post</a> or the <a href="https://docs.rs/faux/">documentation</a>.</p>
@@ -201,7 +186,7 @@ impl Service {
 fn service_does_the_right_thing() {
     let mut client = NetworkClient::faux();
 
-    faux::when!(client.fetch).safe_then(|i| {
+    faux::when!(client.fetch).then(|i| {
         assert_eq!(i, 3, &quot;expected service to send '3'&quot;);
         10
     });
@@ -214,7 +199,7 @@ fn service_does_the_right_thing() {
 </span><span class="boring">fn main() {
 </span><span class="boring">   let mut client = NetworkClient::faux();
 </span><span class="boring">
-</span><span class="boring">   faux::when!(client.fetch).safe_then(|i| {
+</span><span class="boring">   faux::when!(client.fetch).then(|i| {
 </span><span class="boring">        assert_eq!(i, 3, &quot;expected service to send '3'&quot;);
 </span><span class="boring">        10
 </span><span class="boring">   });
@@ -224,7 +209,7 @@ fn service_does_the_right_thing() {
 </span><span class="boring">   assert_eq!(id, 10);
 </span><span class="boring">}
 </span></code></pre></pre>
-<h2><a class="header" href="#how-does-it-work" id="how-does-it-work">How does it work?</a></h2>
+<h2 id="how-does-it-work"><a class="header" href="#how-does-it-work">How does it work?</a></h2>
 <p><em><strong>DISCLAIMER:</strong> this is a simplified version of how <code>faux</code> works as
 of February 2020, which may change in future versions. To see the most
 up to date transformations of your code, use <code>cargo-expand</code></em></p>
@@ -255,7 +240,7 @@ impl NetworkClient {
 <p><code>faux</code>, or any other mocking framework, needs to do two things to the
 code snippet above: create a fake version of <code>NetworkClient</code>, and
 provide a way to inject fake implementations of its methods.</p>
-<h3><a class="header" href="#creating-mockable-structs" id="creating-mockable-structs">Creating mockable structs</a></h3>
+<h3 id="creating-mockable-structs"><a class="header" href="#creating-mockable-structs">Creating mockable structs</a></h3>
 <p><code>faux</code> provides the attribute macro <code>#[faux::create]</code> to transform a
 struct definition into a mockable version of itself.</p>
 <pre><pre class="playground"><code class="language-rust">
@@ -338,7 +323,7 @@ instantiation</li>
 </ul>
 </li>
 </ul>
-<h3><a class="header" href="#creating-mockable-methods" id="creating-mockable-methods">Creating mockable methods</a></h3>
+<h3 id="creating-mockable-methods"><a class="header" href="#creating-mockable-methods">Creating mockable methods</a></h3>
 <p><code>faux</code> provides the attribute macro <code>#[faux::methods]</code> to transform
 method definitions inside an <code>impl</code> block into mockable versions of
 themselves.</p>
@@ -484,7 +469,7 @@ instances.</li>
 </ul>
 <p>However, we have not satisfied the third requirement. There is no way
 for the user to provide arbitrary code to be run during tests.</p>
-<h3><a class="header" href="#injecting-mock-methods" id="injecting-mock-methods">Injecting mock methods</a></h3>
+<h3 id="injecting-mock-methods"><a class="header" href="#injecting-mock-methods">Injecting mock methods</a></h3>
 <p>Ideally, we would like to have different mock instances of
 the same struct, each with their own mocked methods. This means that
 the mocked information belongs to the mocked instance. This changes
@@ -719,7 +704,7 @@ the source code of <a href="https://github.com/nrxus/faux"><code>faux</code></a>
 <code>MockStore</code> and <code>Mock</code> requires a few more bounds on the injected mock
 to both enable safe mocking and provide a version with more relaxed
 bounds that is gated by <code>unsafe</code>.</p>
-<h2><a class="header" href="#final-remarks" id="final-remarks">Final remarks</a></h2>
+<h2 id="final-remarks"><a class="header" href="#final-remarks">Final remarks</a></h2>
 <p>You have now seen a simplified version of the code <code>faux</code>
 produces. Remember that <code>faux</code>'s expansions should be gated to only
 your <code>test</code> cfg, thus having no compile or run time impact on a <code>cargo check</code> or <code>cargo build</code>. If I missed anything, or if something was not
@@ -747,7 +732,7 @@ update the blog.</p>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a rel="prev" href="../blog/release.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a href="../blog/release.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
@@ -762,11 +747,7 @@ update the blog.</p>
         
 
         
-
         
-        <script type="text/javascript">
-            window.playground_copyable = true;
-        </script>
         
 
         
