@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## NEXT
+* `then*` methods have been renamed to be more consisten with Rust patterns
+* The safe `then` method now allows for non-static inputs.
+* `then_do` was removed as the improvement on `then` made it unnecessary.
+
+### Breaking Change
+* `then` was renamed: `then_unchecked`
+* `then_return` was renamed: `then_unchecked_return`
+* `safe_then` was renamed: `then`
+* `safe_then_return` was renamed: `then_return`
+* `then_do` was removed
+
 ## v0.0.7
 * Allow mocking of methods with a `Pin<P>` receiver.
   * This is limited to `P`s that are *not* nested: `Rc<Self>`,

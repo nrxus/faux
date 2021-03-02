@@ -14,7 +14,8 @@
 //!
 //! [mocks]: https://martinfowler.com/articles/mocksArentStubs.html
 //!
-//! ## Usage:
+//! ## Usage
+//!
 //! ```
 //! // creates the mockable struct
 //! #[cfg_attr(test, faux::create)]
@@ -31,12 +32,12 @@
 //!         Foo { a }
 //!     }
 //!
-//!     pub fn add_stuff(&self, input: u32) -> u32 {
-//!         self.a + input
+//!     pub fn add_stuff(&self, input: &u32) -> u32 {
+//!         self.a + *input
 //!     }
 //!
-//!     pub fn add_ref(&self, input: &u32) -> u32 {
-//!         self.a + *input
+//!     pub fn get_ref(&self) -> &u32 {
+//!         &self.a
 //!     }
 //! }
 //!
@@ -45,37 +46,45 @@
 //! fn test() {
 //!   // you can create the original object
 //!   let real = Foo::new(3);
-//!   assert_eq!(real.add_stuff(2), 5);
+//!   assert_eq!(real.add_stuff(&2), 5);
 //!
 //!   // can create a mock using the auto-generated `faux` method
 //!   let mut mock = Foo::faux();
 //!
-//!   // if the inputs and output for a method are all static types
-//!   // then it can be mocked safely
-//!   faux::when!(mock.add_stuff).then(|x| x);
-//!   assert_eq!(mock.add_stuff(5), 5);
+//!   // safely mock return values of owned data
+//!   faux::when!(mock.add_stuff).then_return(3);
+//!   assert_eq!(mock.add_stuff(&20), 3);
+//!
+//!   // safely mock implementation of methods that return owned data
+//!   faux::when!(mock.add_stuff).then(|&x| x);
+//!   assert_eq!(mock.add_stuff(&5), 5);
 //!
 //!   // other methods can be mocked using unsafe
-//!   unsafe { faux::when!(mock.add_ref).then_unchecked(|&x| x + 1) }
-//!   assert_eq!(mock.add_ref(&3), 4);
+//!   let x = 5;
+//!   unsafe { faux::when!(mock.get_ref).then_unchecked_return(&x) }
+//!   assert_eq!(*mock.get_ref(), x);
 //! }
 //! #
 //! # fn main() {
-//! #    // you can create the original object
-//! #    let real = Foo::new(3);
-//! #    assert_eq!(real.add_stuff(2), 5);
+//! #  // you can create the original object
+//! #  let real = Foo::new(3);
+//! #  assert_eq!(real.add_stuff(&2), 5);
 //! #
-//! #    // can create a mock using the auto-generated `faux` method
-//! #    let mut mock = Foo::faux();
+//! #   // can create a mock using the auto-generated `faux` method
+//! #   let mut mock = Foo::faux();
 //! #
-//! #    // if the inputs and output for a method are all static types
-//! #    // then it can be mocked safely
-//! #    faux::when!(mock.add_stuff).then(|x| x);
-//! #    assert_eq!(mock.add_stuff(5), 5);
+//! #   // safely mock return values of owned data
+//! #   faux::when!(mock.add_stuff).then_return(3);
+//! #   assert_eq!(mock.add_stuff(&20), 3);
 //! #
-//! #    // other methods can be mocked using unsafe
-//! #    unsafe { faux::when!(mock.add_ref).then_unchecked(|&x| x + 1) }
-//! #    assert_eq!(mock.add_ref(&3), 4);
+//! #   // saly mock implementation of methods that return owned data
+//! #   faux::when!(mock.add_stuff).then(|&x| x);
+//! #   assert_eq!(mock.add_stuff(&5), 5);
+//! #
+//! #   // other methods can be mocked using unsafe
+//! #   let x = 5;
+//! #   unsafe { faux::when!(mock.get_ref).then_unchecked_return(&x) }
+//! #   assert_eq!(*mock.get_ref(), x);
 //! #  }
 //! ```
 //!
@@ -110,6 +119,7 @@ mod when;
 /// any of the struct fields.
 ///
 /// # Usage
+///
 /// ```
 /// #[faux::create]
 /// pub struct MyStruct {
@@ -159,6 +169,7 @@ mod when;
 /// mocking of methods that take a `Pin<P>` as a receiver.
 ///
 /// ### Usage
+///
 /// ```
 /// use std::sync::Arc;
 ///
@@ -197,6 +208,7 @@ pub use faux_macros::create;
 /// [#\[create\]] must have been previously called for this struct.
 ///
 /// # Usage
+///
 /// ```
 /// #[faux::create]
 /// pub struct MyStruct {

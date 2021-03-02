@@ -67,7 +67,6 @@ impl MockStore {
 
     pub fn mock_once<I, O>(&mut self, id: &'static str, mock: impl FnOnce(I) -> O + 'static + Send)
     where
-        I: 'static,
         O: 'static,
     {
         unsafe {
@@ -96,7 +95,6 @@ impl MockStore {
         mock: impl FnMut(I) -> O + 'static + Send,
         times: MockTimes,
     ) where
-        I: 'static,
         O: 'static,
     {
         unsafe {
