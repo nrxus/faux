@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## NEXT
+## v0.0.8
 * `then*` methods have been renamed to be more consisten with Rust patterns
 * The safe `then` method now allows for non-static inputs.
 * `then_do` was removed as the improvement on `then` made it unnecessary.
