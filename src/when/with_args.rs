@@ -1,15 +1,7 @@
-mod once;
-mod with_args;
-mod with_args_once;
-
 use crate::{mock::MockTimes, mock_store::MockStore, ArgMatcher};
-use once::Once;
 use std::fmt::Debug;
-use with_args::WithArgs;
 
-pub use once::Once as WhenOnce;
-pub use with_args::WithArgs as WhenWithArgs;
-pub use with_args_once::WithArgsOnce as WhenWithArgsOnce;
+use super::with_args_once::WithArgsOnce;
 
 /// Provides methods to override the return or implementation of the
 /// mocked method.
@@ -23,20 +15,22 @@ pub use with_args_once::WithArgsOnce as WhenWithArgsOnce;
 /// [when!]: macro.when.html
 /// [once]: #method.once
 /// [times]: #method.times
-pub struct When<'q, I, O> {
+pub struct WithArgs<'q, I, O, M> {
     id: &'static str,
     store: &'q mut MockStore,
+    times: MockTimes,
+    matcher: M,
     // contravariant with I but covariant with O
     _marker: std::marker::PhantomData<fn(I) -> O>,
-    times: MockTimes,
 }
 
-impl<'q, I, O> When<'q, I, O> {
+impl<'q, I: Debug, O, M: ArgMatcher<I> + Send + Debug + 'static> WithArgs<'q, I, O, M> {
     #[doc(hidden)]
-    pub fn new(id: &'static str, store: &'q mut MockStore) -> Self {
-        When {
+    pub fn new(id: &'static str, store: &'q mut MockStore, matcher: M) -> Self {
+        WithArgs {
             id,
             store,
+            matcher,
             times: MockTimes::Always,
             _marker: std::marker::PhantomData,
         }
@@ -77,7 +71,7 @@ impl<'q, I, O> When<'q, I, O> {
     where
         O: 'static + Send + Clone,
     {
-        unsafe { self.then_unchecked_return(value) }
+        self.then(move || value.clone())
     }
 
     /// Sets the closure to be called when the mocked method is
@@ -142,11 +136,34 @@ impl<'q, I, O> When<'q, I, O> {
     ///
     /// [then_unchecked]: #methods.then_unchecked
     ///
-    pub fn then(self, mock: impl FnMut(I) -> O + 'static + Send)
+    pub fn then(self, mut mock: impl FnMut() -> O + 'static + Send)
     where
         O: 'static,
     {
-        self.store.mock(self.id, mock, self.times);
+        let Self {
+            id,
+            matcher,
+            times,
+            store,
+            ..
+        } = self;
+
+        store.mock(
+            id,
+            move |input: I| {
+                let received = format!("{:?}", input);
+
+                if !matcher.matches(input) {
+                    panic!(
+                        "Arguments did not match.\nExpected: {:?}\nReceived: {}\n",
+                        matcher, received
+                    )
+                }
+
+                mock()
+            },
+            times,
+        );
     }
 
     /// Analog of [then_return] that allows returning non-static
@@ -217,7 +234,7 @@ impl<'q, I, O> When<'q, I, O> {
     where
         O: Send + Clone,
     {
-        self.then_unchecked(move |_: I| value.clone())
+        self.then_unchecked(move || value.clone())
     }
 
     /// Analog of [then] that allows using non-static closures or
@@ -308,8 +325,31 @@ impl<'q, I, O> When<'q, I, O> {
     ///
     /// [then]: #methods.then
     ///
-    pub unsafe fn then_unchecked(self, mock: impl FnMut(I) -> O + Send) {
-        self.store.unsafe_mock(self.id, mock, self.times);
+    pub unsafe fn then_unchecked(self, mut mock: impl FnMut() -> O + Send) {
+        let Self {
+            id,
+            matcher,
+            times,
+            store,
+            ..
+        } = self;
+
+        store.unsafe_mock(
+            id,
+            move |input: I| {
+                let received = format!("{:?}", input);
+
+                if !matcher.matches(input) {
+                    panic!(
+                        "Arguments did not match.\nExpected: {:?}\nReceived: {}\n",
+                        matcher, received
+                    )
+                }
+
+                mock()
+            },
+            times,
+        );
     }
 
     /// Limits the number of times a mock is active.
@@ -433,17 +473,7 @@ impl<'q, I, O> When<'q, I, O> {
     ///   mock.single_arg(8);
     /// }
     /// ```
-    pub fn once(self) -> Once<'q, I, O> {
-        Once::new(self.id, self.store)
-    }
-
-    pub fn with_args<M: ArgMatcher<I> + Debug + Send + 'static>(
-        self,
-        matcher: M,
-    ) -> WithArgs<'q, I, O, M>
-    where
-        I: Debug,
-    {
-        WithArgs::new(self.id, self.store, matcher)
+    pub fn once(self) -> WithArgsOnce<'q, I, O, M> {
+        WithArgsOnce::new(self.id, self.store, self.matcher)
     }
 }

@@ -98,6 +98,7 @@
 mod mock;
 mod mock_store;
 mod when;
+mod matcher;
 
 /// Transforms a struct into a mockable version of itself.
 ///
@@ -581,7 +582,8 @@ pub use faux_macros::when;
 
 pub use mock::ReturnedMock;
 pub use mock_store::{MaybeFaux, MockStore};
-pub use when::{When, WhenOnce};
+pub use when::{When, WhenOnce, WhenWithArgs, WhenWithArgsOnce};
+pub use matcher::*;
 
 #[doc(include = "../README.md")]
 #[cfg(doctest)]
