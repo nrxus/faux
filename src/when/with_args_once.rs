@@ -1,5 +1,4 @@
-use crate::{ArgMatcher, MockStore};
-use std::fmt::Debug;
+use crate::{AllMatcher, MockStore};
 
 /// Similar to [WhenWithArgs](struct.WhenWithArgs) but only mocks once.
 ///
@@ -13,7 +12,7 @@ pub struct WithArgsOnce<'q, I, O, M> {
     _marker: std::marker::PhantomData<fn(I) -> O>,
 }
 
-impl<'q, I: Debug, O, M: ArgMatcher<I> + Send + Debug + 'static> WithArgsOnce<'q, I, O, M> {
+impl<'q, I, O, M: AllMatcher<I> + Send + 'static> WithArgsOnce<'q, I, O, M> {
     #[doc(hidden)]
     pub fn new(id: &'static str, store: &'q mut MockStore, matcher: M) -> Self {
         WithArgsOnce {
@@ -97,13 +96,8 @@ impl<'q, I: Debug, O, M: ArgMatcher<I> + Send + Debug + 'static> WithArgsOnce<'q
         } = self;
 
         store.mock_once(id, move |input: I| {
-            let received = format!("{:?}", input);
-
-            if !matcher.matches(input) {
-                panic!(
-                    "Arguments did not match.\nExpected: {:?}\nReceived: {}\n",
-                    matcher, received
-                )
+            if let Err(message) = matcher.matches(&input) {
+                panic!("{}", message)
             }
 
             mock()
@@ -189,13 +183,8 @@ impl<'q, I: Debug, O, M: ArgMatcher<I> + Send + Debug + 'static> WithArgsOnce<'q
         } = self;
 
         store.unsafe_mock_once(id, move |input: I| {
-            let received = format!("{:?}", input);
-
-            if !matcher.matches(input) {
-                panic!(
-                    "faux: arguments did not match.\nExpected: {:?}\nReceived: {}\n",
-                    matcher, received
-                )
+            if let Err(message) = matcher.matches(&input) {
+                panic!("{}", message)
             }
 
             mock()

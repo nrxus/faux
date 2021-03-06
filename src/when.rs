@@ -2,7 +2,7 @@ mod once;
 mod with_args;
 mod with_args_once;
 
-use crate::{mock::MockTimes, mock_store::MockStore, ArgMatcher};
+use crate::{mock::MockTimes, mock_store::MockStore, AllMatcher};
 use once::Once;
 use std::fmt::Debug;
 use with_args::WithArgs;
@@ -437,10 +437,7 @@ impl<'q, I, O> When<'q, I, O> {
         Once::new(self.id, self.store)
     }
 
-    pub fn with_args<M: ArgMatcher<I> + Debug + Send + 'static>(
-        self,
-        matcher: M,
-    ) -> WithArgs<'q, I, O, M>
+    pub fn with_args<M: AllMatcher<I> + Send + 'static>(self, matcher: M) -> WithArgs<'q, I, O, M>
     where
         I: Debug,
     {
