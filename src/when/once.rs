@@ -4,16 +4,16 @@ use crate::MockStore;
 ///
 /// Mock closures may consume captured variables as the mock will not
 /// be called more than once.
-pub struct Once<'q, I, O> {
-    id: &'static str,
+pub struct Once<'q, R, I, O> {
+    id: fn(R, I) -> O,
     store: &'q mut MockStore,
     // *const for variance -- I think that's what I want.
     _marker: std::marker::PhantomData<fn(I) -> O>,
 }
 
-impl<'q, I, O> Once<'q, I, O> {
+impl<'q, R, I, O> Once<'q, R, I, O> {
     #[doc(hidden)]
-    pub fn new(id: &'static str, store: &'q mut MockStore) -> Self {
+    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
         Once {
             id,
             store,

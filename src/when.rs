@@ -23,22 +23,19 @@ pub use with_args_once::WithArgsOnce as WhenWithArgsOnce;
 /// [when!]: macro.when.html
 /// [once]: #method.once
 /// [times]: #method.times
-pub struct When<'q, I, O> {
-    id: &'static str,
+pub struct When<'q, R, I, O> {
+    id: fn(R, I) -> O,
     store: &'q mut MockStore,
-    // contravariant with I but covariant with O
-    _marker: std::marker::PhantomData<fn(I) -> O>,
     times: MockTimes,
 }
 
-impl<'q, I, O> When<'q, I, O> {
+impl<'q, R, I, O> When<'q, R, I, O> {
     #[doc(hidden)]
-    pub fn new(id: &'static str, store: &'q mut MockStore) -> Self {
+    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
         When {
             id,
             store,
             times: MockTimes::Always,
-            _marker: std::marker::PhantomData,
         }
     }
 
@@ -77,7 +74,7 @@ impl<'q, I, O> When<'q, I, O> {
     where
         O: 'static + Send + Clone,
     {
-        unsafe { self.then_unchecked_return(value) }
+        self.then(move |_: I| value.clone());
     }
 
     /// Sets the closure to be called when the mocked method is
@@ -433,11 +430,14 @@ impl<'q, I, O> When<'q, I, O> {
     ///   mock.single_arg(8);
     /// }
     /// ```
-    pub fn once(self) -> Once<'q, I, O> {
+    pub fn once(self) -> Once<'q, R, I, O> {
         Once::new(self.id, self.store)
     }
 
-    pub fn with_args<M: AllMatcher<I> + Send + 'static>(self, matcher: M) -> WithArgs<'q, I, O, M>
+    pub fn with_args<M: AllMatcher<I> + Send + 'static>(
+        self,
+        matcher: M,
+    ) -> WithArgs<'q, R, I, O, M>
     where
         I: Debug,
     {

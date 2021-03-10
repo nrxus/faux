@@ -4,23 +4,16 @@ use crate::{AllMatcher, MockStore};
 ///
 /// Mock closures may consume captured variables as the mock will not
 /// be called more than once.
-pub struct WithArgsOnce<'q, I, O, M> {
-    id: &'static str,
+pub struct WithArgsOnce<'q, R, I, O, M> {
+    id: fn(R, I) -> O,
     store: &'q mut MockStore,
     matcher: M,
-    // contravariant with I but covariant with O
-    _marker: std::marker::PhantomData<fn(I) -> O>,
 }
 
-impl<'q, I, O, M: AllMatcher<I> + Send + 'static> WithArgsOnce<'q, I, O, M> {
+impl<'q, R, I, O, M: AllMatcher<I> + Send + 'static> WithArgsOnce<'q, R, I, O, M> {
     #[doc(hidden)]
-    pub fn new(id: &'static str, store: &'q mut MockStore, matcher: M) -> Self {
-        WithArgsOnce {
-            id,
-            store,
-            matcher,
-            _marker: std::marker::PhantomData,
-        }
+    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
+        WithArgsOnce { id, store, matcher }
     }
 
     /// Analog of [When.then_return] where the value does not need to

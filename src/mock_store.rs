@@ -40,7 +40,7 @@ impl<T> MaybeFaux<T> {
 #[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: HashMap<&'static str, StoredMock>,
+    mocks: HashMap<usize, StoredMock>,
 }
 
 #[doc(hidden)]
@@ -57,20 +57,23 @@ impl MockStore {
     /// the caller's responsability to pass a mock that is safe.
     ///
     /// [When]: When
-    pub unsafe fn unsafe_mock_once<I, O>(
+    pub unsafe fn unsafe_mock_once<R, I, O>(
         &mut self,
-        id: &'static str,
+        id: fn(R, I) -> O,
         mock: impl FnOnce(I) -> O + Send,
     ) {
-        self.mocks.insert(id, StoredMock::once(mock));
+        self.mocks.insert(id as usize, StoredMock::once(mock));
     }
 
-    pub fn mock_once<I, O>(&mut self, id: &'static str, mock: impl FnOnce(I) -> O + 'static + Send)
-    where
+    pub fn mock_once<R, I, O>(
+        &mut self,
+        id: fn(R, I) -> O,
+        mock: impl FnOnce(I) -> O + 'static + Send,
+    ) where
         O: 'static,
     {
         unsafe {
-            self.mocks.insert(id, StoredMock::once(mock));
+            self.mocks.insert(id as usize, StoredMock::once(mock));
         }
     }
 
@@ -80,30 +83,32 @@ impl MockStore {
     /// the caller's responsibility to pass a mock that is safe.
     ///
     /// [When]: When
-    pub unsafe fn unsafe_mock<I, O>(
+    pub unsafe fn unsafe_mock<R, I, O>(
         &mut self,
-        id: &'static str,
+        id: fn(R, I) -> O,
         mock: impl FnMut(I) -> O + Send,
         times: MockTimes,
     ) {
-        self.mocks.insert(id, StoredMock::many(mock, times));
+        self.mocks
+            .insert(id as usize, StoredMock::many(mock, times));
     }
 
-    pub fn mock<I, O>(
+    pub fn mock<R, I, O>(
         &mut self,
-        id: &'static str,
+        id: fn(R, I) -> O,
         mock: impl FnMut(I) -> O + 'static + Send,
         times: MockTimes,
     ) where
         O: 'static,
     {
         unsafe {
-            self.unsafe_mock(id, mock, times);
+            self.mocks
+                .insert(id as usize, StoredMock::many(mock, times));
         }
     }
 
-    pub fn get_mock(&mut self, id: &'static str) -> Option<ReturnedMock> {
-        match self.mocks.entry(id) {
+    pub fn get_mock<R, I, O>(&mut self, id: fn(R, I) -> O) -> Option<ReturnedMock> {
+        match self.mocks.entry(id as usize) {
             // no mock stored
             collections::hash_map::Entry::Vacant(_) => None,
             collections::hash_map::Entry::Occupied(mut entry) => match entry.get_mut() {

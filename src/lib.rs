@@ -575,7 +575,7 @@ pub use faux_macros::methods;
 ///     let mut mock = Foo::faux();
 ///     // (u32, i8) is the input of the mocked method
 ///     // i32 is the output of the mocked method
-///     let a: faux::When<(u32, i8), i32> = faux::when!(mock.some_method);
+///     let a: faux::When<&Foo, (u32, i8), i32> = faux::when!(mock.some_method);
 /// }
 /// ```
 pub use faux_macros::when;

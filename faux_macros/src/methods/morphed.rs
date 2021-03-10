@@ -21,7 +21,6 @@ pub struct Signature<'a> {
 
 pub struct MethodData<'a> {
     receiver: Receiver,
-    name_string: String,
     arg_types: Vec<WhenArg<'a>>,
     is_private: bool,
 }
@@ -60,7 +59,6 @@ impl<'a> Signature<'a> {
         let mut method_data = receiver.map(|receiver| MethodData {
             receiver,
             is_private: trait_path.is_none() && *vis == syn::Visibility::Inherited,
-            name_string: format!("{}", name),
             arg_types: Vec::with_capacity(len - 1),
         });
 
@@ -135,12 +133,12 @@ impl<'a> Signature<'a> {
                 if self.is_async {
                     proxy_real = quote! { #proxy_real.await }
                 }
-                let name_string = &method_data.name_string;
                 let call_mock = if method_data.is_private {
                     quote! { panic!("faux error: private methods are not mockable; and therefore not directly callable in a mock") }
                 } else {
-                    let error_msg =
-                        format!("'{}::{}' is not mocked", morphed_ty.to_token_stream(), name);
+                    let faux_ident =
+                        syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
+
                     let args =
                         arg_idents
                             .iter()
@@ -154,10 +152,15 @@ impl<'a> Signature<'a> {
                                 }
                                 _ => quote! { #ident },
                             });
+
+                    let error_msg =
+                        format!("'{}::{}' is not mocked", morphed_ty.to_token_stream(), name);
                     quote! {
                         let mut q = q.try_lock().unwrap();
                         unsafe {
-                            q.get_mock(#name_string).expect(#error_msg).call((#(#args),*))
+                            q.get_mock(<Self>::#faux_ident)
+                                .expect(#error_msg)
+                                .call((#(#args,)*))
                         }
                     }
                 };
@@ -221,40 +224,50 @@ impl<'a> Signature<'a> {
         Ok(syn::parse2(quote! {{ #block }}).unwrap())
     }
 
-    pub fn create_when(&self) -> Option<syn::ImplItemMethod> {
+    pub fn create_when(&self) -> Option<Vec<syn::ImplItemMethod>> {
         self.method_data
             .as_ref()
             .filter(|m| !m.is_private)
-            .map(|m| m.create_when(self.output))
+            .map(|m| m.create_when(self.output, &self.name))
     }
 }
 
 impl<'a> MethodData<'a> {
-    pub fn create_when(&self, output: Option<&syn::Type>) -> syn::ImplItemMethod {
-        let &MethodData {
-            ref name_string,
-            ref arg_types,
-            ..
-        } = self;
+    pub fn create_when(
+        &self,
+        output: Option<&syn::Type>,
+        name: &syn::Ident,
+    ) -> Vec<syn::ImplItemMethod> {
+        let &MethodData { ref arg_types, .. } = self;
 
-        let mock_ident = syn::Ident::new(
-            &format!("_when_{}", name_string),
-            proc_macro2::Span::call_site(),
-        );
+        let when_ident =
+            syn::Ident::new(&format!("_when_{}", name), proc_macro2::Span::call_site());
+        let faux_ident =
+            syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
+
         let empty = syn::parse2(quote! { () }).unwrap();
         let output = output.unwrap_or(&empty);
-        syn::parse2(quote! {
-            pub fn #mock_ident(&mut self) -> faux::When<(#(#arg_types),*), #output> {
+        let when_method = syn::parse2(quote! {
+            pub fn #when_ident(&mut self) -> faux::When<&Self, (#(#arg_types),*), #output> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
-                        #name_string,
+                        <Self>::#faux_ident,
                         faux.get_mut().unwrap()
                     ),
                     faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instance!"),
                 }
             }
         })
-        .unwrap()
+        .unwrap();
+
+        let faux_method = syn::parse2(quote! {
+            pub fn #faux_ident(&self, input: (#(#arg_types),*)) -> #output {
+                panic!("do not call this")
+            }
+        })
+        .unwrap();
+
+        vec![when_method, faux_method]
     }
 }
 

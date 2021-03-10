@@ -14,24 +14,21 @@ use super::with_args_once::WithArgsOnce;
 /// [when!]: macro.when.html
 /// [once]: #method.once
 /// [times]: #method.times
-pub struct WithArgs<'q, I, O, M> {
-    id: &'static str,
+pub struct WithArgs<'q, R, I, O, M> {
+    id: fn(R, I) -> O,
     store: &'q mut MockStore,
     times: MockTimes,
     matcher: M,
-    // contravariant with I but covariant with O
-    _marker: std::marker::PhantomData<fn(I) -> O>,
 }
 
-impl<'q, I, O, M: AllMatcher<I> + Send + 'static> WithArgs<'q, I, O, M> {
+impl<'q, R, I, O, M: AllMatcher<I> + Send + 'static> WithArgs<'q, R, I, O, M> {
     #[doc(hidden)]
-    pub fn new(id: &'static str, store: &'q mut MockStore, matcher: M) -> Self {
+    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
         WithArgs {
             id,
             store,
             matcher,
             times: MockTimes::Always,
-            _marker: std::marker::PhantomData,
         }
     }
 
@@ -462,7 +459,7 @@ impl<'q, I, O, M: AllMatcher<I> + Send + 'static> WithArgs<'q, I, O, M> {
     ///   mock.single_arg(8);
     /// }
     /// ```
-    pub fn once(self) -> WithArgsOnce<'q, I, O, M> {
+    pub fn once(self) -> WithArgsOnce<'q, R, I, O, M> {
         WithArgsOnce::new(self.id, self.store, self.matcher)
     }
 }
