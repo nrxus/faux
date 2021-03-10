@@ -238,7 +238,12 @@ impl<'a> MethodData<'a> {
         output: Option<&syn::Type>,
         name: &syn::Ident,
     ) -> Vec<syn::ImplItemMethod> {
-        let &MethodData { ref arg_types, .. } = self;
+        let &MethodData {
+            ref arg_types,
+            ref receiver,
+            ..
+        } = self;
+        let receiver_tokens = &receiver.tokens;
 
         let when_ident =
             syn::Ident::new(&format!("_when_{}", name), proc_macro2::Span::call_site());
@@ -247,8 +252,9 @@ impl<'a> MethodData<'a> {
 
         let empty = syn::parse2(quote! { () }).unwrap();
         let output = output.unwrap_or(&empty);
+
         let when_method = syn::parse2(quote! {
-            pub fn #when_ident(&mut self) -> faux::When<&Self, (#(#arg_types),*), #output> {
+            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
                         <Self>::#faux_ident,
@@ -261,7 +267,7 @@ impl<'a> MethodData<'a> {
         .unwrap();
 
         let faux_method = syn::parse2(quote! {
-            pub fn #faux_ident(&self, input: (#(#arg_types),*)) -> #output {
+            pub fn #faux_ident(self: #receiver_tokens, input: (#(#arg_types),*)) -> #output {
                 panic!("do not call this")
             }
         })

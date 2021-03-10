@@ -7,26 +7,38 @@ use syn::spanned::Spanned;
 pub struct Receiver {
     span: Span,
     pub kind: SelfKind,
+    pub tokens: TokenStream,
 }
 
 impl Receiver {
     pub fn from_signature(signature: &syn::Signature) -> Option<Self> {
         match signature.inputs.first()? {
             syn::FnArg::Typed(arg) => match &*arg.pat {
-                syn::Pat::Ident(pat_ident) if pat_ident.ident == "self" => Some(Receiver {
-                    kind: SelfKind::from_type(&*arg.ty),
-                    span: arg.ty.span(),
-                }),
+                syn::Pat::Ident(pat_ident) if pat_ident.ident == "self" => {
+                    let arg_ty = &*arg.ty;
+                    Some(Receiver {
+                        kind: SelfKind::from_type(arg_ty),
+                        span: arg_ty.span(),
+                        tokens: quote! { #arg_ty },
+                    })
+                }
                 _ => None,
             },
-            syn::FnArg::Receiver(receiver) => Some(Receiver {
-                kind: match (&receiver.reference, &receiver.mutability) {
-                    (None, _) => SelfKind::Owned,
-                    (Some(_), None) => SelfKind::Pointer(PointerKind::Ref),
-                    (Some(_), Some(_)) => SelfKind::Pointer(PointerKind::MutRef),
-                },
-                span: receiver.span(),
-            }),
+            syn::FnArg::Receiver(receiver) => {
+                let (kind, tokens) = match (&receiver.reference, &receiver.mutability) {
+                    (None, _) => (SelfKind::Owned, quote! { Self }),
+                    (Some(_), None) => (SelfKind::Pointer(PointerKind::Ref), quote! { &Self }),
+                    (Some(_), Some(_)) => {
+                        (SelfKind::Pointer(PointerKind::MutRef), quote! { &mut Self })
+                    }
+                };
+
+                Some(Receiver {
+                    kind,
+                    tokens,
+                    span: receiver.span(),
+                })
+            }
         }
     }
 
