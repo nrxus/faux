@@ -30,12 +30,12 @@ fn success_with_args() {
     assert_eq!(mock.no_args(), 5);
 
     faux::when!(mock.one_arg)
-        .with_args(faux::SingleMatcher(faux::eq(3)))
+        .with_args(faux::matcher::Single(faux::matcher::eq(3)))
         .then_return(10);
     assert_eq!(mock.one_arg(3), 10);
 
     faux::when!(mock.two_args)
-        .with_args((faux::any(), faux::eq(faux::Ref(10))))
+        .with_args((faux::matcher::any(), faux::matcher::eq(faux::matcher::Ref(10))))
         .then_return(vec![4]);
     assert_eq!(mock.two_args(3, &10), vec![4]);
 }
@@ -46,7 +46,7 @@ fn fail_with_args() {
     let mut mock = Foo::faux();
 
     faux::when!(mock.two_args)
-        .with_args((faux::eq(4), faux::any()))
+        .with_args((faux::matcher::eq(4), faux::matcher::any()))
         .then_return(vec![2]);
 
     mock.two_args(3, &10);

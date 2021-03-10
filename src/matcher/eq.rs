@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::ArgMatcher;
+use super::ArgMatcher;
 
 pub struct Eq<Captured: fmt::Debug>(Captured);
 

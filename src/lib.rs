@@ -95,7 +95,7 @@
 //! * Mock methods with arbitrary self types (e.g., `self: Rc<Self>`). **limited support**
 //! * Mock methods from structs in a different module
 
-mod matcher;
+pub mod matcher;
 mod mock;
 mod mock_store;
 mod when;
@@ -580,7 +580,6 @@ pub use faux_macros::methods;
 /// ```
 pub use faux_macros::when;
 
-pub use matcher::*;
 pub use mock::ReturnedMock;
 pub use mock_store::{MaybeFaux, MockStore};
 pub use when::{When, WhenOnce, WhenWithArgs, WhenWithArgsOnce};

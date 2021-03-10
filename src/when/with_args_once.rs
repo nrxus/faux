@@ -1,4 +1,4 @@
-use crate::{AllMatcher, MockStore};
+use crate::{matcher, MockStore};
 
 /// Similar to [WhenWithArgs](struct.WhenWithArgs) but only mocks once.
 ///
@@ -10,7 +10,7 @@ pub struct WithArgsOnce<'q, R, I, O, M> {
     matcher: M,
 }
 
-impl<'q, R, I, O, M: AllMatcher<I> + Send + 'static> WithArgsOnce<'q, R, I, O, M> {
+impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> WithArgsOnce<'q, R, I, O, M> {
     #[doc(hidden)]
     pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
         WithArgsOnce { id, store, matcher }

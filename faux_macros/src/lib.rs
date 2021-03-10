@@ -64,7 +64,7 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             if args.len() == 1 {
                 let arg = expr_to_matcher(args.pop().unwrap().into_value());
-                TokenStream::from(quote!({ #receiver.#when().with_args(faux::SingleMatcher(#arg)) }))
+                TokenStream::from(quote!({ #receiver.#when().with_args(faux::matcher::Single(#arg)) }))
             } else {
                 let args = args
                 .into_iter()
@@ -84,13 +84,13 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 fn expr_to_matcher(expr: syn::Expr) -> proc_macro2::TokenStream {
     match expr {
         syn::Expr::Verbatim(t) if t.to_string() == "_" => {
-            quote!(faux::any())
+            quote!(faux::matcher::any())
         }
         syn::Expr::Reference(syn::ExprReference { expr, .. }) => {
-            quote!(faux::eq(faux::Ref(#expr)))
+            quote!(faux::matcher::eq(faux::matcher::Ref(#expr)))
         }
         arg => {
-            quote!(faux::eq(#arg))
+            quote!(faux::matcher::eq(#arg))
         }
     }
 }

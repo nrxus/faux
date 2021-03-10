@@ -1,4 +1,4 @@
-use crate::{mock::MockTimes, mock_store::MockStore, AllMatcher};
+use crate::{matcher, mock::MockTimes, mock_store::MockStore};
 
 use super::with_args_once::WithArgsOnce;
 
@@ -21,7 +21,7 @@ pub struct WithArgs<'q, R, I, O, M> {
     matcher: M,
 }
 
-impl<'q, R, I, O, M: AllMatcher<I> + Send + 'static> WithArgs<'q, R, I, O, M> {
+impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> WithArgs<'q, R, I, O, M> {
     #[doc(hidden)]
     pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
         WithArgs {
