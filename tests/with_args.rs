@@ -26,7 +26,7 @@ impl Foo {
 fn success_with_args() {
     let mut mock = Foo::faux();
 
-    faux::when!(mock.no_args).with_args(()).then(|| 5);
+    faux::when!(mock.no_args).with_args(()).then(|_| 5);
     assert_eq!(mock.no_args(), 5);
 
     faux::when!(mock.one_arg)

@@ -168,13 +168,17 @@ impl<'a> Signature<'a> {
                         quote! { (#(#args,)*) }
                     };
 
-                    let error_msg =
-                        format!("'{}::{}' is not mocked", morphed_ty.to_token_stream(), name);
+                    let struct_and_method_name =
+                        format!("{}::{}", morphed_ty.to_token_stream(), name);
                     quote! {
                         let mut q = q.try_lock().unwrap();
                         unsafe {
-                            q.call_mock(<Self>::#faux_ident, #args)
-                                .expect(#error_msg)
+                            match q.call_mock(<Self>::#faux_ident, #args) {
+                                std::result::Result::Ok(o) => o,
+                                std::result::Result::Err(e) => {
+                                    panic!("failed to call mock on '{}':\n{}", #struct_and_method_name, e);
+                                }
+                            }
                         }
                     }
                 };
@@ -268,7 +272,7 @@ impl<'a> MethodData<'a> {
         let output = output.unwrap_or(&empty);
 
         let when_method = syn::parse2(quote! {
-            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output> {
+            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::when::Any> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
                         <Self>::#faux_ident,
@@ -281,6 +285,7 @@ impl<'a> MethodData<'a> {
         .unwrap();
 
         let faux_method = syn::parse2(quote! {
+            #[allow(clippy::needless_arbitrary_self_type)]
             pub fn #faux_ident(self: #receiver_tokens, input: (#(#arg_types),*)) -> #output {
                 panic!("do not call this")
             }

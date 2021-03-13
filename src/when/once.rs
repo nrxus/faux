@@ -1,24 +1,19 @@
-use crate::MockStore;
+use crate::{matcher, MockStore};
 
 /// Similar to [When](struct.When) but only mocks once.
 ///
 /// Mock closures may consume captured variables as the mock will not
 /// be called more than once.
-pub struct Once<'q, R, I, O> {
+pub struct Once<'q, R, I, O, M: matcher::AllArgs<I>> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,
-    // *const for variance -- I think that's what I want.
-    _marker: std::marker::PhantomData<fn(I) -> O>,
+    matcher: M,
 }
 
-impl<'q, R, I, O> Once<'q, R, I, O> {
+impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> Once<'q, R, I, O, M> {
     #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
-        Once {
-            id,
-            store,
-            _marker: std::marker::PhantomData,
-        }
+    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
+        Once { id, store, matcher }
     }
 
     /// Analog of [When.then_return] where the value does not need to
@@ -89,7 +84,7 @@ impl<'q, R, I, O> Once<'q, R, I, O> {
     where
         O: 'static,
     {
-        self.store.mock_once(self.id, mock);
+        self.store.mock_once(self.id, mock, self.matcher);
     }
 
     /// Analog of [When.then_unchecked_return] where the value does
@@ -166,6 +161,6 @@ impl<'q, R, I, O> Once<'q, R, I, O> {
     /// See [When.then_unchecked's safety]
     ///
     pub unsafe fn then_unchecked(self, mock: impl FnOnce(I) -> O + Send) {
-        self.store.mock_once_unchecked(self.id, mock);
+        self.store.mock_once_unchecked(self.id, mock, self.matcher);
     }
 }

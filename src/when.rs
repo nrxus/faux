@@ -1,13 +1,17 @@
 mod once;
-mod with_args;
-mod with_args_once;
 
 use crate::{matcher, mock::MockTimes, mock_store::MockStore};
-use std::fmt::Debug;
+use once::Once;
 
-pub use once::Once;
-pub use with_args::WithArgs;
-pub use with_args_once::WithArgsOnce;
+pub use once::Once as WhenOnce;
+
+#[doc(hidden)]
+pub struct Any;
+impl<Args> matcher::AllArgs<Args> for Any {
+    fn matches(&self, _: &Args) -> Result<(), String> {
+        Ok(())
+    }
+}
 
 /// Provides methods to override the return or implementation of the
 /// mocked method.
@@ -21,22 +25,26 @@ pub use with_args_once::WithArgsOnce;
 /// [when!]: macro.when.html
 /// [once]: #method.once
 /// [times]: #method.times
-pub struct When<'q, R, I, O> {
+pub struct When<'q, R, I, O, M: matcher::AllArgs<I>> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,
     times: MockTimes,
+    matcher: M,
 }
 
-impl<'q, R, I, O> When<'q, R, I, O> {
+impl<'q, R, I, O> When<'q, R, I, O, Any> {
     #[doc(hidden)]
     pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
         When {
             id,
             store,
+            matcher: Any,
             times: MockTimes::Always,
         }
     }
+}
 
+impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> When<'q, R, I, O, M> {
     /// Sets the return value for the mocked method.
     ///
     /// Requires the value to be static. For a more lax but unsafe
@@ -141,7 +149,7 @@ impl<'q, R, I, O> When<'q, R, I, O> {
     where
         O: 'static,
     {
-        self.store.mock(self.id, mock, self.times);
+        self.store.mock(self.id, mock, self.times, self.matcher);
     }
 
     /// Analog of [then_return] that allows returning non-static
@@ -304,7 +312,8 @@ impl<'q, R, I, O> When<'q, R, I, O> {
     /// [then]: #methods.then
     ///
     pub unsafe fn then_unchecked(self, mock: impl FnMut(I) -> O + Send) {
-        self.store.mock_unchecked(self.id, mock, self.times);
+        self.store
+            .mock_unchecked(self.id, mock, self.times, self.matcher);
     }
 
     /// Limits the number of times a mock is active.
@@ -428,17 +437,19 @@ impl<'q, R, I, O> When<'q, R, I, O> {
     ///   mock.single_arg(8);
     /// }
     /// ```
-    pub fn once(self) -> Once<'q, R, I, O> {
-        Once::new(self.id, self.store)
+    pub fn once(self) -> Once<'q, R, I, O, M> {
+        Once::new(self.id, self.store, self.matcher)
     }
 
-    pub fn with_args<M: matcher::AllArgs<I> + Send + 'static>(
+    pub fn with_args<N: matcher::AllArgs<I> + Send + 'static>(
         self,
-        matcher: M,
-    ) -> WithArgs<'q, R, I, O, M>
-    where
-        I: Debug,
-    {
-        WithArgs::new(self.id, self.store, matcher)
+        matcher: N,
+    ) -> When<'q, R, I, O, N> {
+        When {
+            matcher,
+            times: self.times,
+            id: self.id,
+            store: self.store,
+        }
     }
 }

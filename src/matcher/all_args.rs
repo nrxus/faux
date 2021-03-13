@@ -20,7 +20,9 @@ impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> AllArgs<Arg> for Single<AM> {
             Ok(())
         } else {
             Err(format!(
-                "Argument did not match.\nExpected: {}\nActual: {:?}",
+                "Argument did not match.
+Expected: {}
+Actual:   {:?}",
                 self.0.message(),
                 arg
             ))
@@ -40,6 +42,18 @@ impl<A: fmt::Debug, B: fmt::Debug, AM: ArgMatcher<A>, BM: ArgMatcher<B>> AllArgs
 
         let expected = [am.message().to_string(), bm.message().to_string()];
         let actual = [format!("{:?}", a), format!("{:?}", b)];
+        let widths = [
+            expected[0].len().max(actual[0].len()),
+            expected[1].len().max(actual[1].len()),
+        ];
+        let expected = [
+            format!("{:>width$}", expected[0], width = widths[0]),
+            format!("{:>width$}", expected[1], width = widths[1]),
+        ];
+        let actual = [
+            format!("{:>width$}", actual[0], width = widths[0]),
+            format!("{:>width$}", actual[1], width = widths[1]),
+        ];
 
         let argument_errors: Vec<_> = matches
             .iter()
@@ -47,7 +61,9 @@ impl<A: fmt::Debug, B: fmt::Debug, AM: ArgMatcher<A>, BM: ArgMatcher<B>> AllArgs
             .filter_map(|(i, &passed)| if passed { None } else { Some(i) })
             .map(|pos| {
                 format!(
-                    "Mismatched argument at position: {}.\nExpected: {}\nActual: {}",
+                    "Mismatched argument at position: {}
+Expected: {}
+Actual:   {}",
                     pos, expected[pos], actual[pos]
                 )
             })
@@ -58,7 +74,11 @@ impl<A: fmt::Debug, B: fmt::Debug, AM: ArgMatcher<A>, BM: ArgMatcher<B>> AllArgs
         let actual = actual.join(", ");
 
         Err(format!(
-            "Arguments did not match\n\nExpected: {}\nActual: {}\n\n{}",
+            "Arguments did not match
+Expected: [{}]
+Actual:   [{}]
+
+{}",
             expected, actual, argument_errors
         ))
     }
@@ -86,6 +106,21 @@ impl<
             cm.message().to_string(),
         ];
         let actual = [format!("{:?}", a), format!("{:?}", b), format!("{:?}", c)];
+        let widths = [
+            expected[0].len().max(actual[0].len()),
+            expected[1].len().max(actual[1].len()),
+            expected[2].len().max(actual[2].len()),
+        ];
+        let expected = [
+            format!("{:>width$}", expected[0], width = widths[0]),
+            format!("{:>width$}", expected[1], width = widths[1]),
+            format!("{:>width$}", expected[2], width = widths[2]),
+        ];
+        let actual = [
+            format!("{:>width$}", actual[0], width = widths[0]),
+            format!("{:>width$}", actual[1], width = widths[1]),
+            format!("{:>width$}", actual[2], width = widths[2]),
+        ];
 
         let argument_errors: Vec<_> = matches
             .iter()
@@ -93,7 +128,9 @@ impl<
             .filter_map(|(i, &passed)| if passed { None } else { Some(i) })
             .map(|pos| {
                 format!(
-                    "Mismatched argument at position: {}.\nExpected: {}\nActual: {}",
+                    "Mismatched argument at position: {}
+Expected: {}
+Actual:   {}",
                     pos, expected[pos], actual[pos]
                 )
             })
@@ -104,7 +141,11 @@ impl<
         let actual = actual.join(", ");
 
         Err(format!(
-            "Arguments did not match\n\nExpected: {}\nActual: {}\n\n{}",
+            "Arguments did not match
+Expected: [{}]
+Actual:   [{}]
+
+{}",
             expected, actual, argument_errors
         ))
     }
