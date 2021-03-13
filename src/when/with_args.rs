@@ -325,7 +325,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> WithArgs<'q, R, I, O,
             ..
         } = self;
 
-        store.unsafe_mock(
+        store.mock_unchecked(
             id,
             move |input: I| {
                 if let Err(message) = matcher.matches(&input) {

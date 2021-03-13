@@ -304,7 +304,7 @@ impl<'q, R, I, O> When<'q, R, I, O> {
     /// [then]: #methods.then
     ///
     pub unsafe fn then_unchecked(self, mock: impl FnMut(I) -> O + Send) {
-        self.store.unsafe_mock(self.id, mock, self.times);
+        self.store.mock_unchecked(self.id, mock, self.times);
     }
 
     /// Limits the number of times a mock is active.

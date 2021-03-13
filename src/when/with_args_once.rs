@@ -175,7 +175,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> WithArgsOnce<'q, R, I
             id, matcher, store, ..
         } = self;
 
-        store.unsafe_mock_once(id, move |input: I| {
+        store.mock_once_unchecked(id, move |input: I| {
             if let Err(message) = matcher.matches(&input) {
                 panic!("{}", message)
             }

@@ -1,7 +1,6 @@
-#[doc(hidden)]
-pub enum StoredMock {
-    Once(Box<dyn FnOnce(()) + Send>),
-    Many(Box<dyn FnMut(()) + Send>, MockTimes),
+pub enum StoredMock<'a, I, O> {
+    Once(Box<dyn FnOnce(I) -> O + Send + 'a>),
+    Many(Box<dyn FnMut(I) -> O + Send + 'a>, MockTimes),
 }
 
 #[derive(Debug)]
@@ -18,25 +17,45 @@ impl MockTimes {
     }
 }
 
-impl std::fmt::Debug for StoredMock {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl<'a, I, O> StoredMock<'a, I, O> {
+    pub fn once(mock: impl FnOnce(I) -> O + Send + 'a) -> Self {
+        let mock = Box::new(mock);
+        StoredMock::Once(mock)
+    }
+
+    pub fn many(mock: impl FnMut(I) -> O + Send + 'a, times: MockTimes) -> Self {
+        let mock = Box::new(mock);
+        StoredMock::Many(mock, times)
+    }
+}
+
+pub enum UncheckedMock<'a> {
+    Once(Box<dyn FnOnce(()) + Send + 'a>),
+    Many(Box<dyn FnMut(()) + Send + 'a>, MockTimes),
+}
+
+impl<'a> UncheckedMock<'a> {
+    pub unsafe fn new<I, O>(mock: StoredMock<'a, I, O>) -> Self {
+        match mock {
+            StoredMock::Once(mock) => UncheckedMock::Once(std::mem::transmute(mock)),
+            StoredMock::Many(mock, times) => UncheckedMock::Many(std::mem::transmute(mock), times),
+        }
+    }
+
+    pub unsafe fn transmute<I, O>(self) -> StoredMock<'a, I, O> {
         match self {
-            StoredMock::Once(_) => f.write_str("once mock"),
-            StoredMock::Many(_, count) => write!(f, "mock {:?} times", count),
+            UncheckedMock::Once(mock) => StoredMock::Once(std::mem::transmute(mock)),
+            UncheckedMock::Many(mock, times) => StoredMock::Many(std::mem::transmute(mock), times),
         }
     }
 }
 
-impl StoredMock {
-    pub(crate) unsafe fn once<I, O>(mock: impl FnOnce(I) -> O + Send) -> Self {
-        let mock = Box::new(mock) as Box<dyn FnOnce(_) -> _>;
-        let mock = std::mem::transmute(mock);
-        StoredMock::Once(mock)
-    }
-
-    pub(crate) unsafe fn many<I, O>(mock: impl FnMut(I) -> O + Send, times: MockTimes) -> Self {
-        let mock = Box::new(mock) as Box<dyn FnMut(_) -> _>;
-        let mock = std::mem::transmute(mock);
-        StoredMock::Many(mock, times)
+use std::fmt;
+impl fmt::Debug for UncheckedMock<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            UncheckedMock::Once(_) => f.write_str("once mock"),
+            UncheckedMock::Many(_, count) => write!(f, "mock {:?} times", count),
+        }
     }
 }

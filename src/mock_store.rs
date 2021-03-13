@@ -1,4 +1,4 @@
-use crate::mock::{MockTimes, StoredMock};
+use crate::mock::{MockTimes, StoredMock, UncheckedMock};
 use std::collections::{self, HashMap};
 
 #[doc(hidden)]
@@ -36,14 +36,12 @@ impl<T> MaybeFaux<T> {
     }
 }
 
-/// Stores the mocked methods
 #[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: HashMap<usize, StoredMock>,
+    mocks: HashMap<usize, UncheckedMock<'static>>,
 }
 
-#[doc(hidden)]
 impl MockStore {
     fn new() -> Self {
         MockStore {
@@ -51,97 +49,77 @@ impl MockStore {
         }
     }
 
-    /// # Safety
-    ///
-    /// Do not use this function without going through [When].  It is
-    /// the caller's responsability to pass a mock that is safe.
-    ///
-    /// [When]: When
-    pub unsafe fn unsafe_mock_once<R, I, O>(
+    pub(crate) unsafe fn mock_once_unchecked<R, I, O>(
         &mut self,
         id: fn(R, I) -> O,
         mock: impl FnOnce(I) -> O + Send,
     ) {
-        self.mocks.insert(id as usize, StoredMock::once(mock));
+        // pretend the lifetime is static
+        self.store_mock(id, std::mem::transmute(StoredMock::once(mock)))
     }
 
-    pub fn mock_once<R, I, O>(
+    pub(crate) fn mock_once<R, I, O>(
         &mut self,
         id: fn(R, I) -> O,
         mock: impl FnOnce(I) -> O + 'static + Send,
-    ) where
-        O: 'static,
-    {
-        unsafe {
-            self.mocks.insert(id as usize, StoredMock::once(mock));
-        }
+    ) {
+        self.store_mock(id, StoredMock::once(mock));
     }
 
-    /// # Safety
-    ///
-    /// Do not use this function without going through [When].  It is
-    /// the caller's responsibility to pass a mock that is safe.
-    ///
-    /// [When]: When
-    pub unsafe fn unsafe_mock<R, I, O>(
+    pub(crate) unsafe fn mock_unchecked<R, I, O>(
         &mut self,
         id: fn(R, I) -> O,
         mock: impl FnMut(I) -> O + Send,
         times: MockTimes,
     ) {
-        self.mocks
-            .insert(id as usize, StoredMock::many(mock, times));
+        // pretend the lifetime is static
+        self.store_mock(id, std::mem::transmute(StoredMock::many(mock, times)))
     }
 
-    pub fn mock<R, I, O>(
+    pub(crate) fn mock<R, I, O>(
         &mut self,
         id: fn(R, I) -> O,
         mock: impl FnMut(I) -> O + 'static + Send,
         times: MockTimes,
-    ) where
-        O: 'static,
-    {
-        unsafe {
-            self.mocks
-                .insert(id as usize, StoredMock::many(mock, times));
-        }
+    ) {
+        self.store_mock(id, StoredMock::many(mock, times))
     }
 
-    pub fn call_mock<R, I, O>(&mut self, id: fn(R, I) -> O, input: I) -> Option<O> {
+    fn store_mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: StoredMock<'static, I, O>) {
+        self.mocks
+            .insert(id as usize, unsafe { UncheckedMock::new(mock) });
+    }
+
+    #[doc(hidden)]
+    /// # Safety
+    ///
+    /// Do *NOT* call this function directly.
+    /// This should only be called by the generated code from #[faux::methods]
+    pub unsafe fn call_mock<R, I, O>(&mut self, id: fn(R, I) -> O, input: I) -> Option<O> {
         match self.mocks.entry(id as usize) {
             // no mock stored
             collections::hash_map::Entry::Vacant(_) => None,
             collections::hash_map::Entry::Occupied(mut entry) => match entry.get_mut() {
                 // a zero-times mock sneaked in here - delete
-                StoredMock::Many(_, MockTimes::Times(0)) => {
+                UncheckedMock::Many(_, MockTimes::Times(0)) => {
                     entry.remove();
                     None
                 }
                 // only a single mock
                 // remove and call the mock
-                StoredMock::Once(_) | StoredMock::Many(_, MockTimes::Times(1)) => {
-                    let mock = entry.remove();
+                UncheckedMock::Once(_) | UncheckedMock::Many(_, MockTimes::Times(1)) => {
+                    let mock = entry.remove().transmute::<I, O>();
                     match mock {
-                        StoredMock::Once(mock) => {
-                            let mock: Box<dyn FnOnce(I) -> O + Send> =
-                                unsafe { std::mem::transmute(mock) };
-                            Some(mock(input))
-                        }
-                        StoredMock::Many(mock, _) => {
-                            let mut mock: Box<dyn FnMut(I) -> O + Send> =
-                                unsafe { std::mem::transmute(mock) };
-                            Some(mock(input))
-                        }
+                        StoredMock::Once(mock) => Some(mock(input)),
+                        StoredMock::Many(mut mock, _) => Some(mock(input)),
                     }
                 }
                 // mock that can be called multiple times
                 // call the mock but do not remove it
-                StoredMock::Many(mock, times) => {
+                UncheckedMock::Many(mock, times) => {
                     times.decrement();
-                    let mock = unsafe {
-                        &mut *(mock as *mut Box<dyn FnMut(()) + Send>
-                            as *mut Box<dyn FnMut(I) -> O + Send>)
-                    };
+                    let mock = &mut *(mock as *mut Box<dyn FnMut(()) + Send>
+                        as *mut Box<dyn FnMut(I) -> O + Send>);
                     Some(mock(input))
                 }
             },

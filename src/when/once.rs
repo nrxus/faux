@@ -166,6 +166,6 @@ impl<'q, R, I, O> Once<'q, R, I, O> {
     /// See [When.then_unchecked's safety]
     ///
     pub unsafe fn then_unchecked(self, mock: impl FnOnce(I) -> O + Send) {
-        self.store.unsafe_mock_once(self.id, mock);
+        self.store.mock_once_unchecked(self.id, mock);
     }
 }
