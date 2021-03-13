@@ -3,8 +3,8 @@ mod any;
 mod eq;
 
 pub use all_args::{AllArgs, Single};
-pub use eq::{eq, Eq};
 pub use any::{any, Any};
+pub use eq::{eq, Eq};
 use std::fmt::{self, Formatter};
 
 pub trait ArgMatcher<Arg> {

@@ -33,7 +33,15 @@ impl<'a> ToTokens for WhenArg<'a> {
         match self.0 {
             syn::Type::ImplTrait(ty) => {
                 let bounds = &ty.bounds;
-                token_stream.extend(quote! { std::boxed::Box<dyn #bounds> });
+                if bounds
+                    .iter()
+                    .any(|b| matches!(b, syn::TypeParamBound::Lifetime(_)))
+                {
+                    token_stream.extend(quote! { std::boxed::Box<dyn #bounds> });
+                } else {
+                    // avoid implicit static
+                    token_stream.extend(quote! { std::boxed::Box<dyn #bounds + '_> });
+                }
             }
             ty => ty.to_tokens(token_stream),
         }
@@ -139,7 +147,7 @@ impl<'a> Signature<'a> {
                     let faux_ident =
                         syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
 
-                    let args =
+                    let mut args =
                         arg_idents
                             .iter()
                             .zip(method_data.arg_types.iter())
@@ -153,14 +161,20 @@ impl<'a> Signature<'a> {
                                 _ => quote! { #ident },
                             });
 
+                    let args = if arg_idents.len() == 1 {
+                        let arg = args.next().unwrap();
+                        quote! { #arg }
+                    } else {
+                        quote! { (#(#args,)*) }
+                    };
+
                     let error_msg =
                         format!("'{}::{}' is not mocked", morphed_ty.to_token_stream(), name);
                     quote! {
                         let mut q = q.try_lock().unwrap();
                         unsafe {
-                            q.get_mock(<Self>::#faux_ident)
+                            q.call_mock(<Self>::#faux_ident, #args)
                                 .expect(#error_msg)
-                                .call((#(#args,)*))
                         }
                     }
                 };

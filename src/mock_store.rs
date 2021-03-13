@@ -1,4 +1,4 @@
-use crate::mock::{MockTimes, ReturnedMock, StoredMock};
+use crate::mock::{MockTimes, StoredMock};
 use std::collections::{self, HashMap};
 
 #[doc(hidden)]
@@ -107,41 +107,43 @@ impl MockStore {
         }
     }
 
-    pub fn get_mock<R, I, O>(&mut self, id: fn(R, I) -> O) -> Option<ReturnedMock> {
+    pub fn call_mock<R, I, O>(&mut self, id: fn(R, I) -> O, input: I) -> Option<O> {
         match self.mocks.entry(id as usize) {
             // no mock stored
             collections::hash_map::Entry::Vacant(_) => None,
             collections::hash_map::Entry::Occupied(mut entry) => match entry.get_mut() {
-                // we did not remove the mock on its "last" possible call so remove it now
-                // we do this because ReturnedMock::Many wants a reference
-                // so the mock must still live somewhere even during its last call
+                // a zero-times mock sneaked in here - delete
                 StoredMock::Many(_, MockTimes::Times(0)) => {
                     entry.remove();
                     None
                 }
                 // only a single mock
-                // remove and return mock
-                StoredMock::Once(_) => {
+                // remove and call the mock
+                StoredMock::Once(_) | StoredMock::Many(_, MockTimes::Times(1)) => {
                     let mock = entry.remove();
                     match mock {
-                        StoredMock::Once(mock) => Some(ReturnedMock::Once(mock)),
-                        StoredMock::Many(_, _) => unreachable!(),
+                        StoredMock::Once(mock) => {
+                            let mock: Box<dyn FnOnce(I) -> O + Send> =
+                                unsafe { std::mem::transmute(mock) };
+                            Some(mock(input))
+                        }
+                        StoredMock::Many(mock, _) => {
+                            let mut mock: Box<dyn FnMut(I) -> O + Send> =
+                                unsafe { std::mem::transmute(mock) };
+                            Some(mock(input))
+                        }
                     }
                 }
                 // mock that can be called multiple times
-                // return mock but do not remove it
-                // call into_mut and stop using the get_mut because of lifetime shenanigans
-                StoredMock::Many(_, _) => match entry.into_mut() {
-                    StoredMock::Many(many, times) => {
-                        times.decrement();
-                        // One may think that doing &mut *many is the same thing
-                        // but NO IT IS NOT Why? ¯\_(ツ)_/¯
-                        // Be very careful because I do not understand why
-                        // and the other way fails some tests... but not all?
-                        Some(ReturnedMock::Many(many.as_mut()))
-                    }
-                    _ => unreachable!(),
-                },
+                // call the mock but do not remove it
+                StoredMock::Many(mock, times) => {
+                    times.decrement();
+                    let mock = unsafe {
+                        &mut *(mock as *mut Box<dyn FnMut(()) + Send>
+                            as *mut Box<dyn FnMut(I) -> O + Send>)
+                    };
+                    Some(mock(input))
+                }
             },
         }
     }

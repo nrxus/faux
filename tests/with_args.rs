@@ -35,7 +35,10 @@ fn success_with_args() {
     assert_eq!(mock.one_arg(3), 10);
 
     faux::when!(mock.two_args)
-        .with_args((faux::matcher::any(), faux::matcher::eq(faux::matcher::Ref(10))))
+        .with_args((
+            faux::matcher::any(),
+            faux::matcher::eq(faux::matcher::Ref(10)),
+        ))
         .then_return(vec![4]);
     assert_eq!(mock.two_args(3, &10), vec![4]);
 }

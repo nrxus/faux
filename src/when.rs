@@ -3,13 +3,11 @@ mod with_args;
 mod with_args_once;
 
 use crate::{matcher, mock::MockTimes, mock_store::MockStore};
-use once::Once;
 use std::fmt::Debug;
-use with_args::WithArgs;
 
-pub use once::Once as WhenOnce;
-pub use with_args::WithArgs as WhenWithArgs;
-pub use with_args_once::WithArgsOnce as WhenWithArgsOnce;
+pub use once::Once;
+pub use with_args::WithArgs;
+pub use with_args_once::WithArgsOnce;
 
 /// Provides methods to override the return or implementation of the
 /// mocked method.

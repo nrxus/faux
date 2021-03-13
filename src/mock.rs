@@ -18,12 +18,6 @@ impl MockTimes {
     }
 }
 
-#[doc(hidden)]
-pub enum ReturnedMock<'a> {
-    Once(Box<dyn FnOnce(()) + Send>),
-    Many(&'a mut (dyn FnMut(()) + Send)),
-}
-
 impl std::fmt::Debug for StoredMock {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -44,27 +38,5 @@ impl StoredMock {
         let mock = Box::new(mock) as Box<dyn FnMut(_) -> _>;
         let mock = std::mem::transmute(mock);
         StoredMock::Many(mock, times)
-    }
-}
-
-impl ReturnedMock<'_> {
-    /// # Safety
-    ///
-    /// [#[methods]] makes sure this function is called correctly when
-    /// the method is invoked.  Do not use this function directly.
-    ///
-    /// [#\[methods\]]: methods
-    pub unsafe fn call<I, O>(self, input: I) -> O {
-        match self {
-            ReturnedMock::Once(mock) => {
-                let mock: Box<dyn FnOnce(I) -> O> = std::mem::transmute(mock);
-                mock(input)
-            }
-            ReturnedMock::Many(mock) => {
-                let mock = &mut *(mock as *mut (dyn std::ops::FnMut(()) + std::marker::Send)
-                    as *mut dyn std::ops::FnMut(I) -> O);
-                mock(input)
-            }
-        }
     }
 }
