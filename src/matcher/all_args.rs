@@ -1,4 +1,5 @@
 use core::fmt;
+use paste::paste;
 
 use super::ArgMatcher;
 
@@ -30,123 +31,70 @@ Actual:   {:?}",
     }
 }
 
-impl<A: fmt::Debug, B: fmt::Debug, AM: ArgMatcher<A>, BM: ArgMatcher<B>> AllArgs<(A, B)>
-    for (AM, BM)
-{
-    fn matches(&self, (a, b): &(A, B)) -> Result<(), String> {
-        let (am, bm) = &self;
-        let matches = match (am.matches(a), bm.matches(b)) {
-            (true, true) => return Ok(()),
-            (a, b) => [a, b],
-        };
+// macro for implementing n-ary tuple functions and operations
+macro_rules! trues {
+    ($($v:expr),*) => { ($(trues!(@true $v)),*) };
+    (@true $v:expr) =>  { true };
+}
 
-        let expected = [am.message().to_string(), bm.message().to_string()];
-        let actual = [format!("{:?}", a), format!("{:?}", b)];
-        let widths = [
-            expected[0].len().max(actual[0].len()),
-            expected[1].len().max(actual[1].len()),
-        ];
-        let expected = [
-            format!("{:>width$}", expected[0], width = widths[0]),
-            format!("{:>width$}", expected[1], width = widths[1]),
-        ];
-        let actual = [
-            format!("{:>width$}", actual[0], width = widths[0]),
-            format!("{:>width$}", actual[1], width = widths[1]),
-        ];
+macro_rules! peel {
+    ($idx:tt, $($other:tt,)+) => (tuple! { $($other,)+ })
+}
 
-        let argument_errors: Vec<_> = matches
-            .iter()
-            .enumerate()
-            .filter_map(|(i, &passed)| if passed { None } else { Some(i) })
-            .map(|pos| {
-                format!(
-                    "Mismatched argument at position: {}
+macro_rules! tuple {
+    ($idx:tt,) => ();
+    ($($idx:tt,)+) => (
+        paste! {
+            impl<$([<A $idx>]: fmt::Debug),+,$([<AM $idx>]: ArgMatcher<[<A $idx>]>),+> AllArgs<($([<A $idx>],)+)> for ($([<AM $idx>],)+) {
+                fn matches(&self, ($([<a $idx>]),+): &($([<A $idx>],)+)) -> Result<(), String> {
+                    let ($([<am $idx>]),+) = &self;
+                    let matches = match ($([<am $idx>].matches([<a $idx>])),+) {
+                        trues!($($idx),+) => return Ok(()),
+                        ($([<a $idx>]),+) => [$([<a $idx>]),+],
+                    };
+                    let expected = [
+                        $([<am $idx>].message().to_string()),+
+                    ];
+                    let actual = [
+                        $(format!("{:?}", [<a $idx>])),+
+                    ];
+                    let widths = [
+                        $(expected[$idx].len().max(actual[$idx].len())),+
+                    ];
+                    let expected = [
+                        $(format!("{:>width$}", expected[$idx], width = widths[$idx])),+
+                    ];
+                    let actual = [
+                        $(format!("{:>width$}", actual[$idx], width = widths[$idx])),+
+                    ];
+
+                    let argument_errors: Vec<_> = matches
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, &passed)| if passed { None } else { Some(i) })
+                        .map(|pos| format!("Mismatched argument at position: {}
 Expected: {}
 Actual:   {}",
-                    pos, expected[pos], actual[pos]
-                )
-            })
-            .collect();
+                            pos, expected[pos], actual[pos]
+                        ))
+                        .collect();
 
-        let argument_errors = argument_errors.join("\n\n");
-        let expected = expected.join(", ");
-        let actual = actual.join(", ");
+                    let argument_errors = argument_errors.join("\n\n");
+                    let expected = expected.join(", ");
+                    let actual = actual.join(", ");
 
-        Err(format!(
-            "Arguments did not match
+                    Err(format!("Arguments did not match
 Expected: [{}]
 Actual:   [{}]
 
 {}",
-            expected, actual, argument_errors
-        ))
-    }
+                        expected, actual, argument_errors
+                    ))
+                }
+            }
+        }
+        peel! { $($idx,)+ }
+    )
 }
 
-impl<
-        A: fmt::Debug,
-        B: fmt::Debug,
-        C: fmt::Debug,
-        AM: ArgMatcher<A>,
-        BM: ArgMatcher<B>,
-        CM: ArgMatcher<C>,
-    > AllArgs<(A, B, C)> for (AM, BM, CM)
-{
-    fn matches(&self, (a, b, c): &(A, B, C)) -> Result<(), String> {
-        let (am, bm, cm) = &self;
-        let matches = match (am.matches(a), bm.matches(b), cm.matches(c)) {
-            (true, true, true) => return Ok(()),
-            (a, b, c) => [a, b, c],
-        };
-
-        let expected = [
-            am.message().to_string(),
-            bm.message().to_string(),
-            cm.message().to_string(),
-        ];
-        let actual = [format!("{:?}", a), format!("{:?}", b), format!("{:?}", c)];
-        let widths = [
-            expected[0].len().max(actual[0].len()),
-            expected[1].len().max(actual[1].len()),
-            expected[2].len().max(actual[2].len()),
-        ];
-        let expected = [
-            format!("{:>width$}", expected[0], width = widths[0]),
-            format!("{:>width$}", expected[1], width = widths[1]),
-            format!("{:>width$}", expected[2], width = widths[2]),
-        ];
-        let actual = [
-            format!("{:>width$}", actual[0], width = widths[0]),
-            format!("{:>width$}", actual[1], width = widths[1]),
-            format!("{:>width$}", actual[2], width = widths[2]),
-        ];
-
-        let argument_errors: Vec<_> = matches
-            .iter()
-            .enumerate()
-            .filter_map(|(i, &passed)| if passed { None } else { Some(i) })
-            .map(|pos| {
-                format!(
-                    "Mismatched argument at position: {}
-Expected: {}
-Actual:   {}",
-                    pos, expected[pos], actual[pos]
-                )
-            })
-            .collect();
-
-        let argument_errors = argument_errors.join("\n\n");
-        let expected = expected.join(", ");
-        let actual = actual.join(", ");
-
-        Err(format!(
-            "Arguments did not match
-Expected: [{}]
-Actual:   [{}]
-
-{}",
-            expected, actual, argument_errors
-        ))
-    }
-}
+tuple! { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, }
