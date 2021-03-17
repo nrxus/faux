@@ -1,4 +1,8 @@
-use crate::{matcher, MockStore};
+use crate::{
+    matcher,
+    mock::{Mock, Stub},
+    MockStore,
+};
 
 /// Similar to [When](struct.When) but only mocks once.
 ///
@@ -10,7 +14,7 @@ pub struct Once<'q, R, I, O, M: matcher::AllArgs<I>> {
     matcher: M,
 }
 
-impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> Once<'q, R, I, O, M> {
+impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> Once<'q, R, I, O, M> {
     #[doc(hidden)]
     pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
         Once { id, store, matcher }
@@ -84,7 +88,8 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> Once<'q, R, I, O, M> {
     where
         O: 'static,
     {
-        self.store.mock_once(self.id, mock, self.matcher);
+        self.store
+            .mock(self.id, Mock::new(Stub::Once(Box::new(mock)), self.matcher));
     }
 
     /// Analog of [When.then_unchecked_return] where the value does
@@ -161,6 +166,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> Once<'q, R, I, O, M> {
     /// See [When.then_unchecked's safety]
     ///
     pub unsafe fn then_unchecked(self, mock: impl FnOnce(I) -> O + Send) {
-        self.store.mock_once_unchecked(self.id, mock, self.matcher);
+        self.store
+            .mock_unchecked(self.id, Mock::new(Stub::Once(Box::new(mock)), self.matcher));
     }
 }

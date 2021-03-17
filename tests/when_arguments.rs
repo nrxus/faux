@@ -52,7 +52,7 @@ fn eq_arg() {
     faux::when!(mock.no_args()).then_return(10);
 
     let data = Data { a: 2, b: 3 };
-    faux::when!(mock.one_ref_arg(&data.clone())).then_return(1337);
+    faux::when!(mock.one_ref_arg(data.clone())).then_return(1337);
     assert_eq!(mock.one_ref_arg(&data), 1337);
 }
 

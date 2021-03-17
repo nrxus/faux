@@ -1,6 +1,12 @@
+//! Tools to stub the implementation or return value of your mocks
+
 mod once;
 
-use crate::{matcher, mock::MockTimes, mock_store::MockStore};
+use crate::{
+    matcher,
+    mock::{Mock, MockTimes, Stub},
+    mock_store::MockStore,
+};
 use once::Once;
 
 pub use once::Once as WhenOnce;
@@ -13,18 +19,24 @@ impl<Args> matcher::AllArgs<Args> for Any {
     }
 }
 
-/// Provides methods to override the return or implementation of the
+/// Provides methods to stub the implementation or return value of the
 /// mocked method.
 ///
-/// Created using [when!].
+/// Created using [`when!`].
+///
+/// By default, the stubbing will be setup for any argument. See
+/// [`when!`] for an ergonomic way to set argument matchers. See
+/// [`with_args`] for the full power or argument matching if the macro
+/// is not enough.
 ///
 /// By default, all methods are mocked indefinitely and the mock
-/// closures may not consume captured variables. See the [times] and
-/// [once] methods to override these default.
+/// closures may not consume captured variables. See the [`times`] and
+/// [`once`] methods to override these default.
 ///
-/// [when!]: macro.when.html
-/// [once]: #method.once
-/// [times]: #method.times
+/// [`when!`]: crate::when!
+/// [`once`]: When::once
+/// [`times`]: When::times
+/// [`with_args`]: When::with_args
 pub struct When<'q, R, I, O, M: matcher::AllArgs<I>> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,
@@ -44,11 +56,11 @@ impl<'q, R, I, O> When<'q, R, I, O, Any> {
     }
 }
 
-impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> When<'q, R, I, O, M> {
-    /// Sets the return value for the mocked method.
+impl<'q, R, I, O: 'static, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> {
+    /// Sets the stub return value for the mocked method.
     ///
     /// Requires the value to be static. For a more lax but unsafe
-    /// alternative, see: [then_unchecked_return]
+    /// alternative, see: [`then_unchecked_return`]
     ///
     /// # Usage
     ///
@@ -74,24 +86,22 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> When<'q, R, I, O, M> {
     /// }
     /// ```
     ///
-    /// [then_unchecked_return]: #methods.then_unchecked_return
-    ///
+    /// [`then_unchecked_return`]: When::then_unchecked_return
     pub fn then_return(self, value: O)
     where
-        O: 'static + Send + Clone,
+        O: Send + Clone,
     {
         self.then(move |_: I| value.clone());
     }
 
-    /// Sets the closure to be called when the mocked method is
-    /// invoked.
+    /// Sets the stub implementation for the mocked method.
     ///
     /// The input for the closure is a tuple of all its non-receiver
     /// parameters
     ///
     /// The provided mock must be static and it must be mocking a
     /// method with static output. For a more lax but unsafe
-    /// alternative, see: [then_unchecked].
+    /// alternative, see: [`then_unchecked`].
     ///
     /// # Usage
     ///
@@ -143,17 +153,24 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> When<'q, R, I, O, M> {
     /// }
     /// ```
     ///
-    /// [then_unchecked]: #methods.then_unchecked
-    ///
-    pub fn then(self, mock: impl FnMut(I) -> O + 'static + Send)
-    where
-        O: 'static,
-    {
-        self.store.mock(self.id, mock, self.times, self.matcher);
+    /// [`then_unchecked`]: When::then_unchecked
+    pub fn then(self, mock: impl FnMut(I) -> O + 'static + Send) {
+        self.store.mock(
+            self.id,
+            Mock::new(
+                Stub::Many {
+                    times: self.times,
+                    stub: Box::new(mock),
+                },
+                self.matcher,
+            ),
+        );
     }
+}
 
-    /// Analog of [then_return] that allows returning non-static
-    /// outputs.
+impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> {
+    /// Analog of [`then_return`] that allows stubbing non-static
+    /// return values
     ///
     /// # Usage
     ///
@@ -214,8 +231,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> When<'q, R, I, O, M> {
     /// }
     /// ```
     ///
-    /// [then_return]: #method.then_return
-    ///
+    /// [`then_return`]: When::then_return
     pub unsafe fn then_unchecked_return(self, value: O)
     where
         O: Send + Clone,
@@ -223,8 +239,8 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> When<'q, R, I, O, M> {
         self.then_unchecked(move |_: I| value.clone())
     }
 
-    /// Analog of [then] that allows using non-static closures or
-    /// mocking methods with non-static outputs
+    /// Analog of [`then`] that allows stubbing implementations with
+    /// non-static closures
     ///
     /// # Usage
     ///
@@ -309,11 +325,18 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> When<'q, R, I, O, M> {
     /// }
     /// ```
     ///
-    /// [then]: #methods.then
-    ///
+    /// [`then`]: When::then
     pub unsafe fn then_unchecked(self, mock: impl FnMut(I) -> O + Send) {
-        self.store
-            .mock_unchecked(self.id, mock, self.times, self.matcher);
+        self.store.mock_unchecked(
+            self.id,
+            Mock::new(
+                Stub::Many {
+                    times: self.times,
+                    stub: Box::new(mock),
+                },
+                self.matcher,
+            ),
+        );
     }
 
     /// Limits the number of times a mock is active.
@@ -441,6 +464,20 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + 'static> When<'q, R, I, O, M> {
         Once::new(self.id, self.store, self.matcher)
     }
 
+    /// Specifies a matcher for all of the input arguments.
+    ///
+    /// This matcher must be satisfied for the stub to be invoked.
+    ///
+    /// See [`when!`](crate::when!) for a an ergonomic way to set the
+    /// matchers
+    ///
+    /// If all the arguments implement [`Debug`](std::fmt::Debug) then
+    /// a tuple of [`matcher::ArgMatcher`] can be provided where each
+    /// `ArgMatcher` matches an individual argument of the method. If
+    /// the method only has a single argument you can use
+    /// [`matcher::Single`] to wrap the single `ArgMatcher`.
+    ///
+    /// For more complex use cases see [`matcher::AllArgs`].
     pub fn with_args<N: matcher::AllArgs<I> + Send + 'static>(
         self,
         matcher: N,

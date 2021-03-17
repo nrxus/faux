@@ -3,18 +3,29 @@ use paste::paste;
 
 use super::ArgMatcher;
 
+/// An interface to specify if *all* of the expected arguments to the
+/// mocked method match the received arguments.
 pub trait AllArgs<Args> {
+    /// Returns `Ok(())` when all the arguments were found to
+    /// match. Returns `Err(String)` in the case of an error. When
+    /// used as part of a [When](#struct.When) the error message is
+    /// displayed as part of the panic if no matching mock is found.
     fn matches(&self, args: &Args) -> Result<(), String>;
 }
 
+/// An empty tuple implements [AllArgs](#trait.AllArgs) for no
+/// arguments
 impl AllArgs<()> for () {
     fn matches(&self, _: &()) -> Result<(), String> {
         Ok(())
     }
 }
 
-// needed to get around specialization
+/// Wrapper around a single [ArgMatcher](#struct.ArgMatcher) that
+/// implements [AllArgs](#trait.AllArgs) for the argument in the
+/// matcher
 pub struct Single<AM>(pub AM);
+
 impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> AllArgs<Arg> for Single<AM> {
     fn matches(&self, arg: &Arg) -> Result<(), String> {
         if self.0.matches(arg) {
@@ -24,27 +35,31 @@ impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> AllArgs<Arg> for Single<AM> {
                 "Argument did not match.
 Expected: {}
 Actual:   {:?}",
-                self.0.message(),
-                arg
+                self.0, arg
             ))
         }
     }
 }
 
-// macro for implementing n-ary tuple functions and operations
+// (1,2,3,..) => (true, true, true,..)
 macro_rules! trues {
     ($($v:expr),*) => { ($(trues!(@true $v)),*) };
     (@true $v:expr) =>  { true };
 }
 
+// (a,b,c) => tuple!(b,c)
 macro_rules! peel {
     ($idx:tt, $($other:tt,)+) => (tuple! { $($other,)+ })
 }
 
+// implement AllArgs for tuples for ArgMatchers
 macro_rules! tuple {
     ($idx:tt,) => ();
     ($($idx:tt,)+) => (
         paste! {
+            /// Implement [AllArgs] for tuples of [ArgMatcher] if the
+            /// argument to the matcher implements
+            /// [Debug](fmt::Debug)
             impl<$([<A $idx>]: fmt::Debug),+,$([<AM $idx>]: ArgMatcher<[<A $idx>]>),+> AllArgs<($([<A $idx>],)+)> for ($([<AM $idx>],)+) {
                 fn matches(&self, ($([<a $idx>]),+): &($([<A $idx>],)+)) -> Result<(), String> {
                     let ($([<am $idx>]),+) = &self;
@@ -53,7 +68,7 @@ macro_rules! tuple {
                         ($([<a $idx>]),+) => [$([<a $idx>]),+],
                     };
                     let expected = [
-                        $([<am $idx>].message().to_string()),+
+                        $([<am $idx>].to_string()),+
                     ];
                     let actual = [
                         $(format!("{:?}", [<a $idx>])),+

@@ -1,16 +1,17 @@
 use super::ArgMatcher;
+use std::fmt::{self, Formatter};
 
 pub struct Any;
 
 impl<T> ArgMatcher<T> for Any {
-    type Message = &'static str;
-
     fn matches(&self, _: &T) -> bool {
         true
     }
+}
 
-    fn message(&self) -> Self::Message {
-        "_"
+impl fmt::Display for Any {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "_")
     }
 }
 

@@ -1,21 +1,42 @@
-use std::fmt;
+use std::{
+    borrow::Borrow,
+    fmt::{self, Formatter},
+};
 
 use super::ArgMatcher;
 
-pub struct Eq<Captured: fmt::Debug>(Captured);
+pub struct Eq<Expected>(Expected);
 
-impl<Arg, Captured: PartialEq<Arg> + fmt::Debug> ArgMatcher<Arg> for Eq<Captured> {
-    type Message = String;
-
-    fn matches(&self, arg: &Arg) -> bool {
-        self.0 == *arg
-    }
-
-    fn message(&self) -> Self::Message {
-        format!("{:?}", self.0)
+impl<Arg: Borrow<Expected>, Expected: fmt::Debug + PartialEq> ArgMatcher<Arg> for Eq<Expected> {
+    fn matches(&self, actual: &Arg) -> bool {
+        &self.0 == actual.borrow()
     }
 }
 
-pub fn eq<Captured: fmt::Debug>(arg: Captured) -> Eq<Captured> {
-    Eq(arg)
+impl<Expected: fmt::Debug> fmt::Display for Eq<Expected> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+pub fn eq<Expected: fmt::Debug + PartialEq>(expected: Expected) -> Eq<Expected> {
+    Eq(expected)
+}
+
+pub struct EqAgainst<Expected>(Expected);
+
+pub fn eq_against<Expected>(expected: Expected) -> EqAgainst<Expected> {
+    EqAgainst(expected)
+}
+
+impl<Expected: fmt::Debug + PartialEq<Arg>, Arg> ArgMatcher<Arg> for EqAgainst<Expected> {
+    fn matches(&self, actual: &Arg) -> bool {
+        &self.0 == actual
+    }
+}
+
+impl<Expected: fmt::Debug> fmt::Display for EqAgainst<Expected> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "== {:?}", self.0)
+    }
 }

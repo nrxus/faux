@@ -1,16 +1,33 @@
 use crate::matcher;
 use std::fmt;
 
-pub enum StoredMock<'a, I, O> {
-    Once(
-        Box<dyn FnOnce(I) -> O + Send + 'a>,
-        Box<dyn matcher::AllArgs<I>>,
-    ),
-    Many(
-        Box<dyn FnMut(I) -> O + Send + 'a>,
-        Box<dyn matcher::AllArgs<I>>,
-        MockTimes,
-    ),
+pub struct Mock<'a, I, O> {
+    matcher: Box<dyn matcher::AllArgs<I> + Send>,
+    stub: Stub<'a, I, O>,
+}
+
+pub enum Stub<'a, I, O> {
+    Once(Box<dyn FnOnce(I) -> O + Send + 'a>),
+    Many {
+        stub: Box<dyn FnMut(I) -> O + Send + 'a>,
+        times: MockTimes,
+    },
+}
+
+pub struct SavedMock<'a> {
+    transmuted_matcher: Box<dyn matcher::AllArgs<()> + Send>,
+    stub: SavedStub<'a>,
+}
+
+pub enum SavedStub<'a> {
+    Exhausted,
+    Once {
+        transmuted_stub: Box<dyn FnOnce(()) + Send + 'a>,
+    },
+    Many {
+        transmuted_stub: Box<dyn FnMut(()) + Send + 'a>,
+        times: MockTimes,
+    },
 }
 
 #[derive(Debug)]
@@ -27,72 +44,93 @@ impl MockTimes {
     }
 }
 
-impl<'a, I, O> StoredMock<'a, I, O> {
-    pub fn once<M: matcher::AllArgs<I> + 'static>(
-        mock: impl FnOnce(I) -> O + Send + 'a,
-        matcher: M,
-    ) -> Self {
-        let mock = Box::new(mock);
-        let matcher = Box::new(matcher);
-        StoredMock::Once(mock, matcher)
-    }
-
-    pub fn many<M: matcher::AllArgs<I> + 'static>(
-        mock: impl FnMut(I) -> O + Send + 'a,
-        times: MockTimes,
-        matcher: M,
-    ) -> Self {
-        let mock = Box::new(mock);
-        let matcher = Box::new(matcher);
-        StoredMock::Many(mock, matcher, times)
-    }
-}
-
-pub enum UncheckedMock<'a> {
-    Once(
-        Box<dyn FnOnce(()) + Send + 'a>,
-        Box<dyn matcher::AllArgs<()>>,
-    ),
-    Many(
-        Box<dyn FnMut(()) + Send + 'a>,
-        Box<dyn matcher::AllArgs<()>>,
-        MockTimes,
-    ),
-}
-
-impl<'a> UncheckedMock<'a> {
-    pub unsafe fn new<I, O>(mock: StoredMock<'a, I, O>) -> Self {
-        match mock {
-            StoredMock::Once(mock, matcher) => {
-                UncheckedMock::Once(std::mem::transmute(mock), std::mem::transmute(matcher))
-            }
-            StoredMock::Many(mock, matcher, times) => UncheckedMock::Many(
-                std::mem::transmute(mock),
-                std::mem::transmute(matcher),
-                times,
-            ),
+impl<'a, I, O> Mock<'a, I, O> {
+    pub fn new<M: matcher::AllArgs<I> + Send + 'static>(stub: Stub<'a, I, O>, matcher: M) -> Self {
+        Mock {
+            matcher: Box::new(matcher),
+            stub,
         }
     }
 
-    pub unsafe fn transmute<I, O>(self) -> StoredMock<'a, I, O> {
-        match self {
-            UncheckedMock::Once(mock, matcher) => {
-                StoredMock::Once(std::mem::transmute(mock), std::mem::transmute(matcher))
-            }
-            UncheckedMock::Many(mock, matcher, times) => StoredMock::Many(
-                std::mem::transmute(mock),
-                std::mem::transmute(matcher),
+    pub unsafe fn unchecked(self) -> SavedMock<'a> {
+        let matcher: Box<dyn matcher::AllArgs<()>> = std::mem::transmute(self.matcher);
+        let stub = match self.stub {
+            Stub::Once(mock) => SavedStub::Once {
+                transmuted_stub: std::mem::transmute(mock),
+            },
+            Stub::Many { stub, times } => SavedStub::Many {
                 times,
-            ),
+                transmuted_stub: std::mem::transmute(stub),
+            },
+        };
+        SavedMock {
+            transmuted_matcher: std::mem::transmute(matcher),
+            stub,
         }
     }
 }
 
-impl fmt::Debug for UncheckedMock<'_> {
+impl<'a> SavedMock<'a> {
+    /// # Safety
+    ///
+    /// Only call this method if you know for sure these are the right
+    /// input and output from the non-transmuted stubs
+    pub unsafe fn call<I, O>(&mut self, input: I) -> Result<O, String> {
+        let matcher = &mut *(&mut self.transmuted_matcher as *mut Box<_>
+            as *mut Box<dyn matcher::AllArgs<I>>);
+
+        // TODO: should the error message be different if the stub is also exhausted?
+        matcher.matches(&input)?;
+
+        let just_exhausted = match &mut self.stub {
+            SavedStub::Once { .. }
+            | SavedStub::Many {
+                times: MockTimes::Times(0),
+                ..
+            }
+            | SavedStub::Many {
+                times: MockTimes::Times(1),
+                ..
+            } => std::mem::replace(&mut self.stub, SavedStub::Exhausted),
+            SavedStub::Many {
+                times,
+                transmuted_stub,
+            } => {
+                times.decrement();
+                let stub = &mut *(transmuted_stub as *mut Box<dyn FnMut(()) + Send>
+                    as *mut Box<dyn FnMut(I) -> O + Send>);
+                return Ok(stub(input));
+            }
+            SavedStub::Exhausted => return Err("this mock has been exhausted".to_string()),
+        };
+
+        match just_exhausted {
+            SavedStub::Once { transmuted_stub } => {
+                let stub: Box<dyn FnOnce(I) -> O> = std::mem::transmute(transmuted_stub);
+                Ok(stub(input))
+            }
+            SavedStub::Many {
+                times: MockTimes::Times(0),
+                ..
+            } => Err("this mock has been exhausted".to_string()),
+            SavedStub::Many {
+                times: MockTimes::Times(1),
+                transmuted_stub,
+            } => {
+                let mut stub: Box<dyn FnMut(I) -> O> = std::mem::transmute(transmuted_stub);
+                Ok(stub(input))
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl fmt::Debug for SavedMock<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            UncheckedMock::Once(_, _) => f.write_str("once mock"),
-            UncheckedMock::Many(_, _, count) => write!(f, "mock {:?} times", count),
+        match &self.stub {
+            SavedStub::Exhausted => f.write_str("exhausted mock"),
+            SavedStub::Once { .. } => f.write_str("once mock"),
+            SavedStub::Many { times, .. } => write!(f, "mock {:?} times", times),
         }
     }
 }

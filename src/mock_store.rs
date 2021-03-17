@@ -1,8 +1,5 @@
-use crate::{
-    matcher,
-    mock::{MockTimes, StoredMock, UncheckedMock},
-};
-use std::collections::{self, HashMap};
+use crate::mock::{Mock, SavedMock};
+use std::collections::HashMap;
 
 #[doc(hidden)]
 /// ```
@@ -42,7 +39,7 @@ impl<T> MaybeFaux<T> {
 #[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: HashMap<usize, UncheckedMock<'static>>,
+    mocks: HashMap<usize, SavedMock<'static>>,
 }
 
 impl MockStore {
@@ -52,52 +49,21 @@ impl MockStore {
         }
     }
 
-    pub(crate) unsafe fn mock_once_unchecked<R, I, O, M: matcher::AllArgs<I> + 'static>(
+    pub(crate) fn mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
+        self.store_mock(id, mock)
+    }
+
+    pub(crate) unsafe fn mock_unchecked<'a, R, I, O>(
         &mut self,
         id: fn(R, I) -> O,
-        mock: impl FnOnce(I) -> O + Send,
-        matcher: M,
+        mock: Mock<'a, I, O>,
     ) {
         // pretend the lifetime is static
-        self.store_mock(id, std::mem::transmute(StoredMock::once(mock, matcher)))
+        self.store_mock(id, std::mem::transmute(mock))
     }
 
-    pub(crate) fn mock_once<R, I, O, M: matcher::AllArgs<I> + 'static>(
-        &mut self,
-        id: fn(R, I) -> O,
-        mock: impl FnOnce(I) -> O + 'static + Send,
-        matcher: M,
-    ) {
-        self.store_mock(id, StoredMock::once(mock, matcher));
-    }
-
-    pub(crate) unsafe fn mock_unchecked<R, I, O, M: matcher::AllArgs<I> + 'static>(
-        &mut self,
-        id: fn(R, I) -> O,
-        mock: impl FnMut(I) -> O + Send,
-        times: MockTimes,
-        matcher: M,
-    ) {
-        // pretend the lifetime is static
-        self.store_mock(
-            id,
-            std::mem::transmute(StoredMock::many(mock, times, matcher)),
-        )
-    }
-
-    pub(crate) fn mock<R, I, O, M: matcher::AllArgs<I> + 'static>(
-        &mut self,
-        id: fn(R, I) -> O,
-        mock: impl FnMut(I) -> O + 'static + Send,
-        times: MockTimes,
-        matcher: M,
-    ) {
-        self.store_mock(id, StoredMock::many(mock, times, matcher))
-    }
-
-    fn store_mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: StoredMock<'static, I, O>) {
-        self.mocks
-            .insert(id as usize, unsafe { UncheckedMock::new(mock) });
+    fn store_mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
+        self.mocks.insert(id as usize, unsafe { mock.unchecked() });
     }
 
     #[doc(hidden)]
@@ -106,44 +72,11 @@ impl MockStore {
     /// Do *NOT* call this function directly.
     /// This should only be called by the generated code from #[faux::methods]
     pub unsafe fn call_mock<R, I, O>(&mut self, id: fn(R, I) -> O, input: I) -> Result<O, String> {
-        match self.mocks.entry(id as usize) {
-            // no mock stored
-            collections::hash_map::Entry::Vacant(_) => Err("method not mocked".to_string()),
-            collections::hash_map::Entry::Occupied(mut entry) => match entry.get_mut() {
-                // a zero-times mock sneaked in here - delete
-                UncheckedMock::Many(_, _, MockTimes::Times(0)) => {
-                    entry.remove();
-                    Err("method not mocked".to_string())
-                }
-                // only a single mock
-                // remove and call the mock
-                UncheckedMock::Once(_, matcher)
-                | UncheckedMock::Many(_, matcher, MockTimes::Times(1)) => {
-                    let matcher =
-                        &mut *(matcher as *mut Box<_> as *mut Box<dyn matcher::AllArgs<I>>);
+        let stub = self
+            .mocks
+            .get_mut(&(id as usize))
+            .ok_or_else(|| "method was never mocked".to_string())?;
 
-                    matcher.matches(&input)?;
-
-                    let mock = entry.remove().transmute::<I, O>();
-                    match mock {
-                        StoredMock::Once(mock, _) => Ok(mock(input)),
-                        StoredMock::Many(mut mock, _, _) => Ok(mock(input)),
-                    }
-                }
-                // mock that can be called multiple times
-                // call the mock but do not remove it
-                UncheckedMock::Many(mock, matcher, times) => {
-                    let matcher =
-                        &mut *(matcher as *mut Box<_> as *mut Box<dyn matcher::AllArgs<I>>);
-
-                    matcher.matches(&input)?;
-
-                    times.decrement();
-                    let mock = &mut *(mock as *mut Box<dyn FnMut(()) + Send>
-                        as *mut Box<dyn FnMut(I) -> O + Send>);
-                    Ok(mock(input))
-                }
-            },
-        }
+        stub.call(input)
     }
 }

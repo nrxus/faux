@@ -1,103 +1,159 @@
 #![cfg_attr(doctest, feature(external_doc))]
 #![allow(clippy::needless_doctest_main)]
 
-//! # Faux
-//!
 //! A library to create [mocks] out of `struct`s.
 //!
-//! `faux` provides macros to help you create mocks out of your
-//! structs without the need of generics nor trait objects polluting
-//! your function signatures.
+//! `faux` allows you to mock the behavior (i.e. methods) of structs
+//! without complicating or polluting your code. This is useful during
+//! testing to stub the behavior of a hard to test struct and focus on
+//! the testable parts of your code.
 //!
-//! **`faux` makes liberal use of unsafe rust features, and it is only
-//! recommended for use inside tests.**
+//! At a high level `faux` is split into:
 //!
-//! [mocks]: https://martinfowler.com/articles/mocksArentStubs.html
+//! * [`#[create]`](create): Morphs a struct into a mockable equivalent
+//! * [`#[methods]`](methods): Morphs the methods in an impl block into
+//! their mockable equivalent
+//! * [`when!`]: Initializes the stubbing of a specific method; either
+//! with or without argument matchers
+//! * [`When`]: Configures the stub by setting either a stub value or
+//! implementation
 //!
-//! ## Usage
+//! Visit their individual docs for further details on how to use them
+//! to help you mock.
+//!
+//! # Getting Started
+//!
+//! `faux` makes liberal use of unsafe rust features, and it is only
+//! recommended for use inside tests. To prevent `faux` from leaking
+//! into your production code, set it as a `dev-dependency` in you
+//! `Cargo.toml`
+//!
+//! ```toml
+//! [dev-dependencies]
+//! faux = "0.0.8"
+//! ```
+//!
+//! # Examples
 //!
 //! ```
-//! // creates the mockable struct
+//! // restrict faux to tests by using #[cfg_attr(test, ...)]
+//! // faux::create marks a struct as mockable
+//! // this includes generating a `faux()` associated function
+//! // `HttpClient::faux()` will create a mock instance
 //! #[cfg_attr(test, faux::create)]
 //! # #[faux::create]
-//! pub struct Foo {
-//!     a: u32,
+//! pub struct HttpClient { /* */ }
+//!
+//! // this is just a bag of data with no behavior
+//! // so we do not mark it as mockable
+//! #[derive(PartialEq, Clone, Debug)]
+//! pub struct Headers {
+//!     pub authorization: String,
 //! }
 //!
-//! // mocks the methods
+//! // faux::methods marks every public method in the impl as mockable
 //! #[cfg_attr(test, faux::methods)]
 //! # #[faux::methods]
-//! impl Foo {
-//!     pub fn new(a: u32) -> Self {
-//!         Foo { a }
+//! impl HttpClient {
+//!     pub fn post(&self, path: &str, headers: &Headers) -> String {
+//!         /* does network calls that we rather not do in unit tests */
+//!         # unreachable!()
 //!     }
 //!
-//!     pub fn add_stuff(&self, input: &u32) -> u32 {
-//!         self.a + *input
-//!     }
-//!
-//!     pub fn get_ref(&self) -> &u32 {
-//!         &self.a
+//!     pub fn host(&self) -> &str {
+//!         /* returns a reference to some internal data */
+//!         # unreachable!()
 //!     }
 //! }
 //!
 //! #[cfg(test)]
 //! #[test]
 //! fn test() {
-//!   // you can create the original object
-//!   let real = Foo::new(3);
-//!   assert_eq!(real.add_stuff(&2), 5);
+//!   // Use the generated `faux` associated function to create a mock instance
+//!   let mut mock = HttpClient::faux();
 //!
-//!   // can create a mock using the auto-generated `faux` method
-//!   let mut mock = Foo::faux();
+//!   let headers = Headers { authorization: "Bearer foobar".to_string() };
 //!
-//!   // safely mock return values of owned data
-//!   faux::when!(mock.add_stuff).then_return(3);
-//!   assert_eq!(mock.add_stuff(&20), 3);
+//!   // use faux::when! to mock the behavior of your methods
+//!   // you can use `_` if you do not care about specific arguments
+//!   // or pass an argument that implements `PartialEq` to compare against
+//!   // we can then mock the return stub using `.then_return(...)`
+//!   faux::when!(mock.post(_, headers.clone())).then_return("{}".to_string());
+//!   // we setup the mock for any path, but only specific headers to let's pass those
+//!   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
 //!
-//!   // safely mock implementation of methods that return owned data
-//!   faux::when!(mock.add_stuff).then(|&x| x);
-//!   assert_eq!(mock.add_stuff(&5), 5);
+//!   // faux::when! also accepts getting no argument matchers
+//!   faux::when!(mock.post).then_return("OK".to_string());
+//!   // we can now pass different headers since our mock matches everything
+//!   assert_eq!(
+//!       mock.post(
+//!           "some/other/path",
+//!           &Headers { authorization: "other-token".to_string() }
+//!       ),
+//!       "OK".to_string()
+//!   );
 //!
-//!   // other methods can be mocked using unsafe
-//!   let x = 5;
-//!   unsafe { faux::when!(mock.get_ref).then_unchecked_return(&x) }
-//!   assert_eq!(*mock.get_ref(), x);
+//!   // for implementation mocking: use `.then(...)`
+//!   faux::when!(mock.post).then(|(path, _)| path.to_string());
+//!   assert_eq!(mock.post("another/path", &headers), "another/path");
+//!
+//!   // unsafe versions of `.then` and `.then_return` exist to mock
+//!   // methods that return non-static values (e.g., references)
+//!   // or to mock using non-static closures
+//!   let ret = "some-value".to_string();
+//!   unsafe { faux::when!(mock.host).then_unchecked_return(ret.as_str()) }
+//!   assert_eq!(mock.host(), &ret);
 //! }
 //! #
 //! # fn main() {
-//! #  // you can create the original object
-//! #  let real = Foo::new(3);
-//! #  assert_eq!(real.add_stuff(&2), 5);
+//! #   // Use the generated `faux` associated method to create a mock instance
+//! #   let mut mock = HttpClient::faux();
 //! #
-//! #   // can create a mock using the auto-generated `faux` method
-//! #   let mut mock = Foo::faux();
+//! #   // setup what the value should return based on some arguments
+//! #   let headers = Headers { authorization: "Bearer foobar".to_string() };
+//! #   // mock it for *any* path, but only headers equal to the expected
+//! #   faux::when!(mock.post(_, headers.clone())).then_return("{}".to_string());
+//! #   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
 //! #
-//! #   // safely mock return values of owned data
-//! #   faux::when!(mock.add_stuff).then_return(3);
-//! #   assert_eq!(mock.add_stuff(&20), 3);
+//! #   // If you do not care about any arguments, don't specify them at all
+//! #   faux::when!(mock.post).then_return("OK".to_string());
+//! #   assert_eq!(
+//! #       mock.post(
+//! #           "some/other/path",
+//! #           &Headers { authorization: "other-token".to_string() }
+//! #       ),
+//! #       "OK".to_string()
+//! #   );
 //! #
-//! #   // saly mock implementation of methods that return owned data
-//! #   faux::when!(mock.add_stuff).then(|&x| x);
-//! #   assert_eq!(mock.add_stuff(&5), 5);
+//! #   // You can have full control over the mock implementation not just the return value
+//! #   faux::when!(mock.post).then(|(path, _)| path.to_string());
+//! #   assert_eq!(mock.post("another/path", &headers), "another/path");
 //! #
-//! #   // other methods can be mocked using unsafe
-//! #   let x = 5;
-//! #   unsafe { faux::when!(mock.get_ref).then_unchecked_return(&x) }
-//! #   assert_eq!(*mock.get_ref(), x);
+//! #   // an unsafe version exist to mock methods with non-static outputs
+//! #   // or non-static mock closures
+//! #   let ret = "some-value".to_string();
+//! #   unsafe { faux::when!(mock.host).then_unchecked_return(ret.as_str()) }
+//! #   assert_eq!(mock.host(), &ret);
 //! #  }
 //! ```
 //!
-//! ## Features:
-//! * Mock async methods
-//! * Mock trait implementations
-//! * Mock generic structs
-//! * Mock methods with arbitrary self types (e.g., `self: Rc<Self>`). **limited support**
-//! * Mock methods from structs in a different module
+//! # Features
+//!
+//! * Argument matchers
+//! * Return value mocking
+//! * Implementation mocking
+//! * Async methods
+//! * Trait methods
+//! * Generic struct methods
+//! * Arbitrary self types (e.g., `self: Rc<Self>`)
+//! * External modules
+//!
+//! [mocks]: https://martinfowler.com/articles/mocksArentStubs.html
 
-pub mod matcher;
 mod mock;
 mod mock_store;
+
+pub mod matcher;
 pub mod when;
 
 /// Transforms a struct into a mockable version of itself.
@@ -575,13 +631,17 @@ pub use faux_macros::methods;
 ///     let mut mock = Foo::faux();
 ///     // (u32, i8) is the input of the mocked method
 ///     // i32 is the output of the mocked method
-///     let a: faux::When<&Foo, (u32, i8), i32> = faux::when!(mock.some_method);
+///     let a: faux::When<&Foo, (u32, i8), i32, _> = faux::when!(mock.some_method);
 /// }
 /// ```
 pub use faux_macros::when;
 
-pub use mock_store::{MaybeFaux, MockStore};
+#[doc(inline)]
 pub use when::When;
+
+// exported so generated code can call for it
+// but purposefully not documented
+pub use mock_store::{MaybeFaux, MockStore};
 
 #[doc(include = "../README.md")]
 #[cfg(doctest)]
