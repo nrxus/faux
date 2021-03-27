@@ -21,12 +21,7 @@ impl AllArgs<()> for () {
     }
 }
 
-/// Wrapper around a single [ArgMatcher](#struct.ArgMatcher) that
-/// implements [AllArgs](#trait.AllArgs) for the argument in the
-/// matcher
-pub struct Single<AM>(pub AM);
-
-impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> AllArgs<Arg> for Single<AM> {
+impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> AllArgs<Arg> for (AM,) {
     fn matches(&self, arg: &Arg) -> Result<(), String> {
         if self.0.matches(arg) {
             Ok(())

@@ -2,22 +2,10 @@
 
 mod once;
 
-use crate::{
-    matcher,
-    mock::{Mock, MockTimes, Stub},
-    mock_store::MockStore,
-};
+use crate::{matcher::{self, Any}, mock::{Mock, MockTimes, Stub}, mock_store::MockStore};
 use once::Once;
 
 pub use once::Once as WhenOnce;
-
-#[doc(hidden)]
-pub struct Any;
-impl<Args> matcher::AllArgs<Args> for Any {
-    fn matches(&self, _: &Args) -> Result<(), String> {
-        Ok(())
-    }
-}
 
 /// Provides methods to stub the implementation or return value of the
 /// mocked method.

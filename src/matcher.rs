@@ -5,7 +5,7 @@ mod all_args;
 mod any;
 mod eq;
 
-pub use all_args::{AllArgs, Single};
+pub use all_args::AllArgs;
 pub use any::{any, Any};
 pub use eq::{eq, eq_against, Eq, EqAgainst};
 

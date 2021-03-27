@@ -57,22 +57,17 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         syn::Expr::MethodCall(syn::ExprMethodCall {
             receiver,
             method,
-            mut args,
+            args,
             ..
         }) => {
             let when = quote::format_ident!("_when_{}", method);
 
-            if args.len() == 1 {
-                let arg = expr_to_matcher(args.pop().unwrap().into_value());
-                TokenStream::from(quote!({ #receiver.#when().with_args(faux::matcher::Single(#arg)) }))
-            } else {
-                let args = args
+            let args = args
                 .into_iter()
                 .map(expr_to_matcher)
                 .collect::<Vec<_>>();
 
-                TokenStream::from(quote!({ #receiver.#when().with_args((#(#args),*)) }))
-            }
+            TokenStream::from(quote!({ #receiver.#when().with_args((#(#args,)*)) }))
         }
         expr => darling::Error::custom("faux::when! only accepts arguments in the format of: `when!(receiver.method)` or `receiver.method(args...)`")
              .with_span(&expr)

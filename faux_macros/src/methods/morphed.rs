@@ -272,7 +272,7 @@ impl<'a> MethodData<'a> {
         let output = output.unwrap_or(&empty);
 
         let when_method = syn::parse2(quote! {
-            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::when::Any> {
+            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::matcher::Any> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
                         <Self>::#faux_ident,

@@ -30,7 +30,7 @@ fn success_with_args() {
     assert_eq!(mock.no_args(), 5);
 
     faux::when!(mock.one_arg)
-        .with_args(faux::matcher::Single(faux::matcher::eq(3)))
+        .with_args((faux::matcher::eq(3),))
         .then_return(10);
     assert_eq!(mock.one_arg(3), 10);
 
