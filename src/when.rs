@@ -456,14 +456,14 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///
     /// This matcher must be satisfied for the stub to be invoked.
     ///
-    /// See [`when!`](crate::when!) for a an ergonomic way to set the
+    /// See [`when!`](crate::when!) for an ergonomic way to set the
     /// matchers
     ///
     /// If all the arguments implement [`Debug`](std::fmt::Debug) then
     /// a tuple of [`matcher::ArgMatcher`] can be provided where each
     /// `ArgMatcher` matches an individual argument of the method. If
-    /// the method only has a single argument you can use
-    /// [`matcher::Single`] to wrap the single `ArgMatcher`.
+    /// the method only has a single argument you need to use a tuple
+    /// of a single element in the form of: `(ArgMatcher,)`
     ///
     /// For more complex use cases see [`matcher::AllArgs`].
     pub fn with_args<N: matcher::AllArgs<I> + Send + 'static>(

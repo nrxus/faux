@@ -65,9 +65,12 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let args = args
                 .into_iter()
                 .map(expr_to_matcher)
-                .collect::<Vec<_>>();
+                .collect::<Result<Vec<_>, _>>();
 
-            TokenStream::from(quote!({ #receiver.#when().with_args((#(#args,)*)) }))
+            match args {
+                Err(e) => e.write_errors().into(),
+                Ok(args) => TokenStream::from(quote!({ #receiver.#when().with_args((#(#args,)*)) }))
+            }
         }
         expr => darling::Error::custom("faux::when! only accepts arguments in the format of: `when!(receiver.method)` or `receiver.method(args...)`")
              .with_span(&expr)
@@ -76,16 +79,43 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 }
 
-fn expr_to_matcher(expr: syn::Expr) -> proc_macro2::TokenStream {
-    match expr {
-        syn::Expr::Verbatim(t) if t.to_string() == "_" => {
-            quote!(faux::matcher::any())
+use quote::ToTokens;
+
+fn foo(
+    expr: &syn::Expr,
+    left: &syn::Expr,
+    matcher: impl FnOnce() -> darling::Result<proc_macro2::TokenStream>,
+) -> darling::Result<proc_macro2::TokenStream> {
+    match left {
+        syn::Expr::Verbatim(t) if t.to_string() == "_" => matcher(),
+        syn::Expr::Unary(syn::ExprUnary {
+            op: syn::UnOp::Deref(_),
+            expr,
+            ..
+        }) if expr.to_token_stream().to_string() == "_" => {
+            let matcher = matcher()?;
+            Ok(quote! { faux::matcher::ArgMatcher::into_ref_matcher(#matcher) })
         }
-        syn::Expr::Reference(syn::ExprReference { expr, .. }) => {
-            quote!(faux::matcher::eq(faux::matcher::Ref(#expr)))
+        _ => Ok(quote! { faux::matcher::eq(#expr) }),
+    }
+}
+
+fn expr_to_matcher(expr: syn::Expr) -> darling::Result<proc_macro2::TokenStream> {
+    match &expr {
+        syn::Expr::Verbatim(t) if t.to_string() == "_" => Ok(quote! { faux::matcher::any() }),
+        syn::Expr::Assign(syn::ExprAssign { left, right, .. }) => {
+            foo(&expr, left, || Ok(right.to_token_stream()))
         }
-        arg => {
-            quote!(faux::matcher::eq(#arg))
-        }
+        syn::Expr::Binary(syn::ExprBinary {
+            left, op, right, ..
+        }) => foo(&expr, left, || match op {
+            syn::BinOp::Eq(_) => Ok(quote! { faux::matcher::eq_against(#right) }),
+            _ => Err(darling::Error::custom(format!(
+                "faux:when! does not handle argument matchers with syntax: '{}'",
+                expr.to_token_stream()
+            ))
+            .with_span(&expr)),
+        }),
+        arg => Ok(quote! { faux::matcher::eq(#arg) }),
     }
 }

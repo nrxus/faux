@@ -37,6 +37,6 @@ impl<Expected: fmt::Debug + PartialEq<Arg>, Arg> ArgMatcher<Arg> for EqAgainst<E
 
 impl<Expected: fmt::Debug> fmt::Display for EqAgainst<Expected> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "== {:?}", self.0)
+        write!(f, "_ == {:?}", self.0)
     }
 }

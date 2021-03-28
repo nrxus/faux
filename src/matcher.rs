@@ -27,7 +27,7 @@ pub trait ArgMatcher<Arg>: fmt::Display {
 
     /// Converts the `Argmatcher<Arg>` into an `ArgMatcher<&Arg>` to
     /// test against the reference of the argument.
-    fn ref_of(self) -> RefOf<Self>
+    fn into_ref_matcher(self) -> RefOf<Self>
     where
         Self: Sized,
     {
@@ -47,6 +47,6 @@ impl<Arg, AM: ArgMatcher<Arg>> ArgMatcher<&Arg> for RefOf<AM> {
 
 impl<AM: fmt::Display> fmt::Display for RefOf<AM> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "&{}", self.0)
+        write!(f, "*{}", self.0)
     }
 }
