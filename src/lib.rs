@@ -741,6 +741,9 @@ pub use faux_macros::when;
 #[doc(inline)]
 pub use when::When;
 
+#[doc(inline)]
+pub use matcher::ArgMatcher;
+
 // exported so generated code can call for it
 // but purposefully not documented
 pub use mock_store::{MaybeFaux, MockStore};

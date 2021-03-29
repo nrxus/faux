@@ -2,10 +2,12 @@
 
 mod once;
 
-use crate::{matcher::{self, Any}, mock::{Mock, MockTimes, Stub}, mock_store::MockStore};
-use once::Once;
-
-pub use once::Once as WhenOnce;
+use crate::{
+    matcher::{self, Any},
+    mock::{Mock, MockTimes, Stub},
+    mock_store::MockStore,
+};
+pub use once::Once;
 
 /// Provides methods to stub the implementation or return value of the
 /// mocked method.
@@ -459,13 +461,13 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     /// See [`when!`](crate::when!) for an ergonomic way to set the
     /// matchers
     ///
-    /// If all the arguments implement [`Debug`](std::fmt::Debug) then
-    /// a tuple of [`matcher::ArgMatcher`] can be provided where each
-    /// `ArgMatcher` matches an individual argument of the method. If
-    /// the method only has a single argument you need to use a tuple
-    /// of a single element in the form of: `(ArgMatcher,)`
+    /// If all the arguments implement [`Debug`](std::fmt::Debug), a
+    /// tuple of [`ArgMatcher`](matcher::ArgMatcher)s can be provided
+    /// where each `ArgMatcher` matches an individual argument. If the
+    /// method only has a single argument you need to use a tuple of a
+    /// single element in the form of: `(ArgMatcher,)`
     ///
-    /// For more complex use cases see [`matcher::AllArgs`].
+    /// For more complex, you may pass a custom [`matcher::AllArgs`].
     pub fn with_args<N: matcher::AllArgs<I> + Send + 'static>(
         self,
         matcher: N,

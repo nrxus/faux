@@ -11,8 +11,8 @@ pub use eq::{eq, eq_against, Eq, EqAgainst};
 
 use std::fmt::{self, Formatter};
 
-/// Trait to check if an argument to a mocked method matches a
-/// determined expectation.
+/// Check if an argument to a mocked method matches a determined
+/// expectation.
 pub trait ArgMatcher<Arg>: fmt::Display {
     /// Checks if the argument matches some determined expection.
     ///
