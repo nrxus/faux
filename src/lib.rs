@@ -645,21 +645,97 @@ pub use faux_macros::methods;
 /// fn main() {
 ///     let mut mock = Foo::faux();
 ///
-///     // no argument matchers - mocks every call
-///     faux::when!(mock.some_method).then_return(3);
-///     assert_eq!(mock.some_method(1337, 20), 3);
+///     // specify all arguments
+///     faux::when!(mock.some_method(8, 9)).then_return(10);
+///     // actual arguments have to match the expected above
+///     assert_eq!(mock.some_method(8, 9), 10);
+///     // mock.some_method(1, 1) <~~ panics - arguments do not match
 ///
-///     // match every argument
-///     faux::when!(mock.some_method(8,9)).then_return(10);
-///     assert_eq!(mock.some_method(8,9), 10);
-///
-///     // match only some arguments
+///     // check only the second argument
 ///     faux::when!(mock.some_method(_, 4)).then_return(20);
+///     // only the second argument is being matched against
+///     // so the first argument could be anything
 ///     assert_eq!(mock.some_method(999, 4), 20);
+///     assert_eq!(mock.some_method(123, 4), 20);
+///     // mock.some_method(999, 3) <~~ panics - second argument does not match
+///
+///     // no argument matchers
+///     faux::when!(mock.some_method).then_return(3);
+///     // the arguments do not matter at all
+///     assert_eq!(mock.some_method(1337, 20), 3);
+///     assert_eq!(mock.some_method(4, 5), 3);
+///     assert_eq!(mock.some_method(7, 6), 3);
 /// }
 /// ```
 ///
+/// # Argument Matchers
+///
+/// Argument matchers are specified by passing them in the `when!`
+/// statement:
+///
+/// ```
+/// # #[faux::create]
+/// # pub struct Foo;
+/// # #[faux::methods]
+/// # impl Foo {
+/// #     pub fn my_method(&self) -> i32 {
+/// #        panic!()
+/// #    }
+/// # }
+/// # fn main() {
+/// # let mut my_struct = Foo::faux();
+/// faux::when!(my_struct.my_method(/* matchers here */));
+/// # }
+/// ```
+///
+/// This rougly translates to:
+///
+/// ```
+/// # #[faux::create]
+/// # pub struct Foo;
+/// # #[faux::methods]
+/// # impl Foo {
+/// #     pub fn my_method(&self) -> i32 {
+/// #        panic!()
+/// #    }
+/// # }
+/// # fn main() {
+/// # let mut my_struct = Foo::faux();
+/// faux::when!(my_struct.my_method).with_args((/* matchers here */));
+/// # }
+/// ```
+///
+/// To make argument matching easy to use, `when!` has a minimal
+/// domain specific language (DSL) that converts given arguments to
+/// the appropiate [`ArgMatcher`] and passes them to [`with_args`]. If
+/// this proves difficult in your use case you may always default back
+/// to using [`with_args`] directly.
+///
+/// ### DSL
+///
+/// Each of these specify a matcher for a single argument:
+///
+/// | `when!` arg     | [`ArgMatcher`]         |
+/// |-----------------|------------------------|
+/// | `{expr}`        | [`eq({expr})`]         |
+/// | `_`             | [`any()`]              |
+/// | `_ == {expr}`   | [`eq_against({expr})`] |
+/// | `_ = {matcher}` | [`{matcher}`]          |
+///
+/// A special syntax exists for matching against a reference
+/// argument. You may use `*_ = {matcher}` instead of `_ = {matcher}`,
+/// or `*_ == {expr}` instead of `_ == {expr}` to invoke
+/// [`into_ref_matcher`]. This converts an `ArgMatcher<T>` into
+/// `ArgMatcher<&T>` to match against references.
+///
 /// [`When`]: struct.When.html
+/// [`any()`]: matcher/fn.any.html
+/// [`eq_against({expr})`]: matcher/fn.eq_against.html
+/// [`ArgMatcher`]: matcher/trait.ArgMatcher.html
+/// [`{matcher}`]: matcher/trait.ArgMatcher.html
+/// [`into_ref_matcher`]: matcher/trait.ArgMatcher.html#method.into_ref_matcher
+/// [`eq({expr})`]: matcher/fn.eq.html
+/// [`with_args`]: struct.When.html#method.with_args
 pub use faux_macros::when;
 
 #[doc(inline)]
