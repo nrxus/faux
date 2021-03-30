@@ -623,7 +623,9 @@ pub use faux_macros::methods;
 ///
 /// `when!` can optionally specify argument matchers. If specified,
 /// the method will only be mocked when all the argument matchers are
-/// met.
+/// met. Argument matchers can only be specified if all the arguments
+/// implement [`Debug`](std::fmt::Debug). The debug format is printed
+/// if any of the arguments fail to match.
 ///
 /// The method to mock must be be in an `impl` blocked tagged by
 /// [`#[methods]`](methods)
@@ -649,7 +651,7 @@ pub use faux_macros::methods;
 ///     faux::when!(mock.some_method(8, 9)).then_return(10);
 ///     // actual arguments have to match the expected above
 ///     assert_eq!(mock.some_method(8, 9), 10);
-///     // mock.some_method(1, 1) <~~ panics - arguments do not match
+///     // mock.some_method(1, 1); // <~~ panics - arguments do not match
 ///
 ///     // check only the second argument
 ///     faux::when!(mock.some_method(_, 4)).then_return(20);
@@ -657,7 +659,7 @@ pub use faux_macros::methods;
 ///     // so the first argument could be anything
 ///     assert_eq!(mock.some_method(999, 4), 20);
 ///     assert_eq!(mock.some_method(123, 4), 20);
-///     // mock.some_method(999, 3) <~~ panics - second argument does not match
+///     // mock.some_method(999, 3); // <~~ panics - second argument does not match
 ///
 ///     // no argument matchers
 ///     faux::when!(mock.some_method).then_return(3);
@@ -666,6 +668,24 @@ pub use faux_macros::methods;
 ///     assert_eq!(mock.some_method(4, 5), 3);
 ///     assert_eq!(mock.some_method(7, 6), 3);
 /// }
+/// ```
+///
+/// An argument mismatch would look something like:
+///
+/// ```term
+/// thread 'main' panicked at 'failed to call mock on 'Foo::some_method':
+/// Arguments did not match
+/// Expected: [9, 8]
+/// Actual:   [1, 1]
+///
+/// Mismatched argument at position: 0
+/// Expected: 9
+/// Actual:   1
+///
+/// Mismatched argument at position: 1
+/// Expected: 8
+/// Actual:   1', src/lib.rs:6:1
+/// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 /// ```
 ///
 /// # Argument Matchers
@@ -722,11 +742,60 @@ pub use faux_macros::methods;
 /// | `_ == {expr}`   | [`eq_against({expr})`] |
 /// | `_ = {matcher}` | [`{matcher}`]          |
 ///
-/// A special syntax exists for matching against a reference
-/// argument. You may use `*_ = {matcher}` instead of `_ = {matcher}`,
-/// or `*_ == {expr}` instead of `_ == {expr}` to invoke
-/// [`into_ref_matcher`]. This converts an `ArgMatcher<T>` into
-/// `ArgMatcher<&T>` to match against references.
+/// Replace `_` with `*_` from the last two row to match against
+/// references. More specifically, it converts the matcher from
+/// `ArgMatcher<T>` into `ArgMatcher<&T>`. This is done using
+/// [`into_ref_matcher`].
+///
+/// ### Examples
+///
+/// ```
+/// #[faux::create]
+/// pub struct MyStruct;
+/// #[faux::methods]
+/// impl MyStruct {
+///     pub fn my_method(&self, a: &i32, b: i32) -> i32 {
+///        panic!()
+///    }
+/// }
+///
+/// # fn main() {
+/// let mut my_struct = MyStruct::faux();
+///
+/// // the eq matcher works even though the first argument takes &i32
+/// // the `_` matcher will match any argument
+/// faux::when!(my_struct.my_method(3, _)).then_return(4);
+/// assert_eq!(my_struct.my_method(&3, 20), 4);
+///
+/// // A type that implements PartialEq<i32> for but it is not i32
+/// #[derive(Debug)]
+/// struct OtherNumber(i64);
+///
+/// impl PartialEq<i32> for OtherNumber {
+///     fn eq(&self, rhs: &i32) -> bool {
+///         self.0 == *rhs as i64
+///     }
+/// }
+///
+/// // `_ == {expr}` to test equality of differeent types
+/// // `*_ == {expr}` to dereference an argument before matching
+/// faux::when!(
+///     my_struct.my_method(*_ == OtherNumber(5), _ == OtherNumber(20))
+/// ).then_return(8);
+/// assert_eq!(my_struct.my_method(&5, 20), 8);
+///
+/// // `_ = {matcher}` will plug any matcher directly
+/// // `*_ = {matcher}` will match it against a dereferenced argument
+/// faux::when!(
+///     my_struct.my_method(
+///         *_ = faux::matcher::eq_against(OtherNumber(4)),
+///          _ = faux::matcher::eq(9)
+///     )
+/// ).then_return(20);
+/// assert_eq!(my_struct.my_method(&4, 9), 20);
+/// # }
+///
+/// ```
 ///
 /// [`When`]: struct.When.html
 /// [`any()`]: matcher/fn.any.html

@@ -3,25 +3,31 @@ use paste::paste;
 
 use super::ArgMatcher;
 
-/// An interface to specify if *all* of the expected arguments to the
-/// mocked method match the received arguments.
+/// Matcher for all the arguments of a method
+///
+/// Describe types that can assert if all the arguments to a method
+/// match pre-determined expectations.
+///
+/// This trait is implemented for tuples of [`ArgMatcher`] of up to ten
+/// elements
 pub trait AllArgs<Args> {
     /// Returns `Ok(())` when all the arguments were found to
-    /// match. Returns `Err(String)` in the case of an error. When
-    /// used as part of a [When](#struct.When) the error message is
-    /// displayed as part of the panic if no matching mock is found.
+    /// match.
+    ///
+    /// Returns `Err(String)` in the case of an error. The error
+    /// should detail which arguments failed and why.
     fn matches(&self, args: &Args) -> Result<(), String>;
 }
 
-/// An empty tuple implements [AllArgs](#trait.AllArgs) for no
-/// arguments
 impl AllArgs<()> for () {
+    /// Always succeeds as there are no arguments to match against
     fn matches(&self, _: &()) -> Result<(), String> {
         Ok(())
     }
 }
 
 impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> AllArgs<Arg> for (AM,) {
+    /// Succeeds if the only argument matches the [`ArgMatcher`]
     fn matches(&self, arg: &Arg) -> Result<(), String> {
         if self.0.matches(arg) {
             Ok(())
@@ -52,10 +58,8 @@ macro_rules! tuple {
     ($idx:tt,) => ();
     ($($idx:tt,)+) => (
         paste! {
-            /// Implement [AllArgs] for tuples of [ArgMatcher] if the
-            /// argument to the matcher implements
-            /// [Debug](fmt::Debug)
             impl<$([<A $idx>]: fmt::Debug),+,$([<AM $idx>]: ArgMatcher<[<A $idx>]>),+> AllArgs<($([<A $idx>],)+)> for ($([<AM $idx>],)+) {
+                /// Succeeds if every argument matches its corresponding [`ArgMatcher`]
                 fn matches(&self, ($([<a $idx>]),+): &($([<A $idx>],)+)) -> Result<(), String> {
                     let ($([<am $idx>]),+) = &self;
                     let matches = match ($([<am $idx>].matches([<a $idx>])),+) {

@@ -25,7 +25,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> Once<'q, R, I, O, M> 
     ///
     /// [When.then_return]: struct.When.html#method_then_return
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// // this does not implement Clone
@@ -62,7 +62,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> Once<'q, R, I, O, M> 
     ///
     /// [When.then]: struct.When.html#method.then
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -95,7 +95,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> Once<'q, R, I, O, M> 
     /// Analog of [When.then_unchecked_return] where the value does
     /// not need to be cloneable.
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -138,7 +138,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> Once<'q, R, I, O, M> 
     /// [When.then_unchecked]: struct.When.html#method.then
     /// [When.then_unchecked's safety]: struct.When.html#safety-1
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// #[faux::create]

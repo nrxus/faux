@@ -37,7 +37,7 @@ impl MyStructToMock { /* methods to mock */ }
 ```
 
 
-## Usage
+## Examples
 
 ```rust
 mod client {
@@ -46,6 +46,7 @@ mod client {
     #[faux::create]
     pub struct UserClient { /* data of the client */ }
 
+    #[derive(Clone)]
     pub struct User {
         pub name: String
     }
@@ -85,11 +86,10 @@ fn main() {
     // create a mock of client::UserClient using `faux`
     let mut client = client::UserClient::faux();
 
-    // set up what the mock should return
-    faux::when!(client.fetch).then(|id| {
-        assert_eq!(id, 3, "expected UserClient.fetch to receive user #3");
+    // set up what the mock should return for a given argument
+    faux::when!(client.fetch(3)).then_return(
         client::User { name: "my user name".into() }
-    });
+    );
 
     // prepare the subject for your test using the mocked client
     let subject = Service { client };

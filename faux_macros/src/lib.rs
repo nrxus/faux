@@ -81,7 +81,7 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 use quote::ToTokens;
 
-fn foo(
+fn ref_matcher_maybe(
     expr: &syn::Expr,
     left: &syn::Expr,
     matcher: impl FnOnce() -> darling::Result<proc_macro2::TokenStream>,
@@ -92,9 +92,9 @@ fn foo(
             op: syn::UnOp::Deref(_),
             expr,
             ..
-        }) if expr.to_token_stream().to_string() == "_" => {
+        }) => {
             let matcher = matcher()?;
-            Ok(quote! { faux::matcher::ArgMatcher::into_ref_matcher(#matcher) })
+            Ok(quote! { faux::matcher::ArgMatcher::<#expr>::into_ref_matcher(#matcher) })
         }
         _ => Ok(quote! { faux::matcher::eq(#expr) }),
     }
@@ -104,11 +104,11 @@ fn expr_to_matcher(expr: syn::Expr) -> darling::Result<proc_macro2::TokenStream>
     match &expr {
         syn::Expr::Verbatim(t) if t.to_string() == "_" => Ok(quote! { faux::matcher::any() }),
         syn::Expr::Assign(syn::ExprAssign { left, right, .. }) => {
-            foo(&expr, left, || Ok(right.to_token_stream()))
+            ref_matcher_maybe(&expr, left, || Ok(right.to_token_stream()))
         }
         syn::Expr::Binary(syn::ExprBinary {
             left, op, right, ..
-        }) => foo(&expr, left, || match op {
+        }) => ref_matcher_maybe(&expr, left, || match op {
             syn::BinOp::Eq(_) => Ok(quote! { faux::matcher::eq_against(#right) }),
             _ => Err(darling::Error::custom(format!(
                 "faux:when! does not handle argument matchers with syntax: '{}'",

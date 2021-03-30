@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## NEXT
+* `when!` allows for argument matching
+  * requires the arguments to implement `Debug`
+  * [test](/tests/when_arguments.rs)
+* `When` has a new `with_args` method to specify argument matchers.
+  * The preferred way to set argument matchers is using `when!` which
+    proxies to this method
+  * [test](/tests/with_args.rs)
+
+### Breaking Change
+* `When` has more generic arguments
+  * This is technically a breaking change but unlikely to affect you.
+  * Do not rely on the type signature of `When` as it is subject to change.
+* `WhenOnce` -> `when::Once`
+
 ## v0.0.8
 * `then*` methods have been renamed to be more consisten with Rust patterns
 * The safe `then` method now allows for non-static inputs.

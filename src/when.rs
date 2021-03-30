@@ -52,7 +52,7 @@ impl<'q, R, I, O: 'static, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, 
     /// Requires the value to be static. For a more lax but unsafe
     /// alternative, see: [`then_unchecked_return`]
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -93,7 +93,7 @@ impl<'q, R, I, O: 'static, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, 
     /// method with static output. For a more lax but unsafe
     /// alternative, see: [`then_unchecked`].
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -162,7 +162,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     /// Analog of [`then_return`] that allows stubbing non-static
     /// return values
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -232,7 +232,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     /// Analog of [`then`] that allows stubbing implementations with
     /// non-static closures
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -333,7 +333,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///
     /// Calls past the limit result in a panic.
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -402,7 +402,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///
     /// Panics if the mock is called more than once.
     ///
-    /// # Usage
+    /// # Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -458,8 +458,8 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///
     /// This matcher must be satisfied for the stub to be invoked.
     ///
-    /// See [`when!`](crate::when!) for an ergonomic way to set the
-    /// matchers
+    /// See [`when!`](crate::when!) for an ergonomic way pass the
+    /// matcher
     ///
     /// If all the arguments implement [`Debug`](std::fmt::Debug), a
     /// tuple of [`ArgMatcher`](matcher::ArgMatcher)s can be provided
@@ -467,7 +467,8 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     /// method only has a single argument you need to use a tuple of a
     /// single element in the form of: `(ArgMatcher,)`
     ///
-    /// For more complex, you may pass a custom [`matcher::AllArgs`].
+    /// For more complex cases, you may pass a custom
+    /// [`matcher::AllArgs`].
     pub fn with_args<N: matcher::AllArgs<I> + Send + 'static>(
         self,
         matcher: N,
