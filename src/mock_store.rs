@@ -18,7 +18,7 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub enum MaybeFaux<T> {
     Real(T),
-    Faux(std::sync::Mutex<MockStore>),
+    Faux(MockStore),
 }
 
 impl<T: Clone> Clone for MaybeFaux<T> {
@@ -32,20 +32,20 @@ impl<T: Clone> Clone for MaybeFaux<T> {
 
 impl<T> MaybeFaux<T> {
     pub fn faux() -> Self {
-        MaybeFaux::Faux(std::sync::Mutex::new(MockStore::new()))
+        MaybeFaux::Faux(MockStore::new())
     }
 }
 
 #[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: HashMap<usize, SavedMock<'static>>,
+    mocks: std::sync::Mutex<HashMap<usize, std::sync::Arc<std::sync::Mutex<SavedMock<'static>>>>>,
 }
 
 impl MockStore {
     fn new() -> Self {
         MockStore {
-            mocks: HashMap::new(),
+            mocks: std::sync::Mutex::new(HashMap::new()),
         }
     }
 
@@ -63,7 +63,10 @@ impl MockStore {
     }
 
     fn store_mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
-        self.mocks.insert(id as usize, unsafe { mock.unchecked() });
+        self.mocks.lock().unwrap().insert(
+            id as usize,
+            std::sync::Arc::new(std::sync::Mutex::new(unsafe { mock.unchecked() })),
+        );
     }
 
     #[doc(hidden)]
@@ -71,12 +74,15 @@ impl MockStore {
     ///
     /// Do *NOT* call this function directly.
     /// This should only be called by the generated code from #[faux::methods]
-    pub unsafe fn call_mock<R, I, O>(&mut self, id: fn(R, I) -> O, input: I) -> Result<O, String> {
+    pub unsafe fn call_mock<R, I, O>(&self, id: fn(R, I) -> O, input: I) -> Result<O, String> {
         let stub = self
             .mocks
-            .get_mut(&(id as usize))
+            .lock()
+            .unwrap()
+            .get(&(id as usize))
+            .map(|v| v.clone())
             .ok_or_else(|| "method was never mocked".to_string())?;
-
-        stub.call(input)
+        let mut locked = stub.lock().unwrap();
+        locked.call(input)
     }
 }

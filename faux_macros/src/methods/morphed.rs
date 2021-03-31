@@ -171,7 +171,6 @@ impl<'a> Signature<'a> {
                     let struct_and_method_name =
                         format!("{}::{}", morphed_ty.to_token_stream(), name);
                     quote! {
-                        let mut q = q.try_lock().unwrap();
                         unsafe {
                             match q.call_mock(<Self>::#faux_ident, #args) {
                                 std::result::Result::Ok(o) => o,
@@ -276,7 +275,7 @@ impl<'a> MethodData<'a> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
                         <Self>::#faux_ident,
-                        faux.get_mut().unwrap()
+                        faux
                     ),
                     faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instance!"),
                 }
