@@ -1,32 +1,31 @@
 #![cfg_attr(doctest, feature(external_doc))]
 #![allow(clippy::needless_doctest_main)]
 
-//! A library to create [mocks] out of `struct`s.
+//! A library to create [mocks] out of structs.
 //!
-//! `faux` allows you to mock the behavior (i.e. methods) of structs
-//! without complicating or polluting your code. This is useful during
-//! testing to stub the behavior of a hard to test struct and focus on
-//! the testable parts of your code.
+//! `faux` allows you to mock the methods of structs for testing
+//! without complicating or polluting your code.
 //!
-//! At a high level `faux` is split into:
+//! Part of `faux`'s philosophy is that only visible behavior should
+//! be mocked. In practice, this means `faux` only mocks public
+//! methods. Fields are not mocked, as they are data, not
+//! behavior. Private methods are not mocked, as they are invisible to
+//! others.
 //!
-//! * [`#[create]`](create): Morphs a struct into a mockable equivalent
-//! * [`#[methods]`](methods): Morphs the methods in an impl block into
-//! their mockable equivalent
-//! * [`when!`]: Initializes the stubbing of a specific method; either
-//! with or without argument matchers
-//! * [`When`]: Configures the stub by setting either a stub value or
-//! implementation
+//! At a high level, `faux` is split into:
 //!
-//! Visit their individual docs for further details on how to use them
-//! to help you mock.
+//! * [`#[create]`](create): transforms a struct into a mockable equivalent
+//! * [`#[methods]`](methods): transforms the methods in an `impl` block into
+//! their mockable equivalents
+//! * [`when!`]: initializes a method stub by returning a [`When`], either with or without argument matchers
+//! * [`When`]: lets you stub a mocked method's return value or implementation
 //!
 //! # Getting Started
 //!
-//! `faux` makes liberal use of unsafe rust features, and it is only
+//! `faux` makes liberal use of unsafe Rust features, so it is only
 //! recommended for use inside tests. To prevent `faux` from leaking
-//! into your production code, set it as a `dev-dependency` in you
-//! `Cargo.toml`
+//! into your production code, set it as a `dev-dependency` in your
+//! `Cargo.toml`:
 //!
 //! ```toml
 //! [dev-dependencies]
@@ -36,27 +35,27 @@
 //! # Examples
 //!
 //! ```
-//! // restrict faux to tests by using #[cfg_attr(test, ...)]
-//! // faux::create marks a struct as mockable
-//! // this includes generating a `faux()` associated function
-//! // `HttpClient::faux()` will create a mock instance
+//! // restrict faux to tests by using `#[cfg_attr(test, ...)]`
+//! // faux::create marks a struct as mockable and
+//! // generates an associated `faux()` function
+//! // e.g.: `HttpClient::faux()` will create a mock `HttpClient` instance
 //! #[cfg_attr(test, faux::create)]
 //! # #[faux::create]
 //! pub struct HttpClient { /* */ }
 //!
 //! // this is just a bag of data with no behavior
-//! // so we do not mark it as mockable
+//! // so we do not attach `#[faux::create]`
 //! #[derive(PartialEq, Clone, Debug)]
 //! pub struct Headers {
 //!     pub authorization: String,
 //! }
 //!
-//! // faux::methods marks every public method in the impl as mockable
+//! // `faux::methods` makes every public method in the `impl` block mockable
 //! #[cfg_attr(test, faux::methods)]
 //! # #[faux::methods]
 //! impl HttpClient {
 //!     pub fn post(&self, path: &str, headers: &Headers) -> String {
-//!         /* does network calls that we rather not do in unit tests */
+//!         /* makes network calls that we'd rather not do in unit tests */
 //!         # unreachable!()
 //!     }
 //!
@@ -69,22 +68,29 @@
 //! #[cfg(test)]
 //! #[test]
 //! fn test() {
-//!   // Use the generated `faux` associated function to create a mock instance
+//!   // use the generated `faux()` function to create a mock instance
 //!   let mut mock = HttpClient::faux();
 //!
 //!   let headers = Headers { authorization: "Bearer foobar".to_string() };
 //!
-//!   // use faux::when! to mock the behavior of your methods
-//!   // you can use `_` if you do not care about specific arguments
-//!   // or pass an argument that implements `PartialEq` to compare against
-//!   // we can then mock the return stub using `.then_return(...)`
-//!   faux::when!(mock.post(_, headers.clone())).then_return("{}".to_string());
-//!   // we setup the mock for any path, but only specific headers to let's pass those
-//!   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
+//!   // use `faux::when!` to mock the behavior of your methods
+//!   // you can specify arguments to match against when the mock is invoked
+//!   // pass arguments as you would to the original method
+//!   // argument matching is performed using equality checks by default
+//!   // arguments whose values you don't care about can be replaced by `_`
+//!   faux::when!(
+//!       // set up the mock for any path, but only specific headers
+//!       mock.post(_, headers.clone())
+//!   )
+//!   // mock the return value
+//!   .then_return("{}".to_string());
 //!
-//!   // faux::when! also accepts getting no argument matchers
+//!
+//!   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
+//!   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
+//!
+//!   // if you want to mock all calls to a method, you can omit argument matchers
 //!   faux::when!(mock.post).then_return("OK".to_string());
-//!   // we can now pass different headers since our mock matches everything
 //!   assert_eq!(
 //!       mock.post(
 //!           "some/other/path",
@@ -93,11 +99,11 @@
 //!       "OK".to_string()
 //!   );
 //!
-//!   // for implementation mocking: use `.then(...)`
-//!   faux::when!(mock.post).then(|(path, _)| path.to_string());
-//!   assert_eq!(mock.post("another/path", &headers), "another/path");
+//!   // for implementation mocking, use `.then()`
+//!   faux::when!(mock.post).then(|(path, _)| path.to_string().to_uppercase());
+//!   assert_eq!(mock.post("another/path", &headers), "ANOTHER/PATH");
 //!
-//!   // unsafe versions of `.then` and `.then_return` exist to mock
+//!   // unsafe versions of `.then()` and `.then_return()` are used to mock
 //!   // methods that return non-static values (e.g., references)
 //!   // or to mock using non-static closures
 //!   let ret = "some-value".to_string();
@@ -106,16 +112,28 @@
 //! }
 //! #
 //! # fn main() {
-//! #   // Use the generated `faux` associated method to create a mock instance
+//! #   // use the generated `faux()` function to create a mock instance
 //! #   let mut mock = HttpClient::faux();
 //! #
-//! #   // setup what the value should return based on some arguments
 //! #   let headers = Headers { authorization: "Bearer foobar".to_string() };
-//! #   // mock it for *any* path, but only headers equal to the expected
-//! #   faux::when!(mock.post(_, headers.clone())).then_return("{}".to_string());
-//! #   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
 //! #
-//! #   // If you do not care about any arguments, don't specify them at all
+//! #   // use `faux::when!` to mock the behavior of your methods
+//! #   // you can specify arguments to match against when the mock is invoked
+//! #   // pass arguments as you would to the original method
+//! #   // argument matching is performed using equality checks by default
+//! #   // arguments whose values you don't care about can be replaced by `_`
+//! #   faux::when!(
+//! #       // set up the mock for any path, but only specific headers
+//! #       mock.post(_, headers.clone())
+//! #   )
+//! #   // mock the return value
+//! #   .then_return("{}".to_string());
+//! #
+//! #
+//! #   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
+//! #   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
+//! #
+//! #   // if you want to mock all calls to a method, you can omit argument matchers
 //! #   faux::when!(mock.post).then_return("OK".to_string());
 //! #   assert_eq!(
 //! #       mock.post(
@@ -125,12 +143,13 @@
 //! #       "OK".to_string()
 //! #   );
 //! #
-//! #   // You can have full control over the mock implementation not just the return value
-//! #   faux::when!(mock.post).then(|(path, _)| path.to_string());
-//! #   assert_eq!(mock.post("another/path", &headers), "another/path");
+//! #   // for implementation mocking, use `.then()`
+//! #   faux::when!(mock.post).then(|(path, _)| path.to_string().to_uppercase());
+//! #   assert_eq!(mock.post("another/path", &headers), "ANOTHER/PATH");
 //! #
-//! #   // an unsafe version exist to mock methods with non-static outputs
-//! #   // or non-static mock closures
+//! #   // unsafe versions of `.then()` and `.then_return()` are used to mock
+//! #   // methods that return non-static values (e.g., references)
+//! #   // or to mock using non-static closures
 //! #   let ret = "some-value".to_string();
 //! #   unsafe { faux::when!(mock.host).then_unchecked_return(ret.as_str()) }
 //! #   assert_eq!(mock.host(), &ret);
@@ -139,14 +158,15 @@
 //!
 //! # Features
 //!
-//! * Argument matchers
-//! * Return value mocking
-//! * Implementation mocking
+//! `faux` lets you mock the return value or implementation of:
+//!
 //! * Async methods
 //! * Trait methods
 //! * Generic struct methods
-//! * Arbitrary self types (e.g., `self: Rc<Self>`)
-//! * External modules
+//! * Methods with pointer self types (e.g., `self: Rc<Self>`)
+//! * Methods in external modules
+//!
+//! `faux` also provides easy-to-use argument matchers.
 //!
 //! [mocks]: https://martinfowler.com/articles/mocksArentStubs.html
 
@@ -621,14 +641,13 @@ pub use faux_macros::methods;
 
 /// Creates a [`When`] instance to mock a specific method in a struct.
 ///
-/// `when!` can optionally specify argument matchers. If specified,
-/// the method will only be mocked when all the argument matchers are
-/// met. Argument matchers can only be specified if all the arguments
-/// implement [`Debug`](std::fmt::Debug). The debug format is printed
-/// if any of the arguments fail to match.
+/// Callers may specify argument matchers to limit the arguments for
+/// which the method is mocked. Matchers can only be specified if all
+/// arguments implement [`Debug`](std::fmt::Debug). The debug message
+/// is printed if any of the arguments fail to match.
 ///
 /// The method to mock must be be in an `impl` blocked tagged by
-/// [`#[methods]`](methods)
+/// [`#[methods]`](methods).
 ///
 /// # Examples
 ///
@@ -649,7 +668,7 @@ pub use faux_macros::methods;
 ///
 ///     // specify all arguments
 ///     faux::when!(mock.some_method(8, 9)).then_return(10);
-///     // actual arguments have to match the expected above
+///     // actual method calls have to match expectations
 ///     assert_eq!(mock.some_method(8, 9), 10);
 ///     // mock.some_method(1, 1); // <~~ panics - arguments do not match
 ///
@@ -685,13 +704,11 @@ pub use faux_macros::methods;
 /// Mismatched argument at position: 1
 /// Expected: 8
 /// Actual:   1', src/lib.rs:6:1
-/// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 /// ```
 ///
 /// # Argument Matchers
 ///
-/// Argument matchers are specified by passing them in the `when!`
-/// statement:
+/// Argument matchers are specified by passing them to `when!`:
 ///
 /// ```
 /// # #[faux::create]
@@ -728,24 +745,24 @@ pub use faux_macros::methods;
 /// To make argument matching easy to use, `when!` has a minimal
 /// domain specific language (DSL) that converts given arguments to
 /// the appropiate [`ArgMatcher`] and passes them to [`with_args`]. If
-/// this proves difficult in your use case you may always default back
-/// to using [`with_args`] directly.
+/// this proves difficult in your use case, you can use [`with_args`]
+/// directly.
 ///
 /// ### DSL
 ///
-/// Each of these specify a matcher for a single argument:
+/// Each of the following specify an equivalent [`ArgMatcher`] for a
+/// single argument:
 ///
-/// | `when!` arg     | [`ArgMatcher`]         |
+/// | `when!` arg     | [`ArgMatcher`] |
 /// |-----------------|------------------------|
 /// | `{expr}`        | [`eq({expr})`]         |
 /// | `_`             | [`any()`]              |
 /// | `_ == {expr}`   | [`eq_against({expr})`] |
 /// | `_ = {matcher}` | [`{matcher}`]          |
 ///
-/// Replace `_` with `*_` from the last two row to match against
-/// references. More specifically, it converts the matcher from
-/// `ArgMatcher<T>` into `ArgMatcher<&T>`. This is done using
-/// [`into_ref_matcher`].
+/// Replace `_` with `*_` in the last two rows to match against
+/// references. More specifically, this converts the matcher from
+/// `ArgMatcher<T>` into `ArgMatcher<&T>` using [`into_ref_matcher`].
 ///
 /// ### Examples
 ///
@@ -762,12 +779,12 @@ pub use faux_macros::methods;
 /// # fn main() {
 /// let mut my_struct = MyStruct::faux();
 ///
-/// // the eq matcher works even though the first argument takes &i32
+/// // the eq matcher works even though the first argument is a reference
 /// // the `_` matcher will match any argument
 /// faux::when!(my_struct.my_method(3, _)).then_return(4);
 /// assert_eq!(my_struct.my_method(&3, 20), 4);
 ///
-/// // A type that implements PartialEq<i32> for but it is not i32
+/// // a type that implements `PartialEq<i32>` but is not an `i32`
 /// #[derive(Debug)]
 /// struct OtherNumber(i64);
 ///
@@ -777,15 +794,15 @@ pub use faux_macros::methods;
 ///     }
 /// }
 ///
-/// // `_ == {expr}` to test equality of differeent types
+/// // `_ == {expr}` to test equality of different types
 /// // `*_ == {expr}` to dereference an argument before matching
 /// faux::when!(
 ///     my_struct.my_method(*_ == OtherNumber(5), _ == OtherNumber(20))
 /// ).then_return(8);
 /// assert_eq!(my_struct.my_method(&5, 20), 8);
 ///
-/// // `_ = {matcher}` will plug any matcher directly
-/// // `*_ = {matcher}` will match it against a dereferenced argument
+/// // `_ = {matcher}` will pass the matcher to `with_args` as written
+/// // `*_ = {matcher}` will match against a dereferenced argument
 /// faux::when!(
 ///     my_struct.my_method(
 ///         *_ = faux::matcher::eq_against(OtherNumber(4)),

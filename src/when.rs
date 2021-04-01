@@ -1,4 +1,4 @@
-//! Tools to stub the implementation or return value of your mocks
+//! Tools to stub the implementation or return value of your mocks.
 
 mod once;
 
@@ -14,20 +14,20 @@ pub use once::Once;
 ///
 /// Created using [`when!`].
 ///
-/// By default, the stubbing will be setup for any argument. See
-/// [`when!`] for an ergonomic way to set argument matchers. See
-/// [`with_args`] for the full power or argument matching if the macro
-/// is not enough.
+/// By default, methods are mocked for all invocations. Use [`when!`]
+/// for an ergonomic way to set argument matchers. For more features,
+/// use [`with_args`].
 ///
-/// By default, all methods are mocked indefinitely and the mock
-/// closures may not consume captured variables. See the [`times`] and
-/// [`once`] methods to override these default.
+/// By default, all methods are mocked indefinitely. Thus, any stubbed
+/// values needs to be cloneable and any stubbed implementation cannot
+/// consume variables. Use the [`times`] and [`once`] methods to
+/// override these defaults.
 ///
 /// [`when!`]: crate::when!
 /// [`once`]: When::once
 /// [`times`]: When::times
 /// [`with_args`]: When::with_args
-pub struct When<'q, R, I, O, M: matcher::AllArgs<I>> {
+pub struct When<'q, R, I, O, M: matcher::InvocationMatcher<I>> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,
     times: MockTimes,
@@ -46,11 +46,11 @@ impl<'q, R, I, O> When<'q, R, I, O, Any> {
     }
 }
 
-impl<'q, R, I, O: 'static, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> {
-    /// Sets the stub return value for the mocked method.
+impl<'q, R, I, O: 'static, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
+    /// Sets the return value of the mocked method.
     ///
     /// Requires the value to be static. For a more lax but unsafe
-    /// alternative, see: [`then_unchecked_return`]
+    /// alternative, use [`then_unchecked_return`].
     ///
     /// # Examples
     ///
@@ -70,8 +70,8 @@ impl<'q, R, I, O: 'static, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, 
     ///   let mut mock = Foo::faux();
     ///
     ///   faux::when!(mock.multi_args).then_return(5);
-    ///   assert_eq!(mock.multi_args(&2, 3), 5);
     ///   // mock activates multiple times
+    ///   assert_eq!(mock.multi_args(&2, 3), 5);
     ///   assert_eq!(mock.multi_args(&2, 3), 5);
     /// }
     /// ```
@@ -84,14 +84,15 @@ impl<'q, R, I, O: 'static, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, 
         self.then(move |_: I| value.clone());
     }
 
-    /// Sets the stub implementation for the mocked method.
+    /// Sets the implementation of the mocked method to the provided
+    /// closure.
     ///
-    /// The input for the closure is a tuple of all its non-receiver
-    /// parameters
+    /// The input to the closure is a tuple of all its non-receiver
+    /// parameters.
     ///
-    /// The provided mock must be static and it must be mocking a
-    /// method with static output. For a more lax but unsafe
-    /// alternative, see: [`then_unchecked`].
+    /// The provided closure can only capture static variables and it
+    /// must be mocking a method with static output. For a more lax
+    /// but unsafe alternative, use [`then_unchecked`].
     ///
     /// # Examples
     ///
@@ -125,15 +126,15 @@ impl<'q, R, I, O: 'static, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, 
     /// fn main() {
     ///   let mut mock = Foo::faux();
     ///
-    ///   // methods with no params
+    ///   // method with no params
     ///   faux::when!(mock.no_args).then(|_| 5);
     ///   assert_eq!(mock.no_args(), 5);
     ///
-    ///   // methods with a single param
+    ///   // method with a single param
     ///   faux::when!(mock.single_arg).then(|input| vec![input as i8]);
     ///   assert_eq!(mock.single_arg(8), vec![8]);
     ///
-    ///   // methods with multiple params - some can be references
+    ///   // method with multiple params - some can be references
     ///   faux::when!(mock.multi_args).then(|(&a, _)| a as u32);
     ///   assert_eq!(mock.multi_args(&5, 2), 5);
     ///
@@ -158,9 +159,9 @@ impl<'q, R, I, O: 'static, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, 
     }
 }
 
-impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> {
+impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
     /// Analog of [`then_return`] that allows stubbing non-static
-    /// return values
+    /// return values.
     ///
     /// # Examples
     ///
@@ -197,7 +198,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     /// This method can also cause aliasing issues where multiple
     /// mutable references are held for the same object.
     ///
-    /// ### Example:
+    /// ### Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -230,7 +231,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     }
 
     /// Analog of [`then`] that allows stubbing implementations with
-    /// non-static closures
+    /// non-static closures.
     ///
     /// # Examples
     ///
@@ -250,7 +251,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///   let mut mock = Foo::faux();
     ///
     ///   // the output can be a reference to the environment
-    ///   // but this can be *very* dangerous so be careful
+    ///   // but this can be *very* dangerous
     ///   let x = 5;
     ///   unsafe { faux::when!(mock.out_ref).then_unchecked(|_| &x) }
     ///   assert_eq!(*mock.out_ref(), x);
@@ -266,14 +267,13 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     /// mocking, it is *not* memory safe when used incorrectly.
     ///
     /// If the mocked method is called after its captured variables
-    /// are dropped then a use-after-fress violation will be
-    /// triggered.
+    /// are dropped then a use-after-free violation will be triggered.
     ///
     /// Relationships between inputs, outputs, and captured variable
     /// lifetimes are lost. This allows for easy violations of Rust's
     /// aliasing checks, creating undefined behavior.
     ///
-    /// ### Example:
+    /// ### Examples
     ///
     /// ```rust
     /// #[faux::create]
@@ -289,8 +289,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///
     /// fn main() {
     ///   let mut mock = Foo::faux();
-    ///   // the output is the same reference as the input
-    ///   // the lifetimes of the input and output are thus linked
+    ///   // the output and input references are the same
     ///   unsafe { faux::when!(mock.out_ref).then_unchecked(|i| i) }
     ///
     ///   let mut x = 5;
@@ -298,20 +297,15 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///   // but there is no compile-time link between the two
     ///   let y = mock.out_ref(&mut x);
     ///
-    ///   // We can check that they are both the same value
+    ///   // x and y are pointing to the same data!
     ///   assert_eq!(*y, 5);
     ///   assert_eq!(x, 5);
     ///
-    ///   // changes in x are reflected in y.
-    ///   // This is UB and is not allowed in safe Rust!
+    ///   // changes in x are reflected in y and vice versa
+    ///   // this is UB and is not allowed in safe Rust!
     ///   x += 1;
     ///   assert_eq!(x, 6);
     ///   assert_eq!(*y, 6);
-    ///
-    ///   // and if we change y then x also gets changed
-    ///   *y += 1;
-    ///   assert_eq!(x, 7);
-    ///   assert_eq!(*y, 7);
     /// }
     /// ```
     ///
@@ -329,9 +323,9 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
         );
     }
 
-    /// Limits the number of times a mock is active.
+    /// Limits the number of calls for which a mock is active.
     ///
-    /// Calls past the limit result in a panic.
+    /// Calls past the limit will result in a panic.
     ///
     /// # Examples
     ///
@@ -350,12 +344,12 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     /// fn main() {
     ///   let mut mock = Foo::faux();
     ///
-    ///   // limit to 5 times
+    ///   // limit to 5 calls
     ///   faux::when!(mock.single_arg)
     ///       .times(5)
     ///       .then(|input| vec![input as i8]);
     ///
-    ///   // can be called 5 times safely
+    ///   // can be called 5 times
     ///   for _ in 0..5 {
     ///     assert_eq!(mock.single_arg(8), vec![8]);
     ///   }
@@ -364,8 +358,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///
     /// ## Panics
     ///
-    /// Panics if the mock is called more times than the specified
-    /// number of times
+    /// Panics if the mock is called more times than specified.
     ///
     /// ```rust should_panic
     /// #[faux::create]
@@ -382,7 +375,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     /// fn main() {
     ///   let mut mock = Foo::faux();
     ///
-    ///   // limit to 5 times
+    ///   // limit to 5 calls
     ///   faux::when!(mock.single_arg)
     ///       .times(5)
     ///       .then(|input| vec![input as i8]);
@@ -420,13 +413,15 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///   let mut mock = Foo::faux();
     ///
     ///   let vec = vec![25];
-    ///   //moves vec to the closure
+    ///   // moves vec to the closure
     ///   faux::when!(mock.single_arg).once().then(|_| vec);
     ///   assert_eq!(mock.single_arg(8), vec![25]);
     /// }
     /// ```
     ///
     /// # Panics
+    ///
+    /// Panics if the mock is called more than once.
     ///
     /// ```rust should_panic
     /// #[faux::create]
@@ -446,7 +441,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
     ///   let vec = vec![25];
     ///   faux::when!(mock.single_arg).once().then(|_| vec);
     ///   assert_eq!(mock.single_arg(8), vec![25]);
-    ///   //panics on its 2nd call
+    ///   //panics on its second call
     ///   mock.single_arg(8);
     /// }
     /// ```
@@ -454,22 +449,23 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> When<'q, R, I, O, M> 
         Once::new(self.id, self.store, self.matcher)
     }
 
-    /// Specifies a matcher for all of the input arguments.
+    /// Specifies a matcher for the invocation.
     ///
-    /// This matcher must be satisfied for the stub to be invoked.
+    /// This lets you pass matchers for each method argument.
     ///
-    /// See [`when!`](crate::when!) for an ergonomic way pass the
-    /// matcher
+    /// See [`when!`](crate::when!) for an ergonomic way to pass the
+    /// matcher.
     ///
-    /// If all the arguments implement [`Debug`](std::fmt::Debug), a
-    /// tuple of [`ArgMatcher`](matcher::ArgMatcher)s can be provided
-    /// where each `ArgMatcher` matches an individual argument. If the
-    /// method only has a single argument you need to use a tuple of a
-    /// single element in the form of: `(ArgMatcher,)`
+    /// If all arguments implement [`Debug`](std::fmt::Debug), a tuple
+    /// of [`ArgMatcher`](matcher::ArgMatcher)s can be provided where
+    /// each `ArgMatcher` matches an individual argument.
+    ///
+    /// If the method only has a single argument, use a tuple of a
+    /// single element: `(ArgMatcher,)`
     ///
     /// For more complex cases, you may pass a custom
-    /// [`matcher::AllArgs`].
-    pub fn with_args<N: matcher::AllArgs<I> + Send + 'static>(
+    /// [`InvocationMatcher`](matcher::InvocationMatcher).
+    pub fn with_args<N: matcher::InvocationMatcher<I> + Send + 'static>(
         self,
         matcher: N,
     ) -> When<'q, R, I, O, N> {

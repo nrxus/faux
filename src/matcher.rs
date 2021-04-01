@@ -1,28 +1,27 @@
-//! Tools to check if an argument to a mocked method matches a
-//! determined expectation.
+//! Tools to check if an argument to a mocked method matches
+//! expectations.
 
-mod all_args;
+mod invocation_matcher;
 mod any;
 mod eq;
 
-pub use all_args::AllArgs;
+pub use invocation_matcher::InvocationMatcher;
 pub use any::{any, Any};
 pub use eq::{eq, eq_against, Eq, EqAgainst};
 
 use std::fmt::{self, Formatter};
 
-/// Matcher to single argument of a method
+/// Matcher for single argument of a method.
 ///
-/// Describes types that have a determined expectation to match an
-/// argument against.
+/// Implementors provide an expectation to match an argument against.
 ///
-/// `faux` provides some simple matchers, such as equality. Check
-/// [implementors](#Implementors) for the exhaustive list.
+/// `faux` provides some simple matchers, such as [`Eq`](struct@Eq)
+/// for equality. Check [Implementors](#implementors) for the
+/// exhaustive list.
 ///
-/// You may define your own matcher for special use cases. When
-/// implementing `ArgMatcher`, an implementation of [`fmt::Display`]
-/// must also be provided. [`AllArgs`] uses this implementation to
-/// display the expectation when any of the arguments failed to match.
+/// You may define your own matcher for special use cases. The
+/// [`fmt::Display`] implementation is used by [`InvocationMatcher`]
+/// to display the expectation when any arguments failed to match.
 ///
 /// # Examples
 ///
@@ -33,6 +32,7 @@ use std::fmt::{self, Formatter};
 /// struct HasLength(usize);
 ///
 /// // displayed as the expectation when any argument fails to match
+/// // when used by an `InvocationMatcher`
 /// impl fmt::Display for HasLength {
 ///     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 ///         write!(f, "_.len() == {}", self.0)
@@ -54,7 +54,7 @@ use std::fmt::{self, Formatter};
 ///
 /// ```
 pub trait ArgMatcher<Arg>: fmt::Display {
-    /// Checks if the argument matches the determined expection.
+    /// Checks if the argument matches the determined expectation.
     ///
     /// ```
     /// use faux::matcher::{self, ArgMatcher};
@@ -75,8 +75,8 @@ pub trait ArgMatcher<Arg>: fmt::Display {
     }
 }
 
-/// Wraps an `Argmatcher<Arg>` and implements `ArgMatcher<&Arg>`
-/// instead
+/// Wraps an `ArgMatcher<Arg>` and implements `ArgMatcher<&Arg>`
+/// instead.
 pub struct RefMatcher<AM>(AM);
 
 impl<Arg, AM: ArgMatcher<Arg>> ArgMatcher<&Arg> for RefMatcher<AM> {

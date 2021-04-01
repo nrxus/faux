@@ -4,17 +4,17 @@ use crate::{
     MockStore,
 };
 
-/// Similar to [When](struct.When) but only mocks once.
+/// Similar to [When](struct.When), but only mocks once.
 ///
-/// Mock closures may consume captured variables as the mock will not
-/// be called more than once.
-pub struct Once<'q, R, I, O, M: matcher::AllArgs<I>> {
+/// Stubbed values do not need to be cloneable. Stubbed
+/// implementations may consume variables.
+pub struct Once<'q, R, I, O, M: matcher::InvocationMatcher<I>> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,
     matcher: M,
 }
 
-impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> Once<'q, R, I, O, M> {
+impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> Once<'q, R, I, O, M> {
     #[doc(hidden)]
     pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
         Once { id, store, matcher }
@@ -120,7 +120,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> Once<'q, R, I, O, M> 
     /// ```
     ///
     /// # Safety
-    /// See [When.then_unchecked_return's safety]
+    /// See [When.then_unchecked_return's safety].
     ///
     /// [When.then_unchecked_return]: struct.When.html#method_then_unchecked_return
     /// [When.then_unchecked_return's safety]: struct.When.html#safety
@@ -163,7 +163,7 @@ impl<'q, R, I, O, M: matcher::AllArgs<I> + Send + 'static> Once<'q, R, I, O, M> 
     /// ```
     ///
     /// # Safety
-    /// See [When.then_unchecked's safety]
+    /// See [When.then_unchecked's safety].
     ///
     pub unsafe fn then_unchecked(self, mock: impl FnOnce(I) -> O + Send) {
         self.store

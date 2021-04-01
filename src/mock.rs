@@ -2,7 +2,7 @@ use crate::matcher;
 use std::fmt;
 
 pub struct Mock<'a, I, O> {
-    matcher: Box<dyn matcher::AllArgs<I> + Send>,
+    matcher: Box<dyn matcher::InvocationMatcher<I> + Send>,
     stub: Stub<'a, I, O>,
 }
 
@@ -15,7 +15,7 @@ pub enum Stub<'a, I, O> {
 }
 
 pub struct SavedMock<'a> {
-    transmuted_matcher: Box<dyn matcher::AllArgs<()> + Send>,
+    transmuted_matcher: Box<dyn matcher::InvocationMatcher<()> + Send>,
     stub: SavedStub<'a>,
 }
 
@@ -45,7 +45,7 @@ impl MockTimes {
 }
 
 impl<'a, I, O> Mock<'a, I, O> {
-    pub fn new<M: matcher::AllArgs<I> + Send + 'static>(stub: Stub<'a, I, O>, matcher: M) -> Self {
+    pub fn new<M: matcher::InvocationMatcher<I> + Send + 'static>(stub: Stub<'a, I, O>, matcher: M) -> Self {
         Mock {
             matcher: Box::new(matcher),
             stub,
@@ -53,7 +53,7 @@ impl<'a, I, O> Mock<'a, I, O> {
     }
 
     pub unsafe fn unchecked(self) -> SavedMock<'a> {
-        let matcher: Box<dyn matcher::AllArgs<()>> = std::mem::transmute(self.matcher);
+        let matcher: Box<dyn matcher::InvocationMatcher<()>> = std::mem::transmute(self.matcher);
         let stub = match self.stub {
             Stub::Once(mock) => SavedStub::Once {
                 transmuted_stub: std::mem::transmute(mock),
@@ -77,7 +77,7 @@ impl<'a> SavedMock<'a> {
     /// input and output from the non-transmuted stubs
     pub unsafe fn call<I, O>(&mut self, input: I) -> Result<O, String> {
         let matcher = &mut *(&mut self.transmuted_matcher as *mut Box<_>
-            as *mut Box<dyn matcher::AllArgs<I>>);
+            as *mut Box<dyn matcher::InvocationMatcher<I>>);
 
         // TODO: should the error message be different if the stub is also exhausted?
         matcher.matches(&input)?;

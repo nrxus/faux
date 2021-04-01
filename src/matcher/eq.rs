@@ -5,13 +5,12 @@ use std::{
 
 use super::ArgMatcher;
 
-/// Equality matcher for equal types
+/// Equality matcher.
 ///
-/// Unlike [EqAgainst], if only allows equality matching of the same
-/// type. This comes at the gained benefit of being able to match
-/// across borrows. This means that Eq<T> implements not only
-/// `ArgMatcher<T>`, but also `ArgMatcher<&T>`, and more generally
-/// `ArgMatcher<Borrow<T>>`
+/// Unlike [`EqAgainst`], it only allows equality matching of the same
+/// type. This comes at the benefit of being able to match across
+/// borrows. This means `Eq<T>` implements not only `ArgMatcher<T>`, but
+/// also `ArgMatcher<&T>`. More generally, `Eq<T>` implements `ArgMatcher<Borrow<T>>`
 pub struct Eq<Expected>(Expected);
 
 impl<Arg: Borrow<Expected>, Expected: fmt::Debug + PartialEq> ArgMatcher<Arg> for Eq<Expected> {
@@ -31,11 +30,13 @@ pub fn eq<Expected: fmt::Debug + PartialEq>(expected: Expected) -> Eq<Expected> 
     Eq(expected)
 }
 
-/// Equality matcher for different types
+/// Equality matcher for [different types].
 ///
 /// Unlike [`Eq`](struct@Eq), it matches even if the types are
 /// different. This, however, comes at the cost of not being able to
 /// match across borrows.
+///
+/// [different types]: https://doc.rust-lang.org/std/cmp/trait.PartialEq.html#how-can-i-compare-two-different-types
 pub struct EqAgainst<Expected>(Expected);
 
 /// Creates an [`EqAgainst`] matcher.

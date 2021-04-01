@@ -3,31 +3,29 @@ use paste::paste;
 
 use super::ArgMatcher;
 
-/// Matcher for all the arguments of a method
+/// Matcher for invocation of a method.
 ///
-/// Describe types that can assert if all the arguments to a method
-/// match pre-determined expectations.
+/// Implementors provide an expectation for each method argument.
 ///
 /// This trait is implemented for tuples of [`ArgMatcher`] of up to ten
-/// elements
-pub trait AllArgs<Args> {
-    /// Returns `Ok(())` when all the arguments were found to
-    /// match.
+/// elements.
+pub trait InvocationMatcher<Args> {
+    /// Returns `Ok(())` when all arguments match.
     ///
-    /// Returns `Err(String)` in the case of an error. The error
-    /// should detail which arguments failed and why.
+    /// Returns `Err(String)` if any argument fails to match. The
+    /// error should detail which arguments failed and why.
     fn matches(&self, args: &Args) -> Result<(), String>;
 }
 
-impl AllArgs<()> for () {
-    /// Always succeeds as there are no arguments to match against
+impl InvocationMatcher<()> for () {
+    /// Always succeeds, as there are no arguments to match against.
     fn matches(&self, _: &()) -> Result<(), String> {
         Ok(())
     }
 }
 
-impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> AllArgs<Arg> for (AM,) {
-    /// Succeeds if the only argument matches the [`ArgMatcher`]
+impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> InvocationMatcher<Arg> for (AM,) {
+    /// Succeeds if the argument matches the [`ArgMatcher`].
     fn matches(&self, arg: &Arg) -> Result<(), String> {
         if self.0.matches(arg) {
             Ok(())
@@ -53,13 +51,13 @@ macro_rules! peel {
     ($idx:tt, $($other:tt,)+) => (tuple! { $($other,)+ })
 }
 
-// implement AllArgs for tuples for ArgMatchers
+// implement InvocationMatcher for tuples for ArgMatchers
 macro_rules! tuple {
     ($idx:tt,) => ();
     ($($idx:tt,)+) => (
         paste! {
-            impl<$([<A $idx>]: fmt::Debug),+,$([<AM $idx>]: ArgMatcher<[<A $idx>]>),+> AllArgs<($([<A $idx>],)+)> for ($([<AM $idx>],)+) {
-                /// Succeeds if every argument matches its corresponding [`ArgMatcher`]
+            impl<$([<A $idx>]: fmt::Debug),+,$([<AM $idx>]: ArgMatcher<[<A $idx>]>),+> InvocationMatcher<($([<A $idx>],)+)> for ($([<AM $idx>],)+) {
+                /// Succeeds if every argument matches its corresponding [`ArgMatcher`].
                 fn matches(&self, ($([<a $idx>]),+): &($([<A $idx>],)+)) -> Result<(), String> {
                     let ($([<am $idx>]),+) = &self;
                     let matches = match ($([<am $idx>].matches([<a $idx>])),+) {
