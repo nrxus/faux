@@ -8,6 +8,9 @@
   * The preferred way to set argument matchers is using `when!` which
     proxies to this method
   * [test](/tests/with_args.rs)
+* Handle concurrent calls to different method calls in the same mock instance
+  * [test](/tests/threads.rs)
+  * [PR](https://github.com/nrxus/faux/pull/36). Thanks a lot [@Wesmania](https://github.com/Wesmania)!
 
 ### Breaking Change
 * `When` has more generic arguments
