@@ -1,8 +1,11 @@
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::time::Duration;
+use std::{
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc, Arc,
+    },
+    thread,
+    time::Duration,
+};
 
 #[faux::create]
 pub struct Foo {}
@@ -10,41 +13,100 @@ pub struct Foo {}
 #[faux::methods]
 impl Foo {
     pub fn foo(&self) {
-        todo!()
+        unreachable!()
     }
+
     pub fn bar(&self) {
-        todo!()
+        unreachable!()
     }
 }
 
 #[test]
 fn mock_multi_threaded_access() {
     let mut fake = Foo::faux();
-    let done_count = Arc::new(AtomicUsize::new(0));
+    faux::when!(fake.bar).then(move |_| {});
 
-    faux::when!(fake.bar).then(move |()| {});
+    let fake = Arc::new(fake);
 
-    let shared_fake1 = Arc::new(fake);
-    let shared_fake2 = shared_fake1.clone();
+    // calls for Foo::bar() 10K times in a row
+    // and then increments the counter
+    let start_thread = || {
+        let fake = fake.clone();
 
-    let dc1 = done_count.clone();
-    let _t1 = std::thread::spawn(move || {
-        for _ in 0..10000 {
-            shared_fake1.bar();
-        }
-        dc1.fetch_add(1, Ordering::Relaxed);
+        std::thread::spawn(move || {
+            for _ in 0..10_000 {
+                fake.bar();
+            }
+        })
+    };
+
+    let thread_1 = start_thread();
+    let thread_2 = start_thread();
+
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        thread_1.join().unwrap();
+        thread_2.join().unwrap();
+        sender.send(()).unwrap();
     });
 
-    let dc2 = done_count.clone();
-    let _t2 = std::thread::spawn(move || {
-        for _ in 0..10000 {
-            shared_fake2.bar();
-        }
-        dc2.fetch_add(1, Ordering::Relaxed);
+    receiver.recv_timeout(Duration::from_millis(100)).unwrap();
+}
+
+#[test]
+fn mutex_does_not_lock_entire_mock() {
+    // calls for fake.foo() and fake.bar() in two separate threads
+    // these calls are synchronized so neither can finish without the other starting
+    // this asserts that the the mock store is NOT locked for the entire invocation
+
+    let mut fake = Foo::faux();
+
+    // holds the following states:
+    // 0: neither mocked method has started
+    // 1: fake.bar() has started -> fake.foo() will not finish until it is set
+    // 2: fake.foo() has finished -> fake.bar() will not finish until it is set
+    let call_synchronizer = Arc::new(AtomicUsize::new(0));
+
+    let foo_synchronizer = call_synchronizer.clone();
+    faux::when!(fake.foo).then(move |_| {
+        // wait until `fake.bar()` has started
+        spin_until(&foo_synchronizer, 1);
+
+        // allow `fake.bar()` to finish
+        foo_synchronizer.swap(2, Ordering::SeqCst);
     });
 
-    std::thread::sleep(Duration::from_millis(100)); // FIXME maybe we can do better?
-    assert_eq!(done_count.load(Ordering::Relaxed), 2);
+    let bar_synchronizer = call_synchronizer;
+    faux::when!(fake.bar).then(move |_| {
+        // let `fake.foo()` start
+        // nothing should be blocking `fake.foo()` from starting
+        // unless we are locking the entire mock store
+        bar_synchronizer.swap(1, Ordering::SeqCst);
+
+        // wait until `fake.foo()` has finished
+        spin_until(&bar_synchronizer, 2);
+    });
+
+    let fake = Arc::new(fake);
+
+    let bar_thread = {
+        let fake = fake.clone();
+        std::thread::spawn(move || fake.bar())
+    };
+
+    let foo_thread = {
+        let fake = fake;
+        std::thread::spawn(move || fake.foo())
+    };
+
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        foo_thread.join().unwrap();
+        bar_thread.join().unwrap();
+        sender.send(()).unwrap();
+    });
+
+    receiver.recv_timeout(Duration::from_millis(100)).expect("a deadlock occurred!");
 }
 
 fn spin_until(a: &Arc<AtomicUsize>, val: usize) {
@@ -53,53 +115,4 @@ fn spin_until(a: &Arc<AtomicUsize>, val: usize) {
             break;
         }
     }
-}
-
-#[test]
-fn mutex_does_not_lock_entire_mock() {
-    // Assume calling a function lock the entire mock. Then a following scenario can happen:
-    // * Thread 1 takes a lock L.
-    // * Thread 2 calls mocked foo(), which tries to take and block on L.
-    // * While holding L, thread 1 calls mocked bar(), blocking on the mock.
-    // * We get a deadlock, even though bar() is seemingly unrelated to lock-taking foo().
-
-    let mut fake = Foo::faux();
-    let l = Arc::new(Mutex::new(10));
-    let l_foo = l.clone();
-
-    let done_count = Arc::new(AtomicUsize::new(0));
-    let call_order = Arc::new(AtomicUsize::new(0));
-
-    let co_foo = call_order.clone();
-    faux::when!(fake.foo).then(move |()| {
-        co_foo.swap(2, Ordering::SeqCst); // Let thread 1 call bar()
-        let _ = l_foo.lock();
-        spin_until(&co_foo, 3); // Hold the lock until thread 1 returns from bar()
-    });
-    faux::when!(fake.bar).then(move |()| {});
-
-    let shared_fake1 = Arc::new(fake);
-    let shared_fake2 = shared_fake1.clone();
-
-    let dc1 = done_count.clone();
-    let co1 = call_order.clone();
-    let _t1 = std::thread::spawn(move || {
-        let _ = l.lock();
-        co1.swap(1, Ordering::SeqCst);
-        spin_until(&co1, 2); // Wait for thread 2 to call foo
-        shared_fake1.bar();
-        co1.swap(3, Ordering::SeqCst);
-        dc1.fetch_add(1, Ordering::Relaxed);
-    });
-
-    let dc2 = done_count.clone();
-    let co2 = call_order.clone();
-    let _t2 = std::thread::spawn(move || {
-        spin_until(&co2, 1); // Wait for thread 1 to grab L
-        shared_fake2.foo();
-        dc2.fetch_add(1, Ordering::Relaxed);
-    });
-
-    std::thread::sleep(Duration::from_millis(100)); // FIXME maybe we can do better?
-    assert_eq!(done_count.load(Ordering::Relaxed), 2);
 }

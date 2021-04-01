@@ -1,5 +1,6 @@
 use crate::mock::{Mock, SavedMock};
 use std::collections::HashMap;
+use std::sync::{Mutex, Arc};
 
 #[doc(hidden)]
 /// ```
@@ -39,13 +40,13 @@ impl<T> MaybeFaux<T> {
 #[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: std::sync::Mutex<HashMap<usize, std::sync::Arc<std::sync::Mutex<SavedMock<'static>>>>>,
+    mocks: Mutex<HashMap<usize, Arc<Mutex<SavedMock<'static>>>>>,
 }
 
 impl MockStore {
     fn new() -> Self {
         MockStore {
-            mocks: std::sync::Mutex::new(HashMap::new()),
+            mocks: Mutex::new(HashMap::new()),
         }
     }
 
@@ -65,7 +66,7 @@ impl MockStore {
     fn store_mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
         self.mocks.lock().unwrap().insert(
             id as usize,
-            std::sync::Arc::new(std::sync::Mutex::new(unsafe { mock.unchecked() })),
+            Arc::new(Mutex::new(unsafe { mock.unchecked() })),
         );
     }
 
@@ -75,14 +76,16 @@ impl MockStore {
     /// Do *NOT* call this function directly.
     /// This should only be called by the generated code from #[faux::methods]
     pub unsafe fn call_mock<R, I, O>(&self, id: fn(R, I) -> O, input: I) -> Result<O, String> {
-        let stub = self
-            .mocks
-            .lock()
-            .unwrap()
+        let locked_store = self.mocks.lock().unwrap();
+        let stub = locked_store
             .get(&(id as usize))
-            .map(|v| v.clone())
+            .cloned()
             .ok_or_else(|| "method was never mocked".to_string())?;
-        let mut locked = stub.lock().unwrap();
-        locked.call(input)
+
+        // drop the lock before calling the mock to avoid deadlocking in the mock
+        std::mem::drop(locked_store);
+
+        let mut locked_mock = stub.lock().unwrap();
+        locked_mock.call(input)
     }
 }
