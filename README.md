@@ -40,7 +40,7 @@ impl MyStructToMock { /* methods to mock */ }
 
 ```rust
 mod client {
-    // #[faux::create] makes a struct as mockable and
+    // #[faux::create] makes a struct mockable and
     // generates an associated `faux` function
     // e.g., `UserClient::faux()` will create a a mock `UserClient` instance
     #[faux::create]
