@@ -11,6 +11,8 @@
 * Handle concurrent calls to different method calls in the same mock instance
   * [test](/tests/threads.rs)
   * [PR](https://github.com/nrxus/faux/pull/36). Thanks a lot [@Wesmania](https://github.com/Wesmania)!
+* Support for mocking the same method multiple times by doing a latest
+  that matches approach
 
 ### Breaking Change
 * `When` has more generic arguments

@@ -74,6 +74,11 @@
 //!   let headers = Headers { authorization: "Bearer foobar".to_string() };
 //!
 //!   // use `faux::when!` to mock the behavior of your methods
+//!   // if the same method is mocked multiple times, the latest matching one is triggered
+//!
+//!   // mock all invocations to `mock.post` to return "OK"
+//!   faux::when!(mock.post).then_return("OK".to_string());
+//!
 //!   // you can specify arguments to match against when the mock is invoked
 //!   // pass arguments as you would to the original method
 //!   // argument matching is performed using equality checks by default
@@ -81,23 +86,15 @@
 //!   faux::when!(
 //!       // set up the mock for any path, but only specific headers
 //!       mock.post(_, headers.clone())
-//!   )
-//!   // mock the return value
-//!   .then_return("{}".to_string());
+//!   ).then_return("{}".to_string());
 //!
-//!
+//!   // matches the arguments in the latest `faux::when!`
 //!   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
 //!   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
 //!
-//!   // if you want to mock all calls to a method, you can omit argument matchers
-//!   faux::when!(mock.post).then_return("OK".to_string());
-//!   assert_eq!(
-//!       mock.post(
-//!           "some/other/path",
-//!           &Headers { authorization: "other-token".to_string() }
-//!       ),
-//!       "OK".to_string()
-//!   );
+//!   // only matches the first `faux::when!`
+//!   let other_headers = Headers { authorization: "other-token".to_string() };
+//!   assert_eq!(mock.post("other/path", &other_headers), "OK");
 //!
 //!   // for implementation mocking, use `.then()`
 //!   faux::when!(mock.post).then(|(path, _)| path.to_string().to_uppercase());
@@ -118,6 +115,11 @@
 //! #   let headers = Headers { authorization: "Bearer foobar".to_string() };
 //! #
 //! #   // use `faux::when!` to mock the behavior of your methods
+//! #   // if the same method is mocked multiple times, the latest matching one is triggered
+//! #
+//! #   // mock all invocations to `mock.post` to return "OK"
+//! #   faux::when!(mock.post).then_return("OK".to_string());
+//! #
 //! #   // you can specify arguments to match against when the mock is invoked
 //! #   // pass arguments as you would to the original method
 //! #   // argument matching is performed using equality checks by default
@@ -125,23 +127,15 @@
 //! #   faux::when!(
 //! #       // set up the mock for any path, but only specific headers
 //! #       mock.post(_, headers.clone())
-//! #   )
-//! #   // mock the return value
-//! #   .then_return("{}".to_string());
+//! #   ).then_return("{}".to_string());
 //! #
-//! #
+//! #   // matches the arguments in the latest `faux::when!`
 //! #   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
 //! #   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
 //! #
-//! #   // if you want to mock all calls to a method, you can omit argument matchers
-//! #   faux::when!(mock.post).then_return("OK".to_string());
-//! #   assert_eq!(
-//! #       mock.post(
-//! #           "some/other/path",
-//! #           &Headers { authorization: "other-token".to_string() }
-//! #       ),
-//! #       "OK".to_string()
-//! #   );
+//! #   // only matches the first `faux::when!`
+//! #   let other_headers = Headers { authorization: "other-token".to_string() };
+//! #   assert_eq!(mock.post("other/path", &other_headers), "OK");
 //! #
 //! #   // for implementation mocking, use `.then()`
 //! #   faux::when!(mock.post).then(|(path, _)| path.to_string().to_uppercase());
