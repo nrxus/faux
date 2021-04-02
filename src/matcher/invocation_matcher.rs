@@ -70,15 +70,24 @@ macro_rules! tuple {
                     let actual = [
                         $(format!("{:?}", [<a $idx>])),+
                     ];
-                    let widths = [
+
+                    let mut widths = [
                         $(expected[$idx].len().max(actual[$idx].len())),+
                     ];
-                    let expected = [
+
+                    widths.reverse();
+
+                    let mut expected = [
                         $(format!("{:>width$}", expected[$idx], width = widths[$idx])),+
                     ];
-                    let actual = [
+
+                    expected.reverse();
+
+                    let mut actual = [
                         $(format!("{:>width$}", actual[$idx], width = widths[$idx])),+
                     ];
+
+                    actual.reverse();
 
                     let argument_errors: Vec<_> = matches
                         .iter()
