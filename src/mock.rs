@@ -45,7 +45,10 @@ impl MockTimes {
 }
 
 impl<'a, I, O> Mock<'a, I, O> {
-    pub fn new<M: matcher::InvocationMatcher<I> + Send + 'static>(stub: Stub<'a, I, O>, matcher: M) -> Self {
+    pub fn new<M: matcher::InvocationMatcher<I> + Send + 'static>(
+        stub: Stub<'a, I, O>,
+        matcher: M,
+    ) -> Self {
         Mock {
             matcher: Box::new(matcher),
             stub,
@@ -75,12 +78,14 @@ impl<'a> SavedMock<'a> {
     ///
     /// Only call this method if you know for sure these are the right
     /// input and output from the non-transmuted stubs
-    pub unsafe fn call<I, O>(&mut self, input: I) -> Result<O, String> {
+    pub unsafe fn call<I, O>(&mut self, input: I) -> Result<O, (I, String)> {
         let matcher = &mut *(&mut self.transmuted_matcher as *mut Box<_>
             as *mut Box<dyn matcher::InvocationMatcher<I>>);
 
         // TODO: should the error message be different if the stub is also exhausted?
-        matcher.matches(&input)?;
+        if let Err(e) = matcher.matches(&input) {
+            return Err((input, e));
+        }
 
         let just_exhausted = match &mut self.stub {
             SavedStub::Once { .. }
@@ -101,7 +106,9 @@ impl<'a> SavedMock<'a> {
                     as *mut Box<dyn FnMut(I) -> O + Send>);
                 return Ok(stub(input));
             }
-            SavedStub::Exhausted => return Err("this mock has been exhausted".to_string()),
+            SavedStub::Exhausted => {
+                return Err((input, "this mock has been exhausted".to_string()))
+            }
         };
 
         match just_exhausted {
@@ -112,7 +119,7 @@ impl<'a> SavedMock<'a> {
             SavedStub::Many {
                 times: MockTimes::Times(0),
                 ..
-            } => Err("this mock has been exhausted".to_string()),
+            } => Err((input, "this mock has been exhausted".to_string())),
             SavedStub::Many {
                 times: MockTimes::Times(1),
                 transmuted_stub,

@@ -1,13 +1,13 @@
 //! Tools to check if an argument to a mocked method matches
 //! expectations.
 
-mod invocation_matcher;
 mod any;
 mod eq;
+mod invocation_matcher;
 
-pub use invocation_matcher::InvocationMatcher;
 pub use any::{any, Any};
 pub use eq::{eq, eq_against, Eq, EqAgainst};
+pub use invocation_matcher::InvocationMatcher;
 
 use std::fmt::{self, Formatter};
 

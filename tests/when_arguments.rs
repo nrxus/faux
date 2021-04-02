@@ -109,6 +109,21 @@ fn mixed_args() {
 }
 
 #[test]
+fn multiple_mocks() {
+    let mut mock = Foo::faux();
+    let data = Data { a: 2, b: 3 };
+    faux::when!(mock.two_args).then_return(0);
+    faux::when!(mock.two_args(_, 4)).then_return(1);
+    faux::when!(mock.two_args(_, 10)).then_return(2);
+    faux::when!(mock.two_args(data.clone(), 4)).then_return(3);
+
+    assert_eq!(mock.two_args(&Data { a: 4, b: 3 }, 8), 0);
+    assert_eq!(mock.two_args(&Data { a: 0, b: 4 }, 4), 1);
+    assert_eq!(mock.two_args(&Data { a: 1, b: 4 }, 10), 2);
+    assert_eq!(mock.two_args(&data, 4), 3);
+}
+
+#[test]
 #[should_panic]
 fn unmatched_args() {
     let mut mock = Foo::faux();

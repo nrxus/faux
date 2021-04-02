@@ -106,7 +106,9 @@ fn mutex_does_not_lock_entire_mock() {
         sender.send(()).unwrap();
     });
 
-    receiver.recv_timeout(Duration::from_millis(100)).expect("a deadlock occurred!");
+    receiver
+        .recv_timeout(Duration::from_millis(100))
+        .expect("a deadlock occurred!");
 }
 
 fn spin_until(a: &Arc<AtomicUsize>, val: usize) {

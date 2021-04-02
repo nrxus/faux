@@ -1,6 +1,6 @@
 use crate::mock::{Mock, SavedMock};
 use std::collections::HashMap;
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 
 #[doc(hidden)]
 /// ```
@@ -40,7 +40,7 @@ impl<T> MaybeFaux<T> {
 #[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: Mutex<HashMap<usize, Arc<Mutex<SavedMock<'static>>>>>,
+    mocks: Mutex<HashMap<usize, Arc<Mutex<Vec<SavedMock<'static>>>>>>,
 }
 
 impl MockStore {
@@ -64,10 +64,15 @@ impl MockStore {
     }
 
     fn store_mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
-        self.mocks.lock().unwrap().insert(
-            id as usize,
-            Arc::new(Mutex::new(unsafe { mock.unchecked() })),
-        );
+        let mocks = self
+            .mocks
+            .lock()
+            .unwrap()
+            .entry(id as usize)
+            .or_default()
+            .clone();
+
+        mocks.lock().unwrap().push(unsafe { mock.unchecked() });
     }
 
     #[doc(hidden)]
@@ -75,9 +80,9 @@ impl MockStore {
     ///
     /// Do *NOT* call this function directly.
     /// This should only be called by the generated code from #[faux::methods]
-    pub unsafe fn call_mock<R, I, O>(&self, id: fn(R, I) -> O, input: I) -> Result<O, String> {
+    pub unsafe fn call_mock<R, I, O>(&self, id: fn(R, I) -> O, mut input: I) -> Result<O, String> {
         let locked_store = self.mocks.lock().unwrap();
-        let stub = locked_store
+        let potential_mocks = locked_store
             .get(&(id as usize))
             .cloned()
             .ok_or_else(|| "method was never mocked".to_string())?;
@@ -85,7 +90,28 @@ impl MockStore {
         // drop the lock before calling the mock to avoid deadlocking in the mock
         std::mem::drop(locked_store);
 
-        let mut locked_mock = stub.lock().unwrap();
-        locked_mock.call(input)
+        let mut potential_mocks = potential_mocks.lock().unwrap();
+        let mut errors = vec![];
+
+        for mock in potential_mocks.iter_mut().rev() {
+            match mock.call(input) {
+                Err((i, e)) => {
+                    errors.push(e);
+                    input = i
+                }
+                Ok(o) => return Ok(o),
+            }
+        }
+
+        assert!(!errors.is_empty());
+
+        Err(if errors.len() == 1 {
+            errors.pop().unwrap()
+        } else {
+            errors.into_iter().fold(
+                String::from("Mocks for this method exist but they all failed"),
+                |acc, error| format!("{}\n\n# Attempted Mock\n{}", acc, error),
+            )
+        })
     }
 }

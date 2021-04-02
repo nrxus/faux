@@ -1,4 +1,4 @@
-use super::{InvocationMatcher, ArgMatcher};
+use super::{ArgMatcher, InvocationMatcher};
 use std::fmt::{self, Formatter};
 
 /// Universal matcher.
