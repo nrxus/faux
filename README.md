@@ -1,34 +1,34 @@
 # faux &emsp; [![Latest Version]][crates.io] [![rustc 1.45+]][Rust 1.45] [![docs]][api docs] ![][build]
 
-faux is a traitless mocking library for stable Rust. It was inspired
-by [mocktopus], a mocking library for nightly Rust that lets you mock
-any function. Unlike mocktopus, faux deliberately only allows for
-mocking public methods in structs.
+A library to create [mocks] out of structs.
+
+`faux` allows you to mock the methods of structs for testing without
+complicating or polluting your code.
 
 See the [API docs] for more information.
 
 **faux is in its early alpha stages, so there are no guarantees of API
 stability.**
 
-## Setup
+## Getting Started
 
-faux will modify existing code at compile time to transform structs
-and their methods into mockable versions of themselves. faux makes
-liberal use of unsafe Rust features, so it is only recommended for use
-inside of tests. Add `faux` as a dev-dependency in `Cargo.toml`to
-prevent usage in production code:
+`faux` makes liberal use of unsafe Rust features, so it is only
+recommended for use inside tests. To prevent `faux` from leaking into
+your production code, set it as a `dev-dependency` in your
+`Cargo.toml`:
 
-``` toml
+```toml
 [dev-dependencies]
 faux = "0.0.8"
 ```
+`faux` provides two attributes:
+* `#[create]`: transforms a struct into a mockable equivalent
+* `#[methods]`: transforms the methods in an `impl` block into
 
-faux provides two attributes: `create` and `methods`. Use these
-attributes for tagging your struct and its impl block
-respectively. Use Rust's `#[cfg_attr(...)]` to gate these attributes
-to the test config only.
+Use Rust's `#[cfg_attr(...)]` to gate these attributes to the test
+config only.
 
-``` rust
+```rust
 #[cfg_attr(test, faux::create)]
 pub struct MyStructToMock { /* fields */ }
 
@@ -36,13 +36,13 @@ pub struct MyStructToMock { /* fields */ }
 impl MyStructToMock { /* methods to mock */ }
 ```
 
-
 ## Examples
 
 ```rust
 mod client {
-    // creates a mockable version of `UserClient`
-    // generates an associated function, `UserClient::faux`, to create a mocked instance
+    // #[faux::create] makes a struct as mockable and
+    // generates an associated `faux` function
+    // e.g., `UserClient::faux()` will create a a mock `UserClient` instance
     #[faux::create]
     pub struct UserClient { /* data of the client */ }
 
@@ -51,7 +51,7 @@ mod client {
         pub name: String
     }
 
-    // creates mockable version of every method in the impl
+    // #[faux::methods ] makes every public method in the `impl` block mockable
     #[faux::methods]
     impl UserClient {
         pub fn fetch(&self, id: usize) -> User {
@@ -86,10 +86,11 @@ fn main() {
     // create a mock of client::UserClient using `faux`
     let mut client = client::UserClient::faux();
 
-    // set up what the mock should return for a given argument
-    faux::when!(client.fetch(3)).then_return(
-        client::User { name: "my user name".into() }
-    );
+    // mock fetch but only if the argument 3
+    // argument matchers are optional
+    faux::when!(client.fetch(3))
+        // stub the return value for this mock
+        .then_return(client::User { name: "my user name".into() });
 
     // prepare the subject for your test using the mocked client
     let subject = Service { client };
@@ -103,6 +104,17 @@ fn main() {
 **Due to [constraints with rustdocs], the above example tests in
 `main()` rather than a `#[test]` function. In real life, the faux
 attributes should be gated to `#[cfg(test)]`.**
+
+## Features
+`faux` lets you mock the return value or implementation of:
+
+* Async methods
+* Trait methods
+* Generic struct methods
+* Methods with pointer self types (e.g., `self: Rc<Self>`)
+* Methods in external modules
+
+`faux` also provides easy-to-use argument matchers.
 
 ## Interactions With Other Proc Macros
 
@@ -192,6 +204,13 @@ code that exists solely for tests. In particular, faux does not rely
 on trait definitions for every mocked object, which would pollute
 their function signatures with either generics or trait objects.
 
+## Inspiration
+
+This library was inspired by [mocktopus], a mocking library for
+nightly Rust that lets you mock any function. Unlike mocktopus, `faux`
+works on stable Rust and deliberately only allows for mocking public
+methods in structs.
+
 [Latest Version]: https://img.shields.io/crates/v/faux.svg
 [crates.io]: https://crates.io/crates/faux
 [rustc 1.45+]: https://img.shields.io/badge/rustc-1.45+-blue.svg
@@ -203,3 +222,4 @@ their function signatures with either generics or trait objects.
 [build]: https://github.com/nrxus/faux/workflows/test/badge.svg
 [constraints with rustdocs]: https://github.com/rust-lang/rust/issues/45599
 [the order of proc macros is not specified]: https://github.com/rust-lang/reference/issues/578
+[mocks]: https://martinfowler.com/articles/mocksArentStubs.html

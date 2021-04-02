@@ -36,7 +36,7 @@
 //!
 //! ```
 //! // restrict faux to tests by using `#[cfg_attr(test, ...)]`
-//! // faux::create marks a struct as mockable and
+//! // faux::create makes a struct as mockable and
 //! // generates an associated `faux()` function
 //! // e.g.: `HttpClient::faux()` will create a mock `HttpClient` instance
 //! #[cfg_attr(test, faux::create)]
