@@ -86,7 +86,7 @@ fn main() {
     // create a mock of client::UserClient using `faux`
     let mut client = client::UserClient::faux();
 
-    // mock fetch but only if the argument 3
+    // mock fetch but only if the argument is 3
     // argument matchers are optional
     faux::when!(client.fetch(3))
         // stub the return value for this mock
@@ -118,14 +118,18 @@ attributes should be gated to `#[cfg(test)]`.**
 
 ## Interactions With Other Proc Macros
 
-`faux` makes no guarantees that it will work with other macro
-libraries. `faux` in theory should "just" work although with some
-caveats, in particular if they modify the *signature* of
-methods.
+While `faux` makes no guarantees that it will work with other macro
+libraries, it should "just" work. There are some caveats, however. For
+a quick solution try making the `faux` attributes (e.g.,
+`#[faux::methods]`) the first attribute.
 
-Unfortunately, [the order of proc macros is not
-specified]. However, in practive it *seems* to expand top-down (tested
-in Rust 1.42).
+### Explanation
+
+If another `proc-macro` modifies the *signature* of a method before
+`faux` does its macro expansion, then it could modify the signature
+into something not supported by `faux`. Unfortunately, [the order of
+proc macros is not specified]. However, in practive it *seems* to
+expand top-down (tested in Rust 1.42).
 
 ```rust ignore
 #[faux::create]
@@ -146,8 +150,8 @@ the other macro and expand based on the code that the user wrote. If
 you want `faux` to treat the code in the `impl` block (or the
 `struct`) as-is, before the expansion then put it on the top.
 
-If `faux` does its expansion after, then `faux` will morph the
-expanded version of the code, which might have a different signature
+If `faux` does its expansion after, then `faux` will use the code as
+expanded by the first attribute. This might have a different signature
 than what you originally wrote. Note that the other proc macro's
 expansion may create code that `faux` cannot handle (e.g., explicit
 lifetimes).
@@ -168,7 +172,7 @@ fn run<'async>(&'async self, arg: Arg) -> Pin<Box<dyn std::future::Future<Output
 ```
 
 Because `async-trait` modifies the signature of the function to a
-signature that `faux` cannot handle (explicit lifetimes) then having
+signature that `faux` cannot handle (explicit lifetimes), having
 `async-trait` do its expansion *before* `faux` would make `faux` not
 work. Note that even if `faux` could handle explicit lifetimes, our
 signature now it's so unwieldy that it would make mocks hard to work
