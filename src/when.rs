@@ -9,44 +9,9 @@ use crate::{
 };
 pub use once::Once;
 
-/// Provides methods to stub the implementation or return value of the
-/// mocked method.
-///
-/// Created using [`when!`].
-///
-/// By default, methods are mocked for all invocations. Use [`when!`]
-/// for an ergonomic way to set argument matchers. For more features,
-/// use [`with_args`].
-///
-/// By default, all methods are mocked indefinitely. Thus, any stubbed
-/// values needs to be cloneable and any stubbed implementation cannot
-/// consume variables. Use the [`times`] and [`once`] methods to
-/// override these defaults.
-///
-/// [`when!`]: crate::when!
-/// [`once`]: When::once
-/// [`times`]: When::times
-/// [`with_args`]: When::with_args
-pub struct When<'q, R, I, O, M: matcher::InvocationMatcher<I>> {
-    id: fn(R, I) -> O,
-    store: &'q mut MockStore,
-    times: MockTimes,
-    matcher: M,
-}
+pub trait WhenT<I, O>: Sized {
+    type Once;
 
-impl<'q, R, I, O> When<'q, R, I, O, Any> {
-    #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
-        When {
-            id,
-            store,
-            matcher: Any,
-            times: MockTimes::Always,
-        }
-    }
-}
-
-impl<'q, R, I, O: 'static, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
     /// Sets the return value of the mocked method.
     ///
     /// Requires the value to be static. For a more lax but unsafe
@@ -77,12 +42,9 @@ impl<'q, R, I, O: 'static, M: matcher::InvocationMatcher<I> + Send + 'static> Wh
     /// ```
     ///
     /// [`then_unchecked_return`]: When::then_unchecked_return
-    pub fn then_return(self, value: O)
+    fn then_return(self, value: O)
     where
-        O: Send + Clone,
-    {
-        self.then(move |_: I| value.clone());
-    }
+        O: Send + Clone + 'static;
 
     /// Sets the implementation of the mocked method to the provided
     /// closure.
@@ -145,21 +107,10 @@ impl<'q, R, I, O: 'static, M: matcher::InvocationMatcher<I> + Send + 'static> Wh
     /// ```
     ///
     /// [`then_unchecked`]: When::then_unchecked
-    pub fn then(self, mock: impl FnMut(I) -> O + 'static + Send) {
-        self.store.mock(
-            self.id,
-            Mock::new(
-                Stub::Many {
-                    times: self.times,
-                    stub: Box::new(mock),
-                },
-                self.matcher,
-            ),
-        );
-    }
-}
+    fn then(self, mock: impl FnMut(I) -> O + 'static + Send)
+    where
+        O: 'static;
 
-impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
     /// Analog of [`then_return`] that allows stubbing non-static
     /// return values.
     ///
@@ -223,12 +174,9 @@ impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R,
     /// ```
     ///
     /// [`then_return`]: When::then_return
-    pub unsafe fn then_unchecked_return(self, value: O)
+    unsafe fn then_unchecked_return(self, value: O)
     where
-        O: Send + Clone,
-    {
-        self.then_unchecked(move |_: I| value.clone())
-    }
+        O: Send + Clone;
 
     /// Analog of [`then`] that allows stubbing implementations with
     /// non-static closures.
@@ -310,18 +258,7 @@ impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R,
     /// ```
     ///
     /// [`then`]: When::then
-    pub unsafe fn then_unchecked(self, mock: impl FnMut(I) -> O + Send) {
-        self.store.mock_unchecked(
-            self.id,
-            Mock::new(
-                Stub::Many {
-                    times: self.times,
-                    stub: Box::new(mock),
-                },
-                self.matcher,
-            ),
-        );
-    }
+    unsafe fn then_unchecked(self, mock: impl FnMut(I) -> O + Send);
 
     /// Limits the number of calls for which a mock is active.
     ///
@@ -386,10 +323,7 @@ impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R,
     ///   }
     /// }
     /// ```
-    pub fn times(mut self, times: usize) -> Self {
-        self.times = MockTimes::Times(times);
-        self
-    }
+    fn times(self, times: usize) -> Self;
 
     /// Limits mock to one call, allowing mocks to consume captured variables.
     ///
@@ -445,10 +379,142 @@ impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R,
     ///   mock.single_arg(8);
     /// }
     /// ```
-    pub fn once(self) -> Once<'q, R, I, O, M> {
+    fn once(self) -> Self::Once;
+
+    /// Specifies a matcher for the invocation.
+    ///
+    /// This lets you pass matchers for each method argument.
+    ///
+    /// See [`when!`](crate::when!) for an ergonomic way to pass the
+    /// matcher.
+    ///
+    /// If all arguments implement [`Debug`](std::fmt::Debug), a tuple
+    /// of [`ArgMatcher`](matcher::ArgMatcher)s can be provided where
+    /// each `ArgMatcher` matches an individual argument.
+    ///
+    /// If the method only has a single argument, use a tuple of a
+    /// single element: `(ArgMatcher,)`
+    ///
+    /// For more complex cases, you may pass a custom
+    /// [`InvocationMatcher`](matcher::InvocationMatcher).
+    pub fn with_args<N: matcher::InvocationMatcher<I> + Send + 'static>(
+        self,
+        matcher: N,
+    ) -> When<'q, R, I, O, N> {
+        When {
+            matcher,
+            times: self.times,
+            id: self.id,
+            store: self.store,
+        }
+    }
+}
+
+/// Provides methods to stub the implementation or return value of the
+/// mocked method.
+///
+/// Created using [`when!`].
+///
+/// By default, methods are mocked for all invocations. Use [`when!`]
+/// for an ergonomic way to set argument matchers. For more features,
+/// use [`with_args`].
+///
+/// By default, all methods are mocked indefinitely. Thus, any stubbed
+/// values needs to be cloneable and any stubbed implementation cannot
+/// consume variables. Use the [`times`] and [`once`] methods to
+/// override these defaults.
+///
+/// [`when!`]: crate::when!
+/// [`once`]: When::once
+/// [`times`]: When::times
+/// [`with_args`]: When::with_args
+pub struct When<'q, R, I, O, M: matcher::InvocationMatcher<I>> {
+    id: fn(R, I) -> O,
+    store: &'q mut MockStore,
+    times: MockTimes,
+    matcher: M,
+}
+
+impl<'q, R, I, O> When<'q, R, I, O, Any> {
+    #[doc(hidden)]
+    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
+        When {
+            id,
+            store,
+            matcher: Any,
+            times: MockTimes::Always,
+        }
+    }
+}
+
+impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> WhenT<I, O>
+    for When<'q, R, I, O, M>
+{
+    type Once = Once<'q, R, I, O, M>;
+
+    fn then_return(self, value: O)
+    where
+        O: Send + Clone + 'static,
+    {
+        self.then(move |_: I| value.clone());
+    }
+
+    fn then(self, mock: impl FnMut(I) -> O + 'static + Send) {
+        self.store.mock(
+            self.id,
+            Mock::new(
+                Stub::Many {
+                    times: self.times,
+                    stub: Box::new(mock),
+                },
+                self.matcher,
+            ),
+        );
+    }
+
+    unsafe fn then_unchecked_return(self, value: O)
+    where
+        O: Send + Clone,
+    {
+        self.then_unchecked(move |_: I| value.clone())
+    }
+
+    unsafe fn then_unchecked(self, mock: impl FnMut(I) -> O + Send) {
+        self.store.mock_unchecked(
+            self.id,
+            Mock::new(
+                Stub::Many {
+                    times: self.times,
+                    stub: Box::new(mock),
+                },
+                self.matcher,
+            ),
+        );
+    }
+
+    fn times(mut self, times: usize) -> Self {
+        self.times = MockTimes::Times(times);
+        self
+    }
+
+    fn once(self) -> Self::Once {
         Once::new(self.id, self.store, self.matcher)
     }
 
+    fn with_args<N: matcher::InvocationMatcher<I> + Send + 'static>(
+        self,
+        matcher: N,
+    ) -> When<'q, R, I, O, N> {
+        When {
+            matcher,
+            times: self.times,
+            id: self.id,
+            store: self.store,
+        }
+    }
+}
+
+impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
     /// Specifies a matcher for the invocation.
     ///
     /// This lets you pass matchers for each method argument.
