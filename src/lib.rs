@@ -34,6 +34,8 @@
 //!
 //! # Examples
 //!
+//! ## Simple
+//!
 //! ```
 //! // restrict faux to tests by using `#[cfg_attr(test, ...)]`
 //! // faux::create makes a struct mockable and generates an
@@ -58,11 +60,6 @@
 //!         /* makes network calls that we'd rather not do in unit tests */
 //!         # unreachable!()
 //!     }
-//!
-//!     pub fn host(&self) -> &str {
-//!         /* returns a reference to some internal data */
-//!         # unreachable!()
-//!     }
 //! }
 //!
 //! #[cfg(test)]
@@ -74,11 +71,6 @@
 //!   let headers = Headers { authorization: "Bearer foobar".to_string() };
 //!
 //!   // use `faux::when!` to mock the behavior of your methods
-//!   // if the same method is mocked multiple times, the latest matching one is triggered
-//!
-//!   // mock all invocations to `mock.post` to return "OK"
-//!   faux::when!(mock.post).then_return("OK".to_string());
-//!
 //!   // you can specify arguments to match against when the mock is invoked
 //!   // pass arguments as you would to the original method
 //!   // argument matching is performed using equality checks by default
@@ -86,22 +78,145 @@
 //!   faux::when!(
 //!       // set up the mock for any path, but only specific headers
 //!       mock.post(_, headers.clone())
-//!   ).then_return("{}".to_string());
+//!   )
+//!   // mock the return value
+//!   .then_return("{}".to_string());
 //!
-//!   // matches the arguments in the latest `faux::when!`
 //!   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
 //!   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
 //!
-//!   // only matches the first `faux::when!`
+//!   // if you want to mock all calls to a method, you can omit argument matchers
+//!   faux::when!(mock.post).then_return("OK".to_string());
 //!   let other_headers = Headers { authorization: "other-token".to_string() };
 //!   assert_eq!(mock.post("other/path", &other_headers), "OK");
+//! }
+//! #
+//! # fn main() {
+//! #   let mut mock = HttpClient::faux();
+//! #   let headers = Headers { authorization: "Bearer foobar".to_string() };
+//! #
+//! #   faux::when!(mock.post(_, headers.clone())).then_return("{}".to_string());
+//! #   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
+//! #   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
+//! #
+//! #   faux::when!(mock.post).then_return("OK".to_string());
+//! #   let other_headers = Headers { authorization: "other-token".to_string() };
+//! #   assert_eq!(mock.post("other/path", &other_headers), "OK");
+//! #  }
+//! ```
+//!
+//! ## Mocking the same method multiple times
+//!
+//! A single method can be mocked multiple times. When doing so,
+//! `faux` checks every method in a last-in-first-out fashion until it
+//! finds a mock whose argument matchers match the invocation
+//! arguments.
+//!
+//! ```
+//! # #[faux::create]
+//! # pub struct HttpClient { /* */ }
+//! # #[derive(PartialEq, Clone, Debug)]
+//! # pub struct Headers {
+//! #     pub authorization: String,
+//! # }
+//! # #[faux::methods]
+//! # impl HttpClient {
+//! #     pub fn post(&self, path: &str, headers: &Headers) -> String {
+//! #         unreachable!()
+//! #     }
+//! # }
+//! #[cfg(test)]
+//! #[test]
+//! fn test() {
+//!   let mut mock = HttpClient::faux();
+//!   let headers = Headers { authorization: "Bearer foobar".to_string() };
+//!   let other_headers = Headers { authorization: "other-token".to_string() };
+//!
+//!   // catch-all mock to return "OK"
+//!   faux::when!(mock.post).then_return("OK".to_string());
+//!   // mock for specific headers to return "{}"
+//!   faux::when!(mock.post(_, headers.clone())).then_return("{}".to_string());
+//!
+//!   assert_eq!(mock.post("some/path", &headers), "{}"); // matches specific mock
+//!   assert_eq!(mock.post("some/path", &other_headers), "OK"); // matches catch-all mock
+//! }
+//! # fn main() {
+//! #   let mut mock = HttpClient::faux();
+//! #   let headers = Headers { authorization: "Bearer foobar".to_string() };
+//! #   faux::when!(mock.post).then_return("OK".to_string());
+//! #   faux::when!(mock.post(_, headers.clone())).then_return("{}".to_string());
+//! #
+//! #   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
+//! #   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
+//! #   let other_headers = Headers { authorization: "other-token".to_string() };
+//! #   assert_eq!(mock.post("other/path", &other_headers), "OK");
+//! #  }
+//! ```
+//!
+//! ## Mocking implementation
+//!
+//! `faux` supports stubbing of not just the return value but also the
+//! implementation of a method. This is done using `then()`.
+//!
+//! ```
+//! # #[faux::create]
+//! # pub struct HttpClient { /* */ }
+//! # #[derive(PartialEq, Clone, Debug)]
+//! # pub struct Headers {
+//! #     pub authorization: String,
+//! # }
+//! # #[cfg_attr(test, faux::methods)]
+//! # #[faux::methods]
+//! # impl HttpClient {
+//! #     pub fn post(&self, path: &str, headers: &Headers) -> String {
+//! #        unreachable!()
+//! #     }
+//! # }
+//! #[cfg(test)]
+//! #[test]
+//! fn test() {
+//!   let mut mock = HttpClient::faux();
+//!   let headers = Headers { authorization: "Bearer foobar".to_string() };
 //!
 //!   // for implementation mocking, use `.then()`
 //!   faux::when!(mock.post).then(|(path, _)| path.to_string().to_uppercase());
 //!   assert_eq!(mock.post("another/path", &headers), "ANOTHER/PATH");
+//! }
+//! #
+//! # fn main() {
+//! #   let mut mock = HttpClient::faux();
+//! #   let headers = Headers { authorization: "Bearer foobar".to_string() };
+//! #   faux::when!(mock.post).then(|(path, _)| path.to_string().to_uppercase());
+//! #   assert_eq!(mock.post("another/path", &headers), "ANOTHER/PATH");
+//! #  }
+//! ```
 //!
-//!   // unsafe versions of `.then()` and `.then_return()` are used to mock
-//!   // methods that return non-static values (e.g., references)
+//! ## Mocking with non-static data
+//!
+//! Let's add a new method to our `HttpClient` that returns borrowed
+//! data. This cannot be mocked using safe code, so `faux` provides
+//! `.then_unchecked()` and `.then_unchecked_return()` to mock such
+//! methods.
+//!
+//! ```
+//! # #[faux::create]
+//! # pub struct HttpClient { /* */ }
+//! #[cfg_attr(test, faux::methods)]
+//! # #[faux::methods]
+//! impl HttpClient {
+//!     pub fn host(&self) -> &str {
+//!         /* returns a reference to some internal data */
+//!         # unreachable!()
+//!     }
+//! }
+//!
+//! #[cfg(test)]
+//! #[test]
+//! fn test() {
+//!   let mut mock = HttpClient::faux();
+//!
+//!   // `unchecked_then()` and `unchecked_then_return()` require unsafe
+//!   // they allow mocking methods that return non-static values (e.g., references)
 //!   // or to mock using non-static closures
 //!   let ret = "some-value".to_string();
 //!   unsafe { faux::when!(mock.host).then_unchecked_return(ret.as_str()) }
@@ -109,41 +224,7 @@
 //! }
 //! #
 //! # fn main() {
-//! #   // use the generated `faux()` function to create a mock instance
 //! #   let mut mock = HttpClient::faux();
-//! #
-//! #   let headers = Headers { authorization: "Bearer foobar".to_string() };
-//! #
-//! #   // use `faux::when!` to mock the behavior of your methods
-//! #   // if the same method is mocked multiple times, the latest matching one is triggered
-//! #
-//! #   // mock all invocations to `mock.post` to return "OK"
-//! #   faux::when!(mock.post).then_return("OK".to_string());
-//! #
-//! #   // you can specify arguments to match against when the mock is invoked
-//! #   // pass arguments as you would to the original method
-//! #   // argument matching is performed using equality checks by default
-//! #   // arguments whose values you don't care about can be replaced by `_`
-//! #   faux::when!(
-//! #       // set up the mock for any path, but only specific headers
-//! #       mock.post(_, headers.clone())
-//! #   ).then_return("{}".to_string());
-//! #
-//! #   // matches the arguments in the latest `faux::when!`
-//! #   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
-//! #   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
-//! #
-//! #   // only matches the first `faux::when!`
-//! #   let other_headers = Headers { authorization: "other-token".to_string() };
-//! #   assert_eq!(mock.post("other/path", &other_headers), "OK");
-//! #
-//! #   // for implementation mocking, use `.then()`
-//! #   faux::when!(mock.post).then(|(path, _)| path.to_string().to_uppercase());
-//! #   assert_eq!(mock.post("another/path", &headers), "ANOTHER/PATH");
-//! #
-//! #   // unsafe versions of `.then()` and `.then_return()` are used to mock
-//! #   // methods that return non-static values (e.g., references)
-//! #   // or to mock using non-static closures
 //! #   let ret = "some-value".to_string();
 //! #   unsafe { faux::when!(mock.host).then_unchecked_return(ret.as_str()) }
 //! #   assert_eq!(mock.host(), &ret);
