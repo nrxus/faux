@@ -16,6 +16,14 @@ use std::sync::{Arc, Mutex};
 /// implements_debug(3);
 /// implements_debug(faux::MaybeFaux::Real(3));
 /// ```
+///
+/// ```
+/// fn implements_default<T: Default>(_: T) {}
+///
+/// implements_default(3);
+/// implements_default(faux::MaybeFaux::Real(3));
+/// ```
+
 #[derive(Debug)]
 pub enum MaybeFaux<T> {
     Real(T),
