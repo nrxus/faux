@@ -72,11 +72,10 @@
 //!
 //!   // use `faux::when!` to mock the behavior of your methods
 //!   // you can specify arguments to match against when the mock is invoked
-//!   // pass arguments as you would to the original method
-//!   // argument matching is performed using equality checks by default
-//!   // arguments whose values you don't care about can be replaced by `_`
 //!   faux::when!(
-//!       // set up the mock for any path, but only specific headers
+//!       // pass arguments as you would to the original method
+//!       // argument matching is performed using equality checks by default
+//!       // arguments whose values you don't care about can be replaced by `_`
 //!       mock.post(_, headers.clone())
 //!   )
 //!   // mock the return value
@@ -178,7 +177,6 @@
 //!   let mut mock = HttpClient::faux();
 //!   let headers = Headers { authorization: "Bearer foobar".to_string() };
 //!
-//!   // for implementation mocking, use `.then()`
 //!   faux::when!(mock.post).then(|(path, _)| path.to_string().to_uppercase());
 //!   assert_eq!(mock.post("another/path", &headers), "ANOTHER/PATH");
 //! }
@@ -216,7 +214,7 @@
 //!   let mut mock = HttpClient::faux();
 //!
 //!   // `unchecked_then()` and `unchecked_then_return()` require unsafe
-//!   // they allow mocking methods that return non-static values (e.g., references)
+//!   // they allow mocking methods that return non-static values (e.g. references)
 //!   // or to mock using non-static closures
 //!   let ret = "some-value".to_string();
 //!   unsafe { faux::when!(mock.host).then_unchecked_return(ret.as_str()) }

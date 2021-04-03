@@ -120,7 +120,7 @@ attributes should be gated to `#[cfg(test)]`.**
 
 While `faux` makes no guarantees that it will work with other macro
 libraries, it should "just" work. There are some caveats, however. For
-a quick solution try making the `faux` attributes (e.g.,
+a quick solution, try making the `faux` attributes (e.g.
 `#[faux::methods]`) the first attribute.
 
 ### Explanation
@@ -128,7 +128,7 @@ a quick solution try making the `faux` attributes (e.g.,
 If another `proc-macro` modifies the *signature* of a method before
 `faux` does its macro expansion, then it could modify the signature
 into something not supported by `faux`. Unfortunately, [the order of
-proc macros is not specified]. However, in practive it *seems* to
+proc macros is not specified]. However, in practice it *seems* to
 expand top-down (tested in Rust 1.42).
 
 ```rust ignore
@@ -143,18 +143,14 @@ impl Foo {
 ```
 
 In the snippet above, `#[faux::methods]` will expand first followed by
-`#[another_attribute]`.
+`#[another_attribute]`.`faux` is effectively ignoring the other macro
+and expanding based on the code you wrote.
 
-If `faux` does its expansion first then `faux` will effectively ignore
-the other macro and expand based on the code that the user wrote. If
-you want `faux` to treat the code in the `impl` block (or the
-`struct`) as-is, before the expansion then put it on the top.
-
-If `faux` does its expansion after, then `faux` will use the code as
-expanded by the first attribute. This might have a different signature
-than what you originally wrote. Note that the other proc macro's
-expansion may create code that `faux` cannot handle (e.g., explicit
-lifetimes).
+If `#[faux::methods]` performs its expansion after another macro has
+modified the `impl` block, `#[faux::methods]` receives the expanded
+code. This code might contain different method signatures than what
+you originally wrote. Note that the other proc macro's expansion may
+create code that `faux` cannot handle (e.g. explicit lifetimes).
 
 For a concrete example, let's look at
 [`async-trait`](https://github.com/dtolnay/async-trait). `async-trait` effectively converts:
@@ -171,14 +167,13 @@ fn run<'async>(&'async self, arg: Arg) -> Pin<Box<dyn std::future::Future<Output
 }
 ```
 
-Because `async-trait` modifies the signature of the function to a
-signature that `faux` cannot handle (explicit lifetimes), having
-`async-trait` do its expansion *before* `faux` would make `faux` not
-work. Note that even if `faux` could handle explicit lifetimes, our
-signature now it's so unwieldy that it would make mocks hard to work
-with. Because `async-trait` just wants an `async` function signature,
-and `faux` does not modify function signatures, it is okay for `faux`
-to expand first.
+Because `async-trait` adds explicit lifetimes to the method signature,
+which `faux` cannot handle, having `async-trait` do its expansion
+first breaks `faux`. Note that even if `faux` could handle explicit
+lifetimes, our signature is now so unwieldy that it would make mocks
+hard to work with. Because `async-trait` just wants an `async`
+function signature, and `faux` does not modify function signatures, it
+is okay for `faux` to expand first.
 
 ```rust ignore
 #[faux::methods]
@@ -190,23 +185,19 @@ impl MyStruct for MyTrait {
 }
 ```
 
-Since no expansions came before, `faux` sees an `async` function,
-which it supports. `faux` does its magic assuming this is a normal
-`async` function, and then `async-trait` does its magic to convert the
-signature to something that can work on trait `impl`s.
-
-If you find a procedural macro that `faux` cannot handle please submit
-an issue to see if `faux` is doing something unexpected that conflicts
+If you find a proc macro that `faux` cannot handle, please open an
+issue to see if `faux` is doing something unexpected that conflicts
 with that macro.
 
 ## Goal
 
-faux was founded on the belief that traits with single implementations
-are an undue burden and an unnecessary layer of abstraction. It aims
-to create mocks out of user-defined structs, avoiding extra production
-code that exists solely for tests. In particular, faux does not rely
-on trait definitions for every mocked object, which would pollute
-their function signatures with either generics or trait objects.
+`faux` was founded on the belief that traits with single
+implementations are an undue burden and an unnecessary layer of
+abstraction. Thus, `faux` does not rely on trait definitions for every
+mocked object, which would pollute their function signatures with
+either generics or trait objects. `faux` aims to create mocks out of
+user-defined structs, avoiding extra production code that exists
+solely for tests.
 
 ## Inspiration
 
