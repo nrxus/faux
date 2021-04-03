@@ -22,6 +22,12 @@ pub enum MaybeFaux<T> {
     Faux(MockStore),
 }
 
+impl<T: Default> Default for MaybeFaux<T> {
+    fn default() -> Self {
+        MaybeFaux::Real(T::default())
+    }
+}
+
 impl<T: Clone> Clone for MaybeFaux<T> {
     fn clone(&self) -> Self {
         match self {
