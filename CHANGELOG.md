@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## NEXT
+## v0.0.9
 * `when!` allows for argument matching
   * requires the arguments to implement `Debug`
   * [test](/tests/when_arguments.rs)

@@ -19,7 +19,7 @@ your production code, set it as a `dev-dependency` in your
 
 ```toml
 [dev-dependencies]
-faux = "0.0.8"
+faux = "0.0.9"
 ```
 `faux` provides two attributes:
 * `#[create]`: transforms a struct into a mockable equivalent
