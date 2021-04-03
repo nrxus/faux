@@ -85,7 +85,7 @@ impl MockStore {
         let potential_mocks = locked_store
             .get(&(id as usize))
             .cloned()
-            .ok_or_else(|| "method was never mocked".to_string())?;
+            .ok_or_else(|| "✗ method was never mocked".to_string())?;
 
         // drop the lock before calling the mock to avoid deadlocking in the mock
         std::mem::drop(locked_store);
@@ -96,7 +96,7 @@ impl MockStore {
         for mock in potential_mocks.iter_mut().rev() {
             match mock.call(input) {
                 Err((i, e)) => {
-                    errors.push(e);
+                    errors.push(format!("✗ {}", e));
                     input = i
                 }
                 Ok(o) => return Ok(o),
@@ -105,13 +105,6 @@ impl MockStore {
 
         assert!(!errors.is_empty());
 
-        Err(if errors.len() == 1 {
-            errors.pop().unwrap()
-        } else {
-            errors.into_iter().fold(
-                String::from("Mocks for this method exist but they all failed"),
-                |acc, error| format!("{}\n\n# Attempted Mock\n{}", acc, error),
-            )
-        })
+        Err(errors.join("\n\n"))
     }
 }

@@ -93,20 +93,20 @@ macro_rules! tuple {
                         .iter()
                         .enumerate()
                         .filter_map(|(i, &passed)| if passed { None } else { Some(i) })
-                        .map(|pos| format!("Mismatched argument at position: {}
-Expected: {}
-Actual:   {}",
+                        .map(|pos| format!("  Argument {}:
+    Expected: {}
+    Actual:   {}",
                             pos, expected[pos], actual[pos]
                         ))
                         .collect();
 
-                    let argument_errors = argument_errors.join("\n\n");
+                    let argument_errors = argument_errors.join("\n");
                     let expected = expected.join(", ");
                     let actual = actual.join(", ");
 
                     Err(format!("Arguments did not match
-Expected: [{}]
-Actual:   [{}]
+  Expected: [{}]
+  Actual:   [{}]
 
 {}",
                         expected, actual, argument_errors

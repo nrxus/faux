@@ -674,17 +674,16 @@ pub use faux_macros::methods;
 ///
 /// ```term
 /// thread 'main' panicked at 'failed to call mock on 'Foo::some_method':
-/// Arguments did not match
-/// Expected: [9, 8]
-/// Actual:   [1, 1]
+/// ✗ Arguments did not match
+///   Expected: [8, 9]
+///   Actual:   [1, 1]
 ///
-/// Mismatched argument at position: 0
-/// Expected: 9
-/// Actual:   1
-///
-/// Mismatched argument at position: 1
-/// Expected: 8
-/// Actual:   1', src/lib.rs:6:1
+///   Argument 0:
+///     Expected: 8
+///     Actual:   1
+///   Argument 1:
+///     Expected: 9
+///     Actual:   1
 /// ```
 ///
 /// # Argument Matchers
