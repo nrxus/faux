@@ -8,9 +8,26 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use quote::quote;
 
+enum Item {
+    Trait(syn::ItemTrait),
+    Struct(syn::ItemStruct),
+}
+
 #[proc_macro_attribute]
 pub fn create(args: TokenStream, original: TokenStream) -> TokenStream {
-    let original = syn::parse_macro_input!(original as syn::ItemStruct);
+    let original = syn::parse_macro_input!(original as syn::Item);
+
+    let original = match original {
+        syn::Item::Struct(s) => Item::Struct(s),
+        syn::Item::Trait(t) => Item::Trait(t),
+        _ => {
+            return TokenStream::from(
+                darling::Error::custom("only allowed on structs or traits")
+                    .with_span(&original)
+                    .write_errors(),
+            )
+        }
+    };
 
     let args = syn::parse_macro_input!(args as syn::AttributeArgs);
     let args = match create::Args::from_list(&args) {
@@ -20,9 +37,10 @@ pub fn create(args: TokenStream, original: TokenStream) -> TokenStream {
         }
     };
 
-    let mockable = create::Mockable::new(original, args);
-
-    TokenStream::from(mockable)
+    match original {
+        Item::Struct(s) => create::Mockable::new(s, args).into(),
+        Item::Trait(t) => create::MockableTrait::new(t).into(),
+    }
 }
 
 #[proc_macro_attribute]

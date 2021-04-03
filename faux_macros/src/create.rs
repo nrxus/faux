@@ -73,3 +73,68 @@ impl From<Mockable> for proc_macro::TokenStream {
 pub fn real_struct_new_ident(original: &syn::Ident) -> syn::Ident {
     syn::Ident::new(&format!("_FauxOriginal_{}", original), original.span())
 }
+
+pub struct MockableTrait {
+    original: syn::ItemTrait,
+    created: proc_macro2::TokenStream,
+    methods: proc_macro2::TokenStream,
+    creator: proc_macro2::TokenStream,
+}
+
+impl MockableTrait {
+    pub fn new(original: syn::ItemTrait) -> Self {
+        // clone original before changing anything
+        let original_ident = &original.ident;
+        let ident = syn::Ident::new(
+            &format!("_FauxStruct_{}", original_ident),
+            original_ident.span(),
+        );
+
+        let (impl_generics, ty_generics, where_clause) = original.generics.split_for_impl();
+
+        let created = quote! {
+            struct #ident(faux::MockStore);
+        };
+
+        let creator = quote! {
+            impl #impl_generics dyn #original_ident #ty_generics #where_clause {
+                fn faux() -> impl #original_ident #ty_generics {
+                    #ident(faux::MockStore::default())
+                }
+            }
+        };
+
+        let methods = quote! {
+            impl #impl_generics #original_ident #ty_generics for #ident #where_clause {}
+        };
+
+        MockableTrait {
+            original,
+            created,
+            creator,
+            methods,
+        }
+    }
+}
+
+impl From<MockableTrait> for proc_macro::TokenStream {
+    fn from(mockable: MockableTrait) -> Self {
+        let MockableTrait {
+            original,
+            created,
+            creator,
+            methods,
+        } = mockable;
+
+        proc_macro::TokenStream::from(quote! {
+            #original
+
+            #[allow(non_camel_case_types)]
+            #created
+
+            #creator
+
+            #methods
+        })
+    }
+}
