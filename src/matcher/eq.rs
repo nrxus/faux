@@ -30,6 +30,8 @@ pub fn eq<Expected: fmt::Debug + PartialEq>(expected: Expected) -> Eq<Expected> 
     Eq(expected)
 }
 
+struct EqAgainst<Expected>(Expected);
+
 /// Equality matcher for [different types].
 ///
 /// Unlike [`Eq`](struct@Eq), it matches even if the types are
@@ -37,10 +39,7 @@ pub fn eq<Expected: fmt::Debug + PartialEq>(expected: Expected) -> Eq<Expected> 
 /// match across borrows.
 ///
 /// [different types]: https://doc.rust-lang.org/std/cmp/trait.PartialEq.html#how-can-i-compare-two-different-types
-pub struct EqAgainst<Expected>(Expected);
-
-/// Creates an [`EqAgainst`] matcher.
-pub fn eq_against<Expected>(expected: Expected) -> EqAgainst<Expected> {
+pub fn eq_against<Arg>(expected: impl PartialEq<Arg> + fmt::Debug) -> impl ArgMatcher<Arg> {
     EqAgainst(expected)
 }
 
