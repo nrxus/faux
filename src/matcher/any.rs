@@ -1,20 +1,11 @@
-use super::{ArgMatcher, InvocationMatcher};
+use super::ArgMatcher;
 use std::fmt::{self, Formatter};
 
-/// Universal matcher.
-pub struct Any;
+struct Any;
 
 impl<T> ArgMatcher<T> for Any {
-    /// Always returns true
     fn matches(&self, _: &T) -> bool {
         true
-    }
-}
-
-impl<Arg> InvocationMatcher<Arg> for Any {
-    /// Always returns Ok(())
-    fn matches(&self, _: &Arg) -> Result<(), String> {
-        Ok(())
     }
 }
 
@@ -24,7 +15,9 @@ impl fmt::Display for Any {
     }
 }
 
-/// Creates an [`Any`] matcher.
-pub fn any() -> Any {
+/// Universal argument matcher.
+///
+/// The returned [`ArgMatcher<T>`](ArgMatcher) will match any `T`
+pub fn any<T>() -> impl ArgMatcher<T> {
     Any
 }

@@ -6,9 +6,9 @@ mod from_fn;
 mod eq;
 mod invocation_matcher;
 
-pub use any::{any, Any};
+pub use any::any;
 pub use from_fn::from_fn;
-pub use eq::{eq, eq_against, Eq};
+pub use eq::{eq, eq_against};
 pub use invocation_matcher::InvocationMatcher;
 
 use std::fmt::{self, Formatter};
@@ -17,9 +17,9 @@ use std::fmt::{self, Formatter};
 ///
 /// Implementors provide an expectation to match an argument against.
 ///
-/// `faux` provides some simple matchers, such as [`Eq`](struct@Eq)
-/// for equality. Check [Implementors](#implementors) for the
-/// exhaustive list.
+/// `faux` provides some simple matchers, such as [`eq()`] for
+/// equality. Check [Implementors](#implementors) for the exhaustive
+/// list.
 ///
 /// You may define your own matcher for special use cases. The
 /// [`fmt::Display`] implementation is used by [`InvocationMatcher`]

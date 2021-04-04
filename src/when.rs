@@ -3,11 +3,21 @@
 mod once;
 
 use crate::{
-    matcher::{self, Any},
+    matcher::InvocationMatcher,
     mock::{Mock, MockTimes, Stub},
     mock_store::MockStore,
 };
 pub use once::Once;
+
+#[doc(hidden)]
+pub struct Any;
+
+impl<Arg> InvocationMatcher<Arg> for Any {
+    /// Always returns Ok(())
+    fn matches(&self, _: &Arg) -> Result<(), String> {
+        Ok(())
+    }
+}
 
 /// Provides methods to stub the implementation or return value of the
 /// mocked method.
@@ -27,7 +37,7 @@ pub use once::Once;
 /// [`once`]: When::once
 /// [`times`]: When::times
 /// [`with_args`]: When::with_args
-pub struct When<'q, R, I, O, M: matcher::InvocationMatcher<I>> {
+pub struct When<'q, R, I, O, M: InvocationMatcher<I>> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,
     times: MockTimes,
@@ -46,7 +56,7 @@ impl<'q, R, I, O> When<'q, R, I, O, Any> {
     }
 }
 
-impl<'q, R, I, O: 'static, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
+impl<'q, R, I, O: 'static, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
     /// Sets the return value of the mocked method.
     ///
     /// Requires the value to be static. For a more lax but unsafe
@@ -159,7 +169,7 @@ impl<'q, R, I, O: 'static, M: matcher::InvocationMatcher<I> + Send + 'static> Wh
     }
 }
 
-impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
+impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
     /// Analog of [`then_return`] that allows stubbing non-static
     /// return values.
     ///
@@ -457,15 +467,15 @@ impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> When<'q, R,
     /// matcher.
     ///
     /// If all arguments implement [`Debug`](std::fmt::Debug), a tuple
-    /// of [`ArgMatcher`](matcher::ArgMatcher)s can be provided where
+    /// of [`ArgMatcher`](crate::ArgMatcher)s can be provided where
     /// each `ArgMatcher` matches an individual argument.
     ///
     /// If the method only has a single argument, use a tuple of a
     /// single element: `(ArgMatcher,)`
     ///
     /// For more complex cases, you may pass a custom
-    /// [`InvocationMatcher`](matcher::InvocationMatcher).
-    pub fn with_args<N: matcher::InvocationMatcher<I> + Send + 'static>(
+    /// [`InvocationMatcher`](InvocationMatcher).
+    pub fn with_args<N: InvocationMatcher<I> + Send + 'static>(
         self,
         matcher: N,
     ) -> When<'q, R, I, O, N> {
