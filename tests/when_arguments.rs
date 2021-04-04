@@ -101,6 +101,20 @@ fn custom_matcher() {
 }
 
 #[test]
+fn pattern() {
+    let mut mock = Foo::faux();
+    faux::when!(mock.one_ref_arg(_ = faux::pattern!(&Data => Data { a: 2, .. }))).then_return(123);
+    assert_eq!(mock.one_ref_arg(&Data { a: 2, b: 789 }), 123);
+}
+
+#[test]
+fn from_fn() {
+    let mut mock = Foo::faux();
+    faux::when!(mock.one_ref_arg(_ = faux::from_fn!(|data: &&Data| data.b == 3))).then_return(123);
+    assert_eq!(mock.one_ref_arg(&Data { a: 123, b: 3 }), 123);
+}
+
+#[test]
 fn mixed_args() {
     let mut mock = Foo::faux();
     let data = Data { a: 2, b: 3 };
