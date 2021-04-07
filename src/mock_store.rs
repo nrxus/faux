@@ -64,7 +64,7 @@ impl MockStore {
         }
     }
 
-    pub(crate) fn mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
+    pub(crate) fn mock<R, I, O: 'static>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
         self.store_mock(id, mock)
     }
 

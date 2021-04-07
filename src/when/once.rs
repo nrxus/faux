@@ -8,6 +8,10 @@ use crate::{
 ///
 /// Stubbed values do not need to be cloneable. Stubbed
 /// implementations may consume variables.
+///
+/// Do *NOT* rely on the signature of `Once`. While changing the
+/// methods of `Once` will be considered a breaking change, changing
+/// the generics within `Once` will not.
 pub struct Once<'q, R, I, O, M: matcher::InvocationMatcher<I>> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,

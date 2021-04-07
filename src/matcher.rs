@@ -1,5 +1,9 @@
 //! Tools to check if an argument to a mocked method matches
 //! expectations.
+//!
+//! See also: [`pattern!`](crate::pattern) and
+//! [`from_fn!`](crate::from_fn) for additional ways to create
+//! matchers.
 
 mod any;
 mod from_fn;
@@ -17,9 +21,10 @@ use std::fmt::{self, Formatter};
 ///
 /// Implementors provide an expectation to match an argument against.
 ///
-/// `faux` provides some simple matchers, such as [`eq()`] for
-/// equality. Check [Implementors](#implementors) for the exhaustive
-/// list.
+/// `faux` provides some simple matchers: [`any()`], [`eq()`], and
+/// [`eq_against()`]. Additionally, `faux` also provides two macros:
+/// [`pattern!`](crate::pattern) for pattern matching and
+/// [`from_fn!`](crate::from_fn) to provide a custom function.
 ///
 /// You may define your own matcher for special use cases. The
 /// [`fmt::Display`] implementation is used by [`InvocationMatcher`]

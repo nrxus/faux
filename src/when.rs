@@ -33,6 +33,10 @@ impl<Arg> InvocationMatcher<Arg> for Any {
 /// consume variables. Use the [`times`] and [`once`] methods to
 /// override these defaults.
 ///
+/// Do *NOT* rely on the signature of `When`. While changing the
+/// methods of `When` will be considered a breaking change, changing
+/// the generics within `When` will not.
+///
 /// [`when!`]: crate::when!
 /// [`once`]: When::once
 /// [`times`]: When::times
@@ -56,7 +60,7 @@ impl<'q, R, I, O> When<'q, R, I, O, Any> {
     }
 }
 
-impl<'q, R, I, O: 'static, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
+impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
     /// Sets the return value of the mocked method.
     ///
     /// Requires the value to be static. For a more lax but unsafe
@@ -89,7 +93,7 @@ impl<'q, R, I, O: 'static, M: InvocationMatcher<I> + Send + 'static> When<'q, R,
     /// [`then_unchecked_return`]: When::then_unchecked_return
     pub fn then_return(self, value: O)
     where
-        O: Send + Clone,
+        O: Send + Clone + 'static,
     {
         self.then(move |_: I| value.clone());
     }
@@ -155,7 +159,10 @@ impl<'q, R, I, O: 'static, M: InvocationMatcher<I> + Send + 'static> When<'q, R,
     /// ```
     ///
     /// [`then_unchecked`]: When::then_unchecked
-    pub fn then(self, mock: impl FnMut(I) -> O + 'static + Send) {
+    pub fn then(self, mock: impl FnMut(I) -> O + 'static + Send)
+    where
+        O: 'static,
+    {
         self.store.mock(
             self.id,
             Mock::new(
@@ -167,9 +174,7 @@ impl<'q, R, I, O: 'static, M: InvocationMatcher<I> + Send + 'static> When<'q, R,
             ),
         );
     }
-}
 
-impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
     /// Analog of [`then_return`] that allows stubbing non-static
     /// return values.
     ///

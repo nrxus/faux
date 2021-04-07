@@ -3,6 +3,15 @@
 ## NEXT
 * Allow autoderiving `Default` on structs tagged by `#[create]`
   * Only allowed if the real instance implements `Default`
+* Add `pattern!` and `from_fn!` macros to create matchers out of
+  patterns and functions respectively.
+* Hide the internal structure of `Eq`, `Any`, and `EqAgainst`.
+  * Their respective methods now return `impl ArgMatcher<Arg>` to help
+    against breaking changes in the future.
+
+### Breaking Change
+* `Eq`, `EqAgainst`, and `Any` are now all internal to `faux`. This
+  will help prevent against breaking changes in the future.
 
 ## v0.0.9
 * `when!` allows for argument matching
