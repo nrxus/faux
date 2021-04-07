@@ -55,7 +55,7 @@ use std::fmt::{self, Formatter};
 /// assert!(!has_three_length.matches(&&vec[1..]));
 ///
 /// ```
-pub trait ArgMatcher<Arg>: fmt::Display {
+pub trait ArgMatcher<Arg: ?Sized>: fmt::Display {
     /// Checks if the argument matches the determined expectation.
     ///
     /// ```

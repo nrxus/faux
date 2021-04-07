@@ -19,6 +19,7 @@ impl<F> fmt::Display for Custom<F> {
     }
 }
 
+#[doc(hidden)]
 pub fn from_fn<Arg>(
     matcher: impl Fn(&Arg) -> bool,
     message: impl fmt::Display,
