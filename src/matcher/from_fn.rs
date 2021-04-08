@@ -40,8 +40,12 @@ where
 /// Returns an [`ArgMatcher`] that succeeds based on the provided
 /// closure.
 ///
-/// The returned `Argmatcher` implements `Display` using the string
-/// representation of the closure.
+/// The returned `Argmatcher` implements [`fmt::Display`] using the
+/// string representation of the closure.
+///
+/// This is only meant to be used for simple closures. For complex
+/// argument matching implement your own [`ArgMatcher`] to make the
+/// expectation message more specific and less verbose.
 ///
 /// ```
 /// use faux::{from_fn, matcher::ArgMatcher};
@@ -60,12 +64,15 @@ macro_rules! from_fn {
 
 /// Returns an [`ArgMatcher`] that succeeds if the pattern matches
 ///
-/// The returned `Argmatcher` implements `Display` using the string
-/// representation of pattern.
+/// The returned `Argmatcher` implements [`fmt::Display`] using the
+/// string representation of pattern.
 ///
-/// This macro has two forms: `pattern!(pattern)` and `pattern!(type
-/// => pattern)`. Use the latter to be specific about the type being
-/// matched against.
+/// This macro has two forms:
+/// * `pattern!(pattern)`
+/// * `pattern!(type => pattern)`
+///
+/// Use the latter to be specific about the type being matched
+/// against.
 ///
 /// ```
 /// use faux::{pattern, matcher::ArgMatcher};

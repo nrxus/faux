@@ -854,20 +854,26 @@ pub use faux_macros::methods;
 ///
 /// // `_ == {expr}` to test equality of different types
 /// // `*_ == {expr}` to dereference an argument before matching
-/// faux::when!(
-///     my_struct.my_method(*_ == OtherNumber(5), _ == OtherNumber(20))
-/// ).then_return(8);
+/// faux::when!(my_struct.my_method(
+///     *_ == OtherNumber(5),
+///     _ == OtherNumber(20),
+/// )).then_return(8);
 /// assert_eq!(my_struct.my_method(&5, 20), 8);
 ///
 /// // `_ = {matcher}` will pass the matcher to `with_args` as written
 /// // `*_ = {matcher}` will match against a dereferenced argument
-/// faux::when!(
-///     my_struct.my_method(
-///         *_ = faux::matcher::eq_against(OtherNumber(4)),
-///          _ = faux::matcher::eq(9)
-///     )
-/// ).then_return(20);
+/// faux::when!(my_struct.my_method(
+///     *_ = faux::matcher::eq_against(OtherNumber(4)),
+///     _ = faux::matcher::eq(9),
+/// )).then_return(20);
 /// assert_eq!(my_struct.my_method(&4, 9), 20);
+///
+/// // pattern! and from_fn! are allowed just as any other matcher
+/// faux::when!(my_struct.my_method(
+///     *_ = faux::pattern!(10..=20),
+///     _ = faux::from_fn!(|arg: &i32| *arg > 50),
+/// )).then_return(80);
+/// assert_eq!(my_struct.my_method(&11, 60), 80);
 /// # }
 ///
 /// ```
