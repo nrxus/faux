@@ -9,6 +9,29 @@ use super::ArgMatcher;
 ///
 /// This trait is implemented for tuples of [`ArgMatcher`] of up to ten
 /// elements.
+///
+/// # Examples
+///
+/// ## Simple
+///
+/// ```
+/// use faux::matcher::{self, InvocationMatcher};
+///
+/// let matcher = (matcher::eq(5), matcher::any());
+/// assert!(matcher.matches(&(5, "hello")).is_ok());
+/// assert!(matcher.matches(&(3, "hello")).is_err());
+/// ```
+///
+/// ## Single argument
+///
+/// ```
+/// use faux::matcher::{self, InvocationMatcher};
+///
+/// // single arg matchers are wrapped in a tuple
+/// // note the extra comma to denote it is a tuple
+/// let matcher = (matcher::eq(20),);
+/// assert!(matcher.matches(&20).is_ok());
+/// ```
 pub trait InvocationMatcher<Args> {
     /// Returns `Ok(())` when all arguments match.
     ///
