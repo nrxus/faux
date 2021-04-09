@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## NEXT
+## v0.0.10
 * Allow autoderiving `Default` on structs tagged by `#[create]`
   * Only allowed if the real instance implements `Default`
 * Add `pattern!` and `from_fn!` macros to create matchers out of

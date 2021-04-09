@@ -1,6 +1,6 @@
 [package]
 name = "faux_macros"
-version = "0.0.9"
+version = "0.0.10"
 authors = ["Andres <andresnrx@gmail.com>"]
 edition = "2018"
 license = "MIT"

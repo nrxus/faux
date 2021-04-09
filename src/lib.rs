@@ -29,7 +29,7 @@
 //!
 //! ```toml
 //! [dev-dependencies]
-//! faux = "0.0.9"
+//! faux = "0.0.10"
 //! ```
 //!
 //! # Examples
