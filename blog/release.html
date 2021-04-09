@@ -273,7 +273,7 @@ would be both slow and unreliable. This means we need two different
 implementations of <code>NetworkClient</code>: one for tests, and one for
 production. Using a common trait for the two implementations, we could
 write the following:</p>
-<pre><pre class="playground"><code class="language-rust">trait INetworkClient {
+<pre><pre class="playground"><code class="language-rust">trait TNetworkClient {
     fn fetch_id_matching(&amp;self, a: u32) -&gt; i32;
 }
 
@@ -281,18 +281,18 @@ struct NetworkClient {
     /* data here */
 }
 
-impl INetworkClient for NetworkClient {
+impl TNetworkClient for NetworkClient {
     fn fetch_id_matching(&amp;self, a: u32) -&gt; i32 {
         /* does some complicated stuff, maybe network calls */
 <span class="boring">        5
 </span>    }
 }
 
-struct Service&lt;C: INetworkClient&gt; {
+struct Service&lt;C: TNetworkClient&gt; {
     client: C,
 }
 
-impl&lt;C: INetworkClient&gt; Service&lt;C&gt; {
+impl&lt;C: TNetworkClient&gt; Service&lt;C&gt; {
     fn do_stuff(&amp;self) -&gt; i32 {
         self.client.fetch_id_matching(3)
     }
@@ -305,7 +305,7 @@ struct MockNetworkClient {
 }
 
 #[cfg(test)]
-impl INetworkClient for MockNetworkClient {
+impl TNetworkClient for MockNetworkClient {
     fn fetch_id_matching(&amp;self, a: u32) -&gt; i32 {
         self.mocked_fetch_id_matching_argument.set(a);
         self.mocked_fetch_id_matching_result
@@ -317,7 +317,7 @@ impl INetworkClient for MockNetworkClient {
 </span><span class="boring">    mocked_fetch_id_matching_argument: std::cell::Cell&lt;u32&gt;,
 </span><span class="boring">}
 </span><span class="boring">
-</span><span class="boring">impl INetworkClient for MockNetworkClient {
+</span><span class="boring">impl TNetworkClient for MockNetworkClient {
 </span><span class="boring">    fn fetch_id_matching(&amp;self, a: u32) -&gt; i32 {
 </span><span class="boring">        self.mocked_fetch_id_matching_argument.set(a);
 </span><span class="boring">        self.mocked_fetch_id_matching_result
@@ -360,8 +360,8 @@ accommodate our <em>tests</em>, not because this is a better design but
 because of testing requirements. Tests should <em>guide</em> the design of
 your code without forcing undue complexity that only benefits the
 tests. Now, every user of <code>Service</code> needs to explicitly call out the
-<code>INetworkClient</code> trait, thus cluttering the function/struct signature
-of anything dealing with <code>Service</code>. Furthermore, the <code>INetworkClient</code>
+<code>TNetworkClient</code> trait, thus cluttering the function/struct signature
+of anything dealing with <code>Service</code>. Furthermore, the <code>TNetworkClient</code>
 trait is an unnecessary layer of abstraction for your production code,
 which only uses one implementation of the trait.</p>
 <p>While the code above is a simple example, imagine having to add mock
