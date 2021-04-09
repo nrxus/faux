@@ -140,7 +140,7 @@ production. Using a common trait for the two implementations, we could
 write the following:
 
 ```rust
-trait INetworkClient {
+trait TNetworkClient {
     fn fetch_id_matching(&self, a: u32) -> i32;
 }
 
@@ -148,18 +148,18 @@ struct NetworkClient {
     /* data here */
 }
 
-impl INetworkClient for NetworkClient {
+impl TNetworkClient for NetworkClient {
     fn fetch_id_matching(&self, a: u32) -> i32 {
         /* does some complicated stuff, maybe network calls */
         # 5
     }
 }
 
-struct Service<C: INetworkClient> {
+struct Service<C: TNetworkClient> {
     client: C,
 }
 
-impl<C: INetworkClient> Service<C> {
+impl<C: TNetworkClient> Service<C> {
     fn do_stuff(&self) -> i32 {
         self.client.fetch_id_matching(3)
     }
@@ -172,7 +172,7 @@ struct MockNetworkClient {
 }
 
 #[cfg(test)]
-impl INetworkClient for MockNetworkClient {
+impl TNetworkClient for MockNetworkClient {
     fn fetch_id_matching(&self, a: u32) -> i32 {
         self.mocked_fetch_id_matching_argument.set(a);
         self.mocked_fetch_id_matching_result
@@ -184,7 +184,7 @@ impl INetworkClient for MockNetworkClient {
 #     mocked_fetch_id_matching_argument: std::cell::Cell<u32>,
 # }
 #
-# impl INetworkClient for MockNetworkClient {
+# impl TNetworkClient for MockNetworkClient {
 #     fn fetch_id_matching(&self, a: u32) -> i32 {
 #         self.mocked_fetch_id_matching_argument.set(a);
 #         self.mocked_fetch_id_matching_result
@@ -228,8 +228,8 @@ accommodate our *tests*, not because this is a better design but
 because of testing requirements. Tests should *guide* the design of
 your code without forcing undue complexity that only benefits the
 tests. Now, every user of `Service` needs to explicitly call out the
-`INetworkClient` trait, thus cluttering the function/struct signature
-of anything dealing with `Service`. Furthermore, the `INetworkClient`
+`TNetworkClient` trait, thus cluttering the function/struct signature
+of anything dealing with `Service`. Furthermore, the `TNetworkClient`
 trait is an unnecessary layer of abstraction for your production code,
 which only uses one implementation of the trait.
 
