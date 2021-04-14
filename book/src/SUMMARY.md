@@ -22,6 +22,6 @@
 
 ---------------------------------------------
 
-[introducing faux](./blog/release.md)
-[an inside look](./blog/how-it-works.md)
-[first beta](./blog/first-beta.md)
+[introducing faux](./blog/introducing-faux.md)
+[an inside look](./blog/an-inside-look.md)
+[landing v0.1](./blog/landing-v-0-1.md)

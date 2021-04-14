@@ -1,4 +1,4 @@
-# 🪂 faux - landing v0.1 🪂
+# 🪂 landing v0.1 🪂
 
 faux is a library to create mocks out of structs. faux allows you to
 mock the methods of structs for testing without complicating or
