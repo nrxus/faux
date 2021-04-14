@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>faux - faux</title>
+        <title>Motivation - faux</title>
         
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
@@ -81,7 +81,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="faux.html">faux</a></li><li class="chapter-item expanded affix "><a href="motivation.html">Motivation</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Getting Started</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">1.1.</strong> Install</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.2.</strong> Your First Mock</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Mock Expectations</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.</strong> Mock Behavior</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Argument matching</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">4.1.</strong> Equality</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.2.</strong> Any</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.3.</strong> Pattern</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.4.</strong> Custom closure</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.5.</strong> Advanced</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Pointer Receivers</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Interactions With Other Macros</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> External modules</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Exporting your mocks</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Unsafe uses</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="blog/release.html">introducing faux</a></li><li class="chapter-item expanded affix "><a href="blog/how-it-works.html">an inside look</a></li><li class="chapter-item expanded affix "><a href="blog/first-beta.html">first beta</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="faux.html">faux</a></li><li class="chapter-item expanded affix "><a href="motivation.html" class="active">Motivation</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Getting Started</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">1.1.</strong> Install</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.2.</strong> Your First Mock</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Mock Expectations</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.</strong> Mock Behavior</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Argument matching</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">4.1.</strong> Equality</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.2.</strong> Any</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.3.</strong> Pattern</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.4.</strong> Custom closure</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.5.</strong> Advanced</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Pointer Receivers</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Interactions With Other Macros</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> External modules</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Exporting your mocks</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Unsafe uses</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="blog/release.html">introducing faux</a></li><li class="chapter-item expanded affix "><a href="blog/how-it-works.html">an inside look</a></li><li class="chapter-item expanded affix "><a href="blog/first-beta.html">first beta</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -148,35 +148,47 @@
 
                 <div id="content" class="content">
                     <main>
-                        <p><em>This guide is incomplete and in active development. Visit the <a href="https://docs.rs/faux/">API
-docs</a> for an accurate view into faux</em></p>
-<h1 id="faux"><a class="header" href="#faux">faux</a></h1>
-<p><strong>faux</strong> is a library to create <a href="https://martinfowler.com/articles/mocksArentStubs.html">mocks</a> out of structs.</p>
-<p>With faux you can stub the behavior of your structs during tests, thus
-allowing you to write readable and maintainable unit tests.</p>
+                        <h1 id="motivation"><a class="header" href="#motivation">Motivation</a></h1>
+<p>faux was created with the purpose of simplifying mocking in Rust.</p>
+<h2 id="no-undue-abstractions"><a class="header" href="#no-undue-abstractions">No undue abstractions</a></h2>
+<p>A typical technique for mocking in Rust is to use generics to provide
+a real implementation in production and a fake implementation in
+tests. Adding these generics create a layer of abstraction that is not
+necessery outside of tests. Abstractions are not free. Abstractions
+affect the readability and maintainability of your code so its cost
+needs to be outweighed by its benefits. In this case the benefit is
+only testability thus making it an undue burden.</p>
+<p>It is the author's belief that writing traits solely for testing are
+an undue burden and create an unnecessary layer of abstraction.</p>
+<p>In comparison, faux works by changing the implementation of a struct
+at compile time. These changes should be gated to only apply during
+tests, thus having zero effect in your production code. The goal of
+faux is to allow you to create mocks out of your existing code without
+forcing you write unnecessary abstractions.</p>
+<h2 id="mocking-behavior"><a class="header" href="#mocking-behavior">Mocking behavior</a></h2>
+<p>faux is designed to mock <em>visibile behavior</em>. In Rust terms, faux is
+designed to mock <em>pubic methods</em>. Private methods are not visible and
+thus not mockable using faux. Fields of a struct are not behavior and
+thus not mockable using faux.</p>
 <blockquote>
-<p>Mocking is a powerful technique to write repeatable <strong>unit</strong>
-tests. Mocks let you focus on a particular system or component by
-mocking the dependencies underneath that may be hard or not valuable
-to setup in your unit tests. These kind of tests are not meant to
-replace higher level tests that would verify the correctness of your
-application as a whole.</p>
+<p>Free functions and associated functions are behavior but are not
+currently supported by faux. faux's current focus is object mocking,
+but functions may come in the future. Submit an issue if you wish to
+see function mocking so its relative priority can be known.</p>
 </blockquote>
-<p>This book is split into two sections: a guide for using faux, and an
-appendix of blog posts regarding faux.</p>
-<h2 id="more-information"><a class="header" href="#more-information">More Information</a></h2>
-<p>For a deeper dive into the api of faux, you can read the <a href="https://docs.rs/faux/">API
-docs</a>. faux is open source and it is available under an MIT License in
-<a href="https://github.com/nrxus/faux/">github</a>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
+                            <a rel="prev" href="faux.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
 
                         
-                            <a rel="next" href="motivation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="blog/release.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -188,9 +200,13 @@ docs</a>. faux is open source and it is available under an MIT License in
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
+                    <a href="faux.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
 
                 
-                    <a href="motivation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a href="blog/release.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 

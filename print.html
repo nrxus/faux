@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="blog/release.html">faux - introducing faux</a></li><li class="chapter-item expanded affix "><a href="blog/how-it-works.html">faux - an inside look</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="faux.html">faux</a></li><li class="chapter-item expanded affix "><a href="motivation.html">Motivation</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Getting Started</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">1.1.</strong> Install</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.2.</strong> Your First Mock</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Mock Expectations</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.</strong> Mock Behavior</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Argument matching</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">4.1.</strong> Equality</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.2.</strong> Any</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.3.</strong> Pattern</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.4.</strong> Custom closure</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.5.</strong> Advanced</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Pointer Receivers</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Interactions With Other Macros</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> External modules</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Exporting your mocks</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Unsafe uses</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="blog/release.html">introducing faux</a></li><li class="chapter-item expanded affix "><a href="blog/how-it-works.html">an inside look</a></li><li class="chapter-item expanded affix "><a href="blog/first-beta.html">first beta</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -150,7 +150,55 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="--introducing-faux--"><a class="header" href="#--introducing-faux--">🎉 🎉 Introducing faux 🎉 🎉</a></h1>
+                        <p><em>This guide is incomplete and in active development. Visit the <a href="https://docs.rs/faux/">API
+docs</a> for an accurate view into faux</em></p>
+<h1 id="faux"><a class="header" href="#faux">faux</a></h1>
+<p><strong>faux</strong> is a library to create <a href="https://martinfowler.com/articles/mocksArentStubs.html">mocks</a> out of structs.</p>
+<p>With faux you can stub the behavior of your structs during tests, thus
+allowing you to write readable and maintainable unit tests.</p>
+<blockquote>
+<p>Mocking is a powerful technique to write repeatable <strong>unit</strong>
+tests. Mocks let you focus on a particular system or component by
+mocking the dependencies underneath that may be hard or not valuable
+to setup in your unit tests. These kind of tests are not meant to
+replace higher level tests that would verify the correctness of your
+application as a whole.</p>
+</blockquote>
+<p>This book is split into two sections: a guide for using faux, and an
+appendix of blog posts regarding faux.</p>
+<h2 id="more-information"><a class="header" href="#more-information">More Information</a></h2>
+<p>For a deeper dive into the api of faux, you can read the <a href="https://docs.rs/faux/">API
+docs</a>. faux is open source and it is available under an MIT License in
+<a href="https://github.com/nrxus/faux/">github</a>.</p>
+<h1 id="motivation"><a class="header" href="#motivation">Motivation</a></h1>
+<p>faux was created with the purpose of simplifying mocking in Rust.</p>
+<h2 id="no-undue-abstractions"><a class="header" href="#no-undue-abstractions">No undue abstractions</a></h2>
+<p>A typical technique for mocking in Rust is to use generics to provide
+a real implementation in production and a fake implementation in
+tests. Adding these generics create a layer of abstraction that is not
+necessery outside of tests. Abstractions are not free. Abstractions
+affect the readability and maintainability of your code so its cost
+needs to be outweighed by its benefits. In this case the benefit is
+only testability thus making it an undue burden.</p>
+<p>It is the author's belief that writing traits solely for testing are
+an undue burden and create an unnecessary layer of abstraction.</p>
+<p>In comparison, faux works by changing the implementation of a struct
+at compile time. These changes should be gated to only apply during
+tests, thus having zero effect in your production code. The goal of
+faux is to allow you to create mocks out of your existing code without
+forcing you write unnecessary abstractions.</p>
+<h2 id="mocking-behavior"><a class="header" href="#mocking-behavior">Mocking behavior</a></h2>
+<p>faux is designed to mock <em>visibile behavior</em>. In Rust terms, faux is
+designed to mock <em>pubic methods</em>. Private methods are not visible and
+thus not mockable using faux. Fields of a struct are not behavior and
+thus not mockable using faux.</p>
+<blockquote>
+<p>Free functions and associated functions are behavior but are not
+currently supported by faux. faux's current focus is object mocking,
+but functions may come in the future. Submit an issue if you wish to
+see function mocking so its relative priority can be known.</p>
+</blockquote>
+<h1 id="--introducing-faux--"><a class="header" href="#--introducing-faux--">🎉 🎉 Introducing faux 🎉 🎉</a></h1>
 <h2 id="what-is-faux"><a class="header" href="#what-is-faux">What is faux?</a></h2>
 <p><a href="https://github.com/nrxus/faux"><code>faux</code></a> is a traitless Rust mocking framework for creating mock
 objects out of user-defined structs.</p>
@@ -953,6 +1001,183 @@ clear, feel free to submit an issue or PR to <a href="https://github.com/nrxus/f
 lives there as a GitHub page. I will do my best to clarify or to
 update the blog.</p>
 <p>Feedback is always appreciated. Happy mocking!</p>
+<h1 id="-faux---landing-v01-"><a class="header" href="#-faux---landing-v01-">🪂 faux - landing v0.1 🪂</a></h1>
+<p>faux is a library to create mocks out of structs. faux allows you to
+mock the methods of structs for testing without complicating or
+polluting your code. This post is about the road to a beta version
+over the past year. To get started on faux, jump over to its
+<a href="https://github.com/nrxus/faux/">repo</a> and
+<a href="https://docs.rs/faux/">documentation</a>!</p>
+<h2 id="towards-stability"><a class="header" href="#towards-stability">Towards stability</a></h2>
+<p>The first release of faux came with this warning:</p>
+<blockquote>
+<p>faux is in its early alpha stages, so there are no guarantees of API
+stability.</p>
+</blockquote>
+<p>faux has stayed in this stage for over a year, releasing only in the
+<code>0.0.x</code> range. This allowed faux to experiment and do breaking changes
+for the sake of of a better, more usable, API. This was great as an
+author as it allowed for a lot of flexibility. However, part of the
+usability of a library is its stability. In order to commit to a
+(slightly) more stable API, a <code>0.1</code> version is being released. The
+goal is for faux to still have the flexibility to experiment while
+giving users the choice on whether they will take only non-breaking
+releases, or if they have the time to upgrade to a release with some
+breaking changes.</p>
+<h2 id="what-is-new"><a class="header" href="#what-is-new">What is new</a></h2>
+<p>A lot has changed over the past year for faux. In this post let's focus on:</p>
+<ul>
+<li>Argument matchers</li>
+<li>Mocking without closures</li>
+<li>Safe interface</li>
+</ul>
+<p>To demonstrate here is some test code from a year ago using faux:</p>
+<pre><pre class="playground"><code class="language-rust">#[test]
+fn bus_stops() {
+    // creates a mock for bus::Client
+    let mut bus_client = bus::Client::faux();
+
+    let expected_stops = vec![bus::StopInfo {
+        id: String::from(&quot;1_1234&quot;),
+        direction: String::from(&quot;N&quot;),
+        name: String::from(&quot;some bus&quot;),
+        lat: 34.3199,
+        lon: 23.12005,
+    }];
+
+    // unsafe because mocks with references as inputs required them
+    unsafe {
+        when!(bus_client.stops).then(|q| {
+            // manually assert that it was the expected input
+            assert_eq!(
+                *q,
+                bus::StopsQuery {
+                    lat: 34.32,
+                    lon: 23.12,
+                    lat_span: 0.002,
+                    lon_span: 0.0005,
+                    max_count: 20,
+                }
+            );
+            // we are always returning the same data so a closure is overkill
+            Ok(expected_stops.clone())
+        })
+    }
+
+     /* snip */
+<span class="boring">    let area = Area {
+</span><span class="boring">        lat: 34.32,
+</span><span class="boring">        lon: 23.12,
+</span><span class="boring">        lat_span: 0.002,
+</span><span class="boring">        lon_span: 0.0005,
+</span><span class="boring">        limit: None,
+</span><span class="boring">    };
+</span><span class="boring">
+</span><span class="boring">    let subject = Client::new(seattle_crime::Service::faux(), bus_client);
+</span><span class="boring">
+</span><span class="boring">    let actual_stops = subject
+</span><span class="boring">        .bus_stops(&amp;area)
+</span><span class="boring">        .expect(&quot;expected a succesful bus stop response&quot;);
+</span><span class="boring">
+</span><span class="boring">    assert_eq!(actual_stops, expected_stops);
+</span>}
+<span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>There are two major issues with the test above, as far as faux is
+concerned.</p>
+<ol>
+<li>Whenever any argument of a method was a reference, faux only
+allowed mocking it through the use of <code>unsafe</code>. This meant that
+even the simplest of mockings required users to wrap their mocks in
+<code>unsafe</code>.</li>
+<li>faux did not have a way to mock only for specific arguments. This
+meant that even for simple cases of pure equality checking, it had
+to be written in a very manual way.</li>
+<li>faux did not have a way to mock just the return value. This meant
+having to always pass a closure to mock the implementation when in
+reality passing a value would be easier and more ergonomic.</li>
+</ol>
+<p>Now let's look at this same test today:</p>
+<pre><pre class="playground"><code class="language-rust">#[test]
+fn bus_stops() {
+    let mut bus_client = bus::Client::faux();
+
+    let expected_stops = vec![bus::StopInfo {
+        id: String::from(&quot;1_1234&quot;),
+        direction: String::from(&quot;N&quot;),
+        name: String::from(&quot;some bus&quot;),
+        lat: 34.3199,
+        lon: 23.12005,
+    }];
+
+    // no more `unsafe` for mocking methods with references as arguments
+    // when! supports argument matching
+    when!(bus_client.stops(bus::StopsQuery {
+        lat: 34.32,
+        lon: 23.12,
+        lat_span: 0.002,
+        lon_span: 0.0005,
+        max_count: 20,
+    }))
+    // for simple cases we can just mock the return value
+    .then_return(Ok(expected_stops.clone()));
+
+    /* snip */
+<span class="boring">    let area = Area {
+</span><span class="boring">        lat: 34.32,
+</span><span class="boring">        lon: 23.12,
+</span><span class="boring">        lat_span: 0.002,
+</span><span class="boring">        lon_span: 0.0005,
+</span><span class="boring">        limit: None,
+</span><span class="boring">    };
+</span><span class="boring">
+</span><span class="boring">    let subject = Client::new(seattle_crime::Service::faux(), bus_client);
+</span><span class="boring">
+</span><span class="boring">    let actual_stops = subject
+</span><span class="boring">        .bus_stops(&amp;area)
+</span><span class="boring">        .expect(&quot;expected a succesful bus stop response&quot;);
+</span><span class="boring">
+</span><span class="boring">    assert_eq!(actual_stops, expected_stops);
+</span>}
+<span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>We can see how we have now addressed all three of the issues:</p>
+<ol>
+<li>Mocking methods with references as arguments is no longer unsafe.</li>
+<li><code>when!</code> now supports passing argument matchers.</li>
+<li><code>then_return!</code> was added to stub just the return values for the
+simple cases</li>
+</ol>
+<p>For more information about the supported argument matchers see the
+<a href="https://docs.rs/faux/0.0.10/faux/macro.when.html">docs</a>.</p>
+<h2 id="what-is-next"><a class="header" href="#what-is-next">What is next</a></h2>
+<p>While faux is committing to a more stable api, this does not imply
+that features will stop coming! As a user of faux, my personal biggest
+feature request to myself is mock verification. In general, testing
+outputs is always preferred to testing side effects as the latter are
+more tied to the implementation. However, there are certain cases
+where you really just want a side effect and faux should allow
+verifying of those methods. That being said, a lot of the features in
+faux today came from people posting issues/PRs, so feel free to look
+through the current <a href="https://github.com/nrxus/faux/issues">issues</a> and
+commenting on any that would greatly help your testing experience if
+addressed. If there is anything not listed there, please submit an
+issue so I can see what other features are missing and needed.</p>
+<h2 id="contributions"><a class="header" href="#contributions">Contributions</a></h2>
+<p>Over the past year faux has had multiple contributors, creating
+issues and PRs to help drive the direction of faux and point out any
+paper cuts that needed work. A huge thanks to:</p>
+<ul>
+<li><a href="https://github.com/muscovite">@muscovite</a></li>
+<li><a href="https://github.com/TedDriggs">@TedDriggs</a></li>
+<li><a href="https://github.com/Wesmania">@Wesmania</a></li>
+<li><a href="https://github.com/sazzer">@sazzer</a></li>
+<li><a href="https://github.com/kungfucop">@kungfucop</a></li>
+<li><a href="https://github.com/audunhalland">@audunhalland</a></li>
+<li><a href="https://github.com/wcampbell0x2a">@wcampbell0x2a</a></li>
+<li><a href="https://github.com/pickfire">@pickfire</a></li>
+</ul>
+<p>for taking your time to contribute to faux.</p>
 
                     </main>
 
