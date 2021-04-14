@@ -16,11 +16,11 @@ jobs:
         with:
           mdbook-version: 'latest'
 
-      - run: mdbook build ./blog
+      - run: mdbook build ./book
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v2
         env:
           PERSONAL_TOKEN: ${{ secrets.GH_PAT }}
           PUBLISH_BRANCH: gh-pages
-          PUBLISH_DIR: ./blog/book
+          PUBLISH_DIR: ./book/book
