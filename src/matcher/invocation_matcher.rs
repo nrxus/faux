@@ -3,7 +3,7 @@ use paste::paste;
 
 use super::ArgMatcher;
 
-/// Matcher for invocation of a method.
+/// Matcher for the invocation of a method.
 ///
 /// Implementors provide an expectation for each method argument.
 ///
@@ -27,8 +27,8 @@ use super::ArgMatcher;
 /// ```
 /// use faux::matcher::{self, InvocationMatcher};
 ///
-/// // single arg matchers are wrapped in a tuple
-/// // note the extra comma to denote it is a tuple
+/// // note that single arg matchers are wrapped in a tuple
+/// // don't forget the trailing comma to denote it is a tuple
 /// let matcher = (matcher::eq(20),);
 /// assert!(matcher.matches(&20).is_ok());
 /// ```

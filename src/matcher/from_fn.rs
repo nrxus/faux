@@ -37,15 +37,14 @@ where
     }
 }
 
-/// Returns an [`ArgMatcher`] that succeeds based on the provided
-/// closure.
+/// Returns an [`ArgMatcher`] that succeeds if the provided closure
+/// returns `true`.
 ///
 /// The returned `Argmatcher` implements [`fmt::Display`] using the
-/// string representation of the closure.
-///
-/// This is only meant to be used for simple closures. For complex
-/// argument matching implement your own [`ArgMatcher`] to make the
-/// expectation message more specific and less verbose.
+/// string representation of the closure, so it is only recommended
+/// for use with simple closures. For complex argument matching,
+/// implement your own [`ArgMatcher`] to make the expectation message
+/// more specific and less verbose.
 ///
 /// ```
 /// use faux::{from_fn, matcher::ArgMatcher};
@@ -62,17 +61,18 @@ macro_rules! from_fn {
     };
 }
 
-/// Returns an [`ArgMatcher`] that succeeds if the pattern matches
+/// Returns an [`ArgMatcher`] that succeeds if the provided pattern
+/// matches.
 ///
 /// The returned `Argmatcher` implements [`fmt::Display`] using the
-/// string representation of pattern.
+/// string representation of the pattern.
 ///
 /// This macro has two forms:
 /// * `pattern!(pattern)`
 /// * `pattern!(type => pattern)`
 ///
-/// Use the latter to be specific about the type being matched
-/// against.
+/// Use the latter if you need to be specific about the type being
+/// matched against.
 ///
 /// ```
 /// use faux::{pattern, matcher::ArgMatcher};

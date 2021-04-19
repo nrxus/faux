@@ -15,7 +15,7 @@ impl fmt::Display for Any {
     }
 }
 
-/// Returns an universal argument matcher.
+/// Returns a universal argument matcher.
 ///
 /// The returned matcher will match any `T`
 ///
