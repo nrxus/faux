@@ -7,9 +7,6 @@ complicating or polluting your code.
 
 See the [API docs] for more information.
 
-**faux is in its early alpha stages, so there are no guarantees of API
-stability.**
-
 ## Getting Started
 
 `faux` makes liberal use of unsafe Rust features, so it is only

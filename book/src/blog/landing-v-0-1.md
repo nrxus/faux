@@ -193,3 +193,8 @@ help improve and drive the direction of faux. A huge thanks to:
 * [@pickfire](https://github.com/pickfire)
 
 for the time you spent contributing to faux!
+
+Continue the conversation in
+
+* [reddit](https://www.reddit.com/r/rust/comments/mu2gka/faux_a_struct_mocking_library_landing_v01/)
+* [rust forum](https://users.rust-lang.org/t/faux-a-struct-mocking-library-landing-v0-1/58619)
