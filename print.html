@@ -1002,10 +1002,10 @@ lives there as a GitHub page. I will do my best to clarify or to
 update the blog.</p>
 <p>Feedback is always appreciated. Happy mocking!</p>
 <h1 id="-landing-v01-"><a class="header" href="#-landing-v01-">🪂 landing v0.1 🪂</a></h1>
-<p>faux is a library to create mocks out of structs. faux allows you to
-mock the methods of structs for testing without complicating or
-polluting your code. This post is about the road to a beta version
-over the past year. To get started on faux, jump over to its
+<p>faux is a mocking library that allows you to mock the methods of
+structs for testing without complicating or polluting your code. This
+post is about the road to a beta version over the past year. To get
+started on faux, jump over to its
 <a href="https://github.com/nrxus/faux/">repo</a> and
 <a href="https://docs.rs/faux/">documentation</a>!</p>
 <h2 id="towards-stability"><a class="header" href="#towards-stability">Towards stability</a></h2>
@@ -1015,23 +1015,20 @@ over the past year. To get started on faux, jump over to its
 stability.</p>
 </blockquote>
 <p>faux has stayed in this stage for over a year, releasing only in the
-<code>0.0.x</code> range. This allowed faux to experiment and do breaking changes
-for the sake of of a better, more usable, API. This was great as an
-author as it allowed for a lot of flexibility. However, part of the
-usability of a library is its stability. In order to commit to a
-(slightly) more stable API, a <code>0.1</code> version is being released. The
-goal is for faux to still have the flexibility to experiment while
-giving users the choice on whether they will take only non-breaking
-releases, or if they have the time to upgrade to a release with some
-breaking changes.</p>
+<code>0.0.x</code> range. This allowed faux to experiment and make breaking
+changes for the sake of of a better, more usable, API. However, part
+of the usability of a library is its stability. The new <code>0.1</code> release
+marks the beginning of a more stable API. Now, users can choose to
+only take non-breaking changes while faux still has the flexibility to
+experiment in a more controlled manner.</p>
 <h2 id="what-is-new"><a class="header" href="#what-is-new">What is new</a></h2>
-<p>A lot has changed over the past year for faux. In this post let's focus on:</p>
+<p>A lot has changed over the past year for faux. This post focuses on:</p>
 <ul>
 <li>Argument matchers</li>
 <li>Mocking without closures</li>
 <li>Safe interface</li>
 </ul>
-<p>To demonstrate here is some test code from a year ago using faux:</p>
+<p>To demonstrate, here is some test code that uses faux from a year ago:</p>
 <pre><pre class="playground"><code class="language-rust">#[test]
 fn bus_stops() {
     // creates a mock for bus::Client
@@ -1083,19 +1080,11 @@ fn bus_stops() {
 </span>}
 <span class="boring">fn main() {}
 </span></code></pre></pre>
-<p>There are two major issues with the test above, as far as faux is
-concerned.</p>
+<p>Compared to faux today, there are three major issues with the test above:</p>
 <ol>
-<li>Whenever any argument of a method was a reference, faux only
-allowed mocking it through the use of <code>unsafe</code>. This meant that
-even the simplest of mockings required users to wrap their mocks in
-<code>unsafe</code>.</li>
-<li>faux did not have a way to mock only for specific arguments. This
-meant that even for simple cases of pure equality checking, it had
-to be written in a very manual way.</li>
-<li>faux did not have a way to mock just the return value. This meant
-having to always pass a closure to mock the implementation when in
-reality passing a value would be easier and more ergonomic.</li>
+<li>Even the simplest of mocks requires <code>unsafe</code>.</li>
+<li>Checking expected arguments is verbose.</li>
+<li>No shorthand to mock the return value without a closure.</li>
 </ol>
 <p>Now let's look at this same test today:</p>
 <pre><pre class="playground"><code class="language-rust">#[test]
@@ -1141,32 +1130,39 @@ fn bus_stops() {
 </span>}
 <span class="boring">fn main() {}
 </span></code></pre></pre>
-<p>We can see how we have now addressed all three of the issues:</p>
+<p>The three issues mentioned above have all been addressed:</p>
 <ol>
 <li>Mocking methods with references as arguments is no longer unsafe.</li>
 <li><code>when!</code> now supports passing argument matchers.</li>
-<li><code>then_return!</code> was added to stub just the return values for the
-simple cases</li>
+<li><code>then_return!</code> was added to mock just the return values for simple
+cases</li>
 </ol>
-<p>For more information about the supported argument matchers see the
+<p>For more information about the supported argument matchers, see the
 <a href="https://docs.rs/faux/0.0.10/faux/macro.when.html">docs</a>.</p>
-<h2 id="what-is-next"><a class="header" href="#what-is-next">What is next</a></h2>
-<p>While faux is committing to a more stable api, this does not imply
-that features will stop coming! As a user of faux, my personal biggest
-feature request to myself is mock verification. In general, testing
-outputs is always preferred to testing side effects as the latter are
-more tied to the implementation. However, there are certain cases
-where you really just want a side effect and faux should allow
-verifying of those methods. That being said, a lot of the features in
-faux today came from people posting issues/PRs, so feel free to look
-through the current <a href="https://github.com/nrxus/faux/issues">issues</a> and
-commenting on any that would greatly help your testing experience if
-addressed. If there is anything not listed there, please submit an
-issue so I can see what other features are missing and needed.</p>
+<h2 id="whats-next"><a class="header" href="#whats-next">What's next</a></h2>
+<h3 id="guide"><a class="header" href="#guide">Guide</a></h3>
+<p>As the API surface of faux grows, it has become evident that a
+<a href="blog/../faux.html">guide</a> (WIP) is necessary to cover topics not
+appropriate for the API docs. I welcome
+<a href="blog/(https://github.com/nrxus/faux/issues/38)">suggestions</a> on content
+that should be covered by the guide.</p>
+<h3 id="call-verification"><a class="header" href="#call-verification">Call Verification</a></h3>
+<p>Speaking as a user of faux, my personal biggest feature request is
+call verification. In general, testing outputs is preferable to
+testing side effects, as the latter are more tied to implementation
+details. However, there <em>are</em> certain cases where you would want to
+verify a side effect, so faux should support this.</p>
+<h3 id="existing-issues"><a class="header" href="#existing-issues">Existing issues</a></h3>
+<p>A lot of the features that exist in faux today came from people
+posting issues/PRs. Please feel free to look through the current
+<a href="https://github.com/nrxus/faux/issues">issues</a> and comment on any that
+would greatly help your testing experience if addressed.</p>
+<h3 id="new-issues"><a class="header" href="#new-issues">New issues</a></h3>
+<p>If you have any feature requests that are not covered by existing
+issues, please submit a new issue.</p>
 <h2 id="contributions"><a class="header" href="#contributions">Contributions</a></h2>
-<p>Over the past year faux has had multiple contributors, creating
-issues and PRs to help drive the direction of faux and point out any
-paper cuts that needed work. A huge thanks to:</p>
+<p>Over the past year, multiple contributors submitted issues and PRs to
+help improve and drive the direction of faux. A huge thanks to:</p>
 <ul>
 <li><a href="https://github.com/muscovite">@muscovite</a></li>
 <li><a href="https://github.com/TedDriggs">@TedDriggs</a></li>
@@ -1177,7 +1173,7 @@ paper cuts that needed work. A huge thanks to:</p>
 <li><a href="https://github.com/wcampbell0x2a">@wcampbell0x2a</a></li>
 <li><a href="https://github.com/pickfire">@pickfire</a></li>
 </ul>
-<p>for taking your time to contribute to faux.</p>
+<p>for the time you spent contributing to faux!</p>
 
                     </main>
 
