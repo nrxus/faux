@@ -146,7 +146,7 @@ The three issues mentioned above have all been addressed:
    cases
 
 For more information about the supported argument matchers, see the
-[docs](https://docs.rs/faux/0.0.10/faux/macro.when.html).
+[docs](https://docs.rs/faux/0.1.0/faux/macro.when.html).
 
 ## What's next
 

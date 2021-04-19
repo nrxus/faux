@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1
+* No api changes
+
 ## v0.0.10
 * Allow autoderiving `Default` on structs tagged by `#[create]`
   * Only allowed if the real instance implements `Default`
