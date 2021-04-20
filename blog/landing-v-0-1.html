@@ -168,7 +168,7 @@ of the usability of a library is its stability. The new <code>0.1</code> release
 marks the beginning of a more stable API. Now, users can choose to
 only take non-breaking changes while faux still has the flexibility to
 experiment in a more controlled manner.</p>
-<h2 id="what-is-new"><a class="header" href="#what-is-new">What is new</a></h2>
+<h2 id="the-old-faux"><a class="header" href="#the-old-faux">The old faux</a></h2>
 <p>A lot has changed over the past year for faux. This post focuses on:</p>
 <ul>
 <li>Argument matchers</li>
@@ -233,6 +233,7 @@ fn bus_stops() {
 <li>Checking expected arguments is verbose.</li>
 <li>No shorthand to mock the return value without a closure.</li>
 </ol>
+<h2 id="the-new-faux"><a class="header" href="#the-new-faux">The new faux</a></h2>
 <p>Now let's look at this same test today:</p>
 <pre><pre class="playground"><code class="language-rust">#[test]
 fn bus_stops() {
@@ -277,7 +278,7 @@ fn bus_stops() {
 </span>}
 <span class="boring">fn main() {}
 </span></code></pre></pre>
-<p>The three issues mentioned above have all been addressed:</p>
+<p>The issues mentioned in the previous section have all been addressed:</p>
 <ol>
 <li>Mocking methods with references as arguments is no longer unsafe.</li>
 <li><code>when!</code> now supports passing argument matchers.</li>
