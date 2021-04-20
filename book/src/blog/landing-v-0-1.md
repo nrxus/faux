@@ -22,7 +22,7 @@ marks the beginning of a more stable API. Now, users can choose to
 only take non-breaking changes while faux still has the flexibility to
 experiment in a more controlled manner.
 
-## What is new
+## The old faux
 
 A lot has changed over the past year for faux. This post focuses on:
 
@@ -91,6 +91,8 @@ Compared to faux today, there are three major issues with the test above:
 2. Checking expected arguments is verbose.
 3. No shorthand to mock the return value without a closure.
 
+## The new faux
+
 Now let's look at this same test today:
 
 
@@ -139,7 +141,7 @@ fn bus_stops() {
 # fn main() {}
 ```
 
-The three issues mentioned above have all been addressed:
+The issues mentioned in the previous section have all been addressed:
 1. Mocking methods with references as arguments is no longer unsafe.
 2. `when!` now supports passing argument matchers.
 3. `then_return!` was added to mock just the return values for simple
