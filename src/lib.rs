@@ -107,9 +107,9 @@
 //! ## Mocking the same method multiple times
 //!
 //! A single method can be mocked multiple times. When doing so,
-//! `faux` checks every method in a last-in-first-out fashion until it
-//! finds a mock whose argument matchers match the invocation
-//! arguments.
+//! `faux` checks every mock for the method in a last-in-first-out
+//! fashion until it finds a mock whose argument matchers match the
+//! invocation arguments.
 //!
 //! ```
 //! # #[faux::create]
@@ -213,7 +213,7 @@
 //! fn test() {
 //!   let mut mock = HttpClient::faux();
 //!
-//!   // `unchecked_then()` and `unchecked_then_return()` require unsafe
+//!   // `then_unchecked()` and `then_unchecked_return()` require unsafe
 //!   // they allow mocking methods that return non-static values (e.g. references)
 //!   // or to mock using non-static closures
 //!   let ret = "some-value".to_string();
