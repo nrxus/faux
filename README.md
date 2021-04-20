@@ -109,7 +109,7 @@ attributes should be gated to `#[cfg(test)]`.**
 * Trait methods
 * Generic struct methods
 * Methods with pointer self types (e.g., `self: Rc<Self>`)
-* Methods in external modules
+* Methods in external modules (but not external crates).
 
 `faux` also provides easy-to-use argument matchers.
 
