@@ -76,6 +76,8 @@
 //!       // pass arguments as you would to the original method
 //!       // argument matching is performed using equality checks by default
 //!       // arguments whose values you don't care about can be replaced by `_`
+//!       // faux calls `_` and `headers.clone()`: "argument matchers".
+//!       // see the when! documentation for other kinds of argument matchers
 //!       mock.post(_, headers.clone())
 //!   )
 //!   // mock the return value
