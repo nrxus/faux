@@ -40,9 +40,7 @@ impl Mockable {
                 }
             };
             let vis = &morphed.vis;
-            syn::Fields::Unnamed(
-                syn::parse2(quote! { (#vis faux::MaybeFaux<#wrapped_self>) }).unwrap(),
-            )
+            syn::Fields::Unnamed(syn::parse_quote! { (#vis faux::MaybeFaux<#wrapped_self>) })
         };
 
         Mockable { real, morphed }

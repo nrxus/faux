@@ -47,7 +47,7 @@ impl Receiver {
         self_type: SelfType,
         proxy_real: TokenStream,
         call_mock: TokenStream,
-    ) -> darling::Result<TokenStream> {
+    ) -> darling::Result<syn::Expr> {
         let get_self = match &self.kind {
             SelfKind::Owned
             | SelfKind::Pointer(PointerKind::Ref)
@@ -170,7 +170,7 @@ impl Receiver {
             }
         };
 
-        Ok(quote! {
+        Ok(syn::parse_quote! {
             match #get_self {
                 Self(faux::MaybeFaux::Real(r)) => { #proxy_real },
                 Self(faux::MaybeFaux::Faux(q)) => { #call_mock },

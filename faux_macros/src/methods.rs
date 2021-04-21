@@ -108,12 +108,11 @@ impl Mockable {
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let whens = syn::parse2(quote! {
+        let whens = syn::parse_quote! {
             impl #impl_generics #morphed_ty #where_clause {
                 #(#when_methods) *
             }
-        })
-        .unwrap();
+        };
 
         Ok(Mockable {
             real,
@@ -251,7 +250,5 @@ fn publicize_methods(impl_block: &mut syn::ItemImpl) {
             _ => None,
         })
         .filter(|method| method.vis == syn::Visibility::Inherited)
-        .for_each(|mut method| {
-            method.vis = syn::parse2(quote! { pub(super) }).unwrap();
-        });
+        .for_each(|method| method.vis = syn::parse_quote! { pub(super) });
 }
