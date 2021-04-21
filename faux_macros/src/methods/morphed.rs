@@ -279,10 +279,10 @@ impl<'a> MethodData<'a> {
         let faux_ident =
             syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
 
-        let empty = syn::parse2(quote! { () }).unwrap();
+        let empty = syn::parse_quote! { () };
         let output = output.unwrap_or(&empty);
 
-        let when_method = syn::parse2(quote! {
+        let when_method = syn::parse_quote! {
             pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::when::Any> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
@@ -292,16 +292,14 @@ impl<'a> MethodData<'a> {
                     faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instance!"),
                 }
             }
-        })
-        .unwrap();
+        };
 
-        let faux_method = syn::parse2(quote! {
+        let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             pub fn #faux_ident(self: #receiver_tokens, input: (#(#arg_types),*)) -> #output {
                 panic!("do not call this")
             }
-        })
-        .unwrap();
+        };
 
         vec![when_method, faux_method]
     }
