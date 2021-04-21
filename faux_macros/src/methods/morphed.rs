@@ -125,28 +125,28 @@ impl<'a> Signature<'a> {
             Some(path) => quote! { <#real_ty as #path>::#name },
         };
 
-        let block = match &self.method_data {
+        let real_self_arg = if self.method_data.is_some() {
+            // need to pass the real Self arg to the real method
+            Some(syn::Ident::new("r", proc_macro2::Span::call_site()))
+        } else {
+            None
+        };
+        let proxy_args = real_self_arg.iter().chain(arg_idents);
+        let mut proxy_real = quote! { #proxy(#(#proxy_args),*) };
+        if self.is_async {
+            proxy_real.extend(quote! { .await })
+        }
+        if let Some(wrapped_self) = self.wrap_self(morphed_ty, real_self, &proxy_real)? {
+            proxy_real = wrapped_self;
+        }
+
+        let ret = match &self.method_data {
             // not mockable
             // proxy to real associated function
-            None => {
-                let mut proxy_real = quote! { #proxy(#(#arg_idents),*) };
-                if self.is_async {
-                    proxy_real = quote! { #proxy_real.await }
-                }
-
-                self.wrap_self(morphed_ty, real_self, &proxy_real)?
-                    .unwrap_or(proxy_real)
-            }
+            None => syn::parse2(proxy_real).unwrap(),
             // else we can either proxy for real instances
             // or call the mock store for faux instances
             Some(method_data) => {
-                let mut proxy_real = quote! { #proxy(r, #(#arg_idents),*) };
-                if self.is_async {
-                    proxy_real = quote! { #proxy_real.await }
-                }
-                if let Some(wrapped_self) = self.wrap_self(morphed_ty, real_self, &proxy_real)? {
-                    proxy_real = wrapped_self;
-                }
                 let call_mock = if method_data.is_private {
                     quote! { panic!("faux error: private methods are not mockable; and therefore not directly callable in a mock") }
                 } else {
@@ -194,7 +194,10 @@ impl<'a> Signature<'a> {
             }
         };
 
-        Ok(syn::parse2(quote! {{ #block }}).unwrap())
+        Ok(syn::Block {
+            stmts: vec![syn::Stmt::Expr(ret)],
+            brace_token: Default::default(),
+        })
     }
 
     pub fn create_when(&self) -> Option<Vec<syn::ImplItemMethod>> {
@@ -229,12 +232,12 @@ impl<'a> Signature<'a> {
             let last_segment = &output.path.segments.last().unwrap();
             match SelfType::from_path(output) {
                 SelfType::Owned if is_self(output) => Some(match real_self {
-                    SelfType::Owned => quote! {{ Self(faux::MaybeFaux::Real(#block))}},
+                    SelfType::Owned => quote! { Self(faux::MaybeFaux::Real(#block)) },
                     generic => {
                         let new_path = generic
                             .new_path()
                             .expect("Generic self should have new() function");
-                        quote! {{ Self(faux::MaybeFaux::Real(#new_path(#block)))}}
+                        quote! { Self(faux::MaybeFaux::Real(#new_path(#block))) }
                     }
                 }),
                 generic if self_generic(&last_segment.arguments) => {
@@ -242,7 +245,7 @@ impl<'a> Signature<'a> {
                         let new_path = real_self
                             .new_path()
                             .expect("return type should not be Self");
-                        Some(quote! {{ #new_path(Self(faux::MaybeFaux::Real(#block)))}})
+                        Some(quote! { #new_path(Self(faux::MaybeFaux::Real(#block))) })
                     } else {
                         return Err(darling::Error::custom(wrong_self_type_error(
                             generic, real_self,
