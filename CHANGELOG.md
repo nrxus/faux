@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.1.1
+* Adds support for methods to return a `Self` instance.
+  * Before only associated functions (e.g., `Self::new`) would work
+  * This allows you to mock a custom implementation of `Clone`
+  * [test](/tests/return_self_method.rs)
+
 ## v0.1
 * No api changes
 
