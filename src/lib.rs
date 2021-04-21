@@ -17,7 +17,7 @@
 //! * [`#[create]`](create): transforms a struct into a mockable equivalent
 //! * [`#[methods]`](methods): transforms the methods in an `impl` block into
 //! their mockable equivalents
-//! * [`when!`]: initializes a method stub by returning a [`When`], either with or without argument matchers
+//! * [`when!`]: initializes a method stub by returning a [`When`]. Passing optional argument matchers restricts which arguments will invoke the mock.
 //! * [`When`]: lets you stub a mocked method's return value or implementation
 //!
 //! # Getting Started
@@ -73,11 +73,11 @@
 //!   // use `faux::when!` to mock the behavior of your methods
 //!   // you can specify arguments to match against when the mock is invoked
 //!   faux::when!(
-//!       // pass arguments as you would to the original method
-//!       // argument matching is performed using equality checks by default
-//!       // arguments whose values you don't care about can be replaced by `_`
-//!       // faux calls `_` and `headers.clone()`: "argument matchers".
-//!       // see the when! documentation for other kinds of argument matchers
+//!       // arguments are converted into argument matchers
+//!       // the default argument matcher performs an equality check
+//!       // use `_` to create a universal argument matcher
+//!       // the argument matchers below specify to ignore the first argument
+//!       // but that the second one must equal `headers`
 //!       mock.post(_, headers.clone())
 //!   )
 //!   // mock the return value
