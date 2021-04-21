@@ -66,6 +66,11 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     /// Requires the value to be static. For a more lax but unsafe
     /// alternative, use [`then_unchecked_return`].
     ///
+    /// The returned value will be cloned on each invocation of the
+    /// mock. Using this method to return another mock instance will
+    /// fail unless that mock instance has its clone method already
+    /// mocked.
+    ///
     /// # Examples
     ///
     /// ```rust

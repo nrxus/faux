@@ -1,4 +1,5 @@
 use crate::{methods::receiver::Receiver, self_type::SelfType};
+use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::spanned::Spanned;
 
@@ -124,7 +125,7 @@ impl<'a> Signature<'a> {
             Some(path) => quote! { <#real_ty as #path>::#name },
         };
 
-        let mut block = match &self.method_data {
+        let block = match &self.method_data {
             // not mockable
             // proxy to real associated function
             None => {
@@ -132,7 +133,9 @@ impl<'a> Signature<'a> {
                 if self.is_async {
                     proxy_real = quote! { #proxy_real.await }
                 }
-                proxy_real
+
+                self.wrap_self(morphed_ty, real_self, &proxy_real)?
+                    .unwrap_or(proxy_real)
             }
             // else we can either proxy for real instances
             // or call the mock store for faux instances
@@ -140,6 +143,9 @@ impl<'a> Signature<'a> {
                 let mut proxy_real = quote! { #proxy(r, #(#arg_idents),*) };
                 if self.is_async {
                     proxy_real = quote! { #proxy_real.await }
+                }
+                if let Some(wrapped_self) = self.wrap_self(morphed_ty, real_self, &proxy_real)? {
+                    proxy_real = wrapped_self;
                 }
                 let call_mock = if method_data.is_private {
                     quote! { panic!("faux error: private methods are not mockable; and therefore not directly callable in a mock") }
@@ -188,6 +194,22 @@ impl<'a> Signature<'a> {
             }
         };
 
+        Ok(syn::parse2(quote! {{ #block }}).unwrap())
+    }
+
+    pub fn create_when(&self) -> Option<Vec<syn::ImplItemMethod>> {
+        self.method_data
+            .as_ref()
+            .filter(|m| !m.is_private)
+            .map(|m| m.create_when(self.output, &self.name))
+    }
+
+    fn wrap_self(
+        &self,
+        morphed_ty: &syn::TypePath,
+        real_self: SelfType,
+        block: &TokenStream,
+    ) -> darling::Result<Option<TokenStream>> {
         let is_self = |ty: &syn::TypePath| {
             ty == morphed_ty || (ty.qself.is_none() && ty.path.is_ident("Self"))
         };
@@ -203,7 +225,7 @@ impl<'a> Signature<'a> {
             _ => false,
         };
 
-        let wrapped_self = if let Some(syn::Type::Path(output)) = self.output {
+        Ok(if let Some(syn::Type::Path(output)) = self.output {
             let last_segment = &output.path.segments.last().unwrap();
             match SelfType::from_path(output) {
                 SelfType::Owned if is_self(output) => Some(match real_self {
@@ -232,20 +254,7 @@ impl<'a> Signature<'a> {
             }
         } else {
             None
-        };
-
-        if let Some(wrapped_self) = wrapped_self {
-            block = wrapped_self;
-        }
-
-        Ok(syn::parse2(quote! {{ #block }}).unwrap())
-    }
-
-    pub fn create_when(&self) -> Option<Vec<syn::ImplItemMethod>> {
-        self.method_data
-            .as_ref()
-            .filter(|m| !m.is_private)
-            .map(|m| m.create_when(self.output, &self.name))
+        })
     }
 }
 
