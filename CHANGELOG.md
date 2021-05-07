@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.2
+* Fixes a bug that made tests either fail or segfault in release mode
+
 ## v0.1.1
 * Adds support for methods to return a `Self` instance.
   * Before only associated functions (e.g., `Self::new`) would work
