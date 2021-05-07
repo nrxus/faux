@@ -294,10 +294,11 @@ impl<'a> MethodData<'a> {
             }
         };
 
+        let panic_message = format!("do not call this ({})", name);
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             pub fn #faux_ident(self: #receiver_tokens, input: (#(#arg_types),*)) -> #output {
-                panic!("do not call this")
+                panic!(#panic_message)
             }
         };
 
