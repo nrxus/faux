@@ -1,5 +1,7 @@
 //! Tools to stub the implementation or return value of your mocks.
 
+use std::marker::PhantomData;
+
 mod once;
 
 use crate::{
@@ -41,26 +43,28 @@ impl<Arg> InvocationMatcher<Arg> for Any {
 /// [`once`]: When::once
 /// [`times`]: When::times
 /// [`with_args`]: When::with_args
-pub struct When<'q, R, I, O, M: InvocationMatcher<I>> {
-    id: fn(R, I) -> O,
+pub struct When<'q, I, O, M: InvocationMatcher<I>> {
+    id: u64,
     store: &'q mut MockStore,
     times: MockTimes,
     matcher: M,
+    _marker: PhantomData<fn(I) -> O>,
 }
 
-impl<'q, R, I, O> When<'q, R, I, O, Any> {
+impl<'q, I, O> When<'q, I, O, Any> {
     #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
+    pub fn new(id: u64, store: &'q mut MockStore) -> Self {
         When {
             id,
             store,
             matcher: Any,
             times: MockTimes::Always,
+            _marker: PhantomData,
         }
     }
 }
 
-impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
+impl<'q, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, I, O, M> {
     /// Sets the return value of the mocked method.
     ///
     /// Requires the value to be static. For a more lax but unsafe
@@ -465,7 +469,7 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     ///   mock.single_arg(8);
     /// }
     /// ```
-    pub fn once(self) -> Once<'q, R, I, O, M> {
+    pub fn once(self) -> Once<'q, I, O, M> {
         Once::new(self.id, self.store, self.matcher)
     }
 
@@ -488,12 +492,13 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     pub fn with_args<N: InvocationMatcher<I> + Send + 'static>(
         self,
         matcher: N,
-    ) -> When<'q, R, I, O, N> {
+    ) -> When<'q, I, O, N> {
         When {
             matcher,
             times: self.times,
             id: self.id,
             store: self.store,
+            _marker: PhantomData,
         }
     }
 }

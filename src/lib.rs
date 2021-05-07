@@ -898,7 +898,7 @@ pub use matcher::ArgMatcher;
 
 // exported so generated code can call for it
 // but purposefully not documented
-pub use mock_store::{MaybeFaux, MockStore};
+pub use mock_store::{LazyMethodId, MaybeFaux, MockStore};
 
 #[doc(include = "../README.md")]
 #[cfg(doctest)]

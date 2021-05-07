@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::{
     matcher,
     mock::{Mock, Stub},
@@ -12,16 +14,22 @@ use crate::{
 /// Do *NOT* rely on the signature of `Once`. While changing the
 /// methods of `Once` will be considered a breaking change, changing
 /// the generics within `Once` will not.
-pub struct Once<'q, R, I, O, M: matcher::InvocationMatcher<I>> {
-    id: fn(R, I) -> O,
+pub struct Once<'q, I, O, M: matcher::InvocationMatcher<I>> {
+    id: u64,
     store: &'q mut MockStore,
     matcher: M,
+    _marker: PhantomData<fn(I) -> O>,
 }
 
-impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> Once<'q, R, I, O, M> {
+impl<'q, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> Once<'q, I, O, M> {
     #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
-        Once { id, store, matcher }
+    pub(super) fn new(id: u64, store: &'q mut MockStore, matcher: M) -> Self {
+        Once {
+            id,
+            store,
+            matcher,
+            _marker: PhantomData,
+        }
     }
 
     /// Analog of [When.then_return] where the value does not need to

@@ -1,6 +1,6 @@
 use crate::mock::{Mock, SavedMock};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{atomic, Arc, Mutex};
 
 #[doc(hidden)]
 /// ```
@@ -54,7 +54,7 @@ impl<T> MaybeFaux<T> {
 #[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: Mutex<HashMap<usize, Arc<Mutex<Vec<SavedMock<'static>>>>>>,
+    mocks: Mutex<HashMap<u64, Arc<Mutex<Vec<SavedMock<'static>>>>>>,
 }
 
 impl MockStore {
@@ -64,27 +64,17 @@ impl MockStore {
         }
     }
 
-    pub(crate) fn mock<R, I, O: 'static>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
+    pub(crate) fn mock<I, O: 'static>(&mut self, id: u64, mock: Mock<'static, I, O>) {
         self.store_mock(id, mock)
     }
 
-    pub(crate) unsafe fn mock_unchecked<'a, R, I, O>(
-        &mut self,
-        id: fn(R, I) -> O,
-        mock: Mock<'a, I, O>,
-    ) {
+    pub(crate) unsafe fn mock_unchecked<'a, I, O>(&mut self, id: u64, mock: Mock<'a, I, O>) {
         // pretend the lifetime is static
-        self.store_mock(id, std::mem::transmute(mock))
+        self.store_mock::<I, O>(id, std::mem::transmute(mock))
     }
 
-    fn store_mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
-        let mocks = self
-            .mocks
-            .lock()
-            .unwrap()
-            .entry(id as usize)
-            .or_default()
-            .clone();
+    fn store_mock<I, O>(&mut self, id: u64, mock: Mock<'static, I, O>) {
+        let mocks = self.mocks.lock().unwrap().entry(id).or_default().clone();
 
         mocks.lock().unwrap().push(unsafe { mock.unchecked() });
     }
@@ -94,10 +84,10 @@ impl MockStore {
     ///
     /// Do *NOT* call this function directly.
     /// This should only be called by the generated code from #[faux::methods]
-    pub unsafe fn call_mock<R, I, O>(&self, id: fn(R, I) -> O, mut input: I) -> Result<O, String> {
+    pub unsafe fn call_mock<I, O>(&self, id: u64, mut input: I) -> Result<O, String> {
         let locked_store = self.mocks.lock().unwrap();
         let potential_mocks = locked_store
-            .get(&(id as usize))
+            .get(&id)
             .cloned()
             .ok_or_else(|| "✗ method was never mocked".to_string())?;
 
@@ -122,3 +112,34 @@ impl MockStore {
         Err(errors.join("\n\n"))
     }
 }
+
+#[doc(hidden)]
+/// Similar to `once_cell::race::OnceNonZeroUsize`.
+///
+/// This need only be unique within a given mocked type, so our current strategy of
+/// basically generating a LazyMethodId per-mocked-method should be fine.
+pub struct LazyMethodId(atomic::AtomicU64);
+
+impl LazyMethodId {
+    pub const fn new() -> Self {
+        LazyMethodId(atomic::AtomicU64::new(0))
+    }
+
+    pub fn get(&self) -> u64 {
+        let id = self.0.load(atomic::Ordering::Acquire);
+        if id != 0 {
+            return id;
+        }
+        let id = GLOBAL_ID_COUNTER.fetch_add(1, atomic::Ordering::Relaxed);
+        let res =
+            self.0
+                .compare_exchange(0, id, atomic::Ordering::AcqRel, atomic::Ordering::Acquire);
+        match res {
+            Ok(_) => id,
+            // another thread was initializing at the same time and it won the race
+            Err(winner_id) => winner_id,
+        }
+    }
+}
+
+static GLOBAL_ID_COUNTER: atomic::AtomicU64 = atomic::AtomicU64::new(1);

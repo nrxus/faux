@@ -7,7 +7,6 @@ use syn::spanned::Spanned;
 pub struct Receiver {
     span: Span,
     pub kind: SelfKind,
-    pub tokens: TokenStream,
 }
 
 impl Receiver {
@@ -19,23 +18,19 @@ impl Receiver {
                     Some(Receiver {
                         kind: SelfKind::from_type(arg_ty),
                         span: arg_ty.span(),
-                        tokens: quote! { #arg_ty },
                     })
                 }
                 _ => None,
             },
             syn::FnArg::Receiver(receiver) => {
-                let (kind, tokens) = match (&receiver.reference, &receiver.mutability) {
-                    (None, _) => (SelfKind::Owned, quote! { Self }),
-                    (Some(_), None) => (SelfKind::Pointer(PointerKind::Ref), quote! { &Self }),
-                    (Some(_), Some(_)) => {
-                        (SelfKind::Pointer(PointerKind::MutRef), quote! { &mut Self })
-                    }
+                let kind = match (&receiver.reference, &receiver.mutability) {
+                    (None, _) => SelfKind::Owned,
+                    (Some(_), None) => SelfKind::Pointer(PointerKind::Ref),
+                    (Some(_), Some(_)) => SelfKind::Pointer(PointerKind::MutRef),
                 };
 
                 Some(Receiver {
                     kind,
-                    tokens,
                     span: receiver.span(),
                 })
             }

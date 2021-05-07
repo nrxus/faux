@@ -150,8 +150,10 @@ impl<'a> Signature<'a> {
                 let call_mock = if method_data.is_private {
                     quote! { panic!("faux error: private methods are not mockable; and therefore not directly callable in a mock") }
                 } else {
-                    let faux_ident =
-                        syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
+                    let faux_id_ident = syn::Ident::new(
+                        &format!("_faux_id_{}", name),
+                        proc_macro2::Span::call_site(),
+                    );
 
                     let mut args =
                         arg_idents
@@ -178,7 +180,7 @@ impl<'a> Signature<'a> {
                         format!("{}::{}", morphed_ty.to_token_stream(), name);
                     quote! {
                         unsafe {
-                            match q.call_mock(<Self>::#faux_ident, #args) {
+                            match q.call_mock(<Self>::#faux_id_ident(), #args) {
                                 std::result::Result::Ok(o) => o,
                                 std::result::Result::Err(e) => {
                                     panic!("failed to call mock on '{}':\n{}", #struct_and_method_name, e);
@@ -267,26 +269,23 @@ impl<'a> MethodData<'a> {
         output: Option<&syn::Type>,
         name: &syn::Ident,
     ) -> Vec<syn::ImplItemMethod> {
-        let &MethodData {
-            ref arg_types,
-            ref receiver,
-            ..
-        } = self;
-        let receiver_tokens = &receiver.tokens;
+        let arg_types = &self.arg_types;
 
         let when_ident =
             syn::Ident::new(&format!("_when_{}", name), proc_macro2::Span::call_site());
-        let faux_ident =
-            syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
+        let faux_id_ident = syn::Ident::new(
+            &format!("_faux_id_{}", name),
+            proc_macro2::Span::call_site(),
+        );
 
         let empty = syn::parse_quote! { () };
         let output = output.unwrap_or(&empty);
 
         let when_method = syn::parse_quote! {
-            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::when::Any> {
+            pub fn #when_ident(&mut self) -> faux::When<(#(#arg_types),*), #output, faux::when::Any> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
-                        <Self>::#faux_ident,
+                        <Self>::#faux_id_ident(),
                         faux
                     ),
                     faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instance!"),
@@ -294,15 +293,15 @@ impl<'a> MethodData<'a> {
             }
         };
 
-        let panic_message = format!("do not call this ({})", name);
-        let faux_method = syn::parse_quote! {
-            #[allow(clippy::needless_arbitrary_self_type)]
-            pub fn #faux_ident(self: #receiver_tokens, input: (#(#arg_types),*)) -> #output {
-                panic!(#panic_message)
+        let faux_id_method = syn::parse_quote! {
+            #[inline]
+            pub fn #faux_id_ident() -> u64 {
+                static ID: faux::LazyMethodId = faux::LazyMethodId::new();
+                ID.get()
             }
         };
 
-        vec![when_method, faux_method]
+        vec![when_method, faux_id_method]
     }
 }
 
