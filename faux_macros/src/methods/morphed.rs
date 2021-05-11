@@ -200,11 +200,11 @@ impl<'a> Signature<'a> {
         })
     }
 
-    pub fn create_when(&self) -> Option<Vec<syn::ImplItemMethod>> {
+    pub fn create_when(&self, morphed_ty: &syn::TypePath) -> Option<Vec<syn::ImplItemMethod>> {
         self.method_data
             .as_ref()
             .filter(|m| !m.is_private)
-            .map(|m| m.create_when(self.output, &self.name))
+            .map(|m| m.create_when(self.output, &self.name, morphed_ty))
     }
 
     fn wrap_self(
@@ -266,6 +266,7 @@ impl<'a> MethodData<'a> {
         &self,
         output: Option<&syn::Type>,
         name: &syn::Ident,
+        morphed_ty: &syn::TypePath,
     ) -> Vec<syn::ImplItemMethod> {
         let &MethodData {
             ref arg_types,
@@ -283,7 +284,7 @@ impl<'a> MethodData<'a> {
         let output = output.unwrap_or(&empty);
 
         let when_method = syn::parse_quote! {
-            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::when::Any> {
+            pub fn #when_ident(&mut self) -> faux::When<faux::MockStore, (#(#arg_types),*), #output, faux::when::Any> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
                         <Self>::#faux_ident,
@@ -294,11 +295,19 @@ impl<'a> MethodData<'a> {
             }
         };
 
-        let panic_message = format!("do not call this ({})", name);
+        let struct_and_method_name = format!("{}::{}", morphed_ty.to_token_stream(), name);
+
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
-            pub fn #faux_ident(self: #receiver_tokens, input: (#(#arg_types),*)) -> #output {
-                panic!(#panic_message)
+            pub fn #faux_ident(store: faux::MockStore, input: (#(#arg_types),*)) -> #output {
+                unsafe {
+                    match store.call_mock(<Self>::#faux_ident, input) {
+                        std::result::Result::Ok(o) => o,
+                        std::result::Result::Err(e) => {
+                            panic!("failed to call mock on '{}':\n{}", #struct_and_method_name, e);
+                        }
+                    }
+                }
             }
         };
 

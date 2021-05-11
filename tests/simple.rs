@@ -21,9 +21,9 @@ impl Foo {
         self.a as i32 + x + y
     }
 
-    pub fn ret_ref(&self, _: &u32) -> &u32 {
-        &self.a
-    }
+    // pub fn ret_ref(&self, _: &u32) -> &u32 {
+    //     &self.a
+    // }
 }
 
 #[test]
@@ -47,13 +47,13 @@ fn faux_multi_arg() {
     assert_eq!(mock.add_stuff_2(90, &30), 60);
 }
 
-#[test]
-fn faux_ref_output() {
-    let mut mock = Foo::faux();
-    unsafe { faux::when!(mock.ret_ref).then_unchecked(|a| a) };
-    let x = 30 + 30;
-    assert_eq!(*mock.ret_ref(&x), 60);
-}
+// #[test]
+// fn faux_ref_output() {
+//     let mut mock = Foo::faux();
+//     unsafe { faux::when!(mock.ret_ref).then_unchecked(|a| a) };
+//     let x = 30 + 30;
+//     assert_eq!(*mock.ret_ref(&x), 60);
+// }
 
 #[test]
 #[should_panic]

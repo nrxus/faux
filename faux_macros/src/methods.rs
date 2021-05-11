@@ -67,7 +67,7 @@ impl Mockable {
                 &func.vis,
             );
             func.block = signature.create_body(args.self_type, &real_ty, &morphed_ty)?;
-            if let Some(methods) = signature.create_when() {
+            if let Some(methods) = signature.create_when(&morphed_ty) {
                 when_methods.extend(methods.into_iter().map(syn::ImplItem::Method));
             }
         }
