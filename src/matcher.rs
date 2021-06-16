@@ -1,9 +1,11 @@
 //! Tools to check if an argument to a mocked method matches
 //! expectations.
 //!
-//! See also: [`pattern!`](crate::pattern) and
-//! [`from_fn!`](crate::from_fn) for additional ways to create
-//! matchers.
+//! See: [`pattern!`](crate::pattern) and [`from_fn!`](crate::from_fn)
+//! for additional ways to create matchers.
+//!
+//! See [`faux::when!`](crate::when!) for how to use matchers within
+//! the macro.
 
 mod any;
 mod from_fn;

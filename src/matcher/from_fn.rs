@@ -46,6 +46,8 @@ where
 /// implement your own [`ArgMatcher`] to make the expectation message
 /// more specific and less verbose.
 ///
+/// # Examples
+///
 /// ```
 /// use faux::{from_fn, matcher::ArgMatcher};
 ///
@@ -53,6 +55,23 @@ where
 /// assert!(contains_hello.matches("hello world"));
 /// assert!(!contains_hello.matches("bye world"));
 /// println!("{}", contains_hello); // '|message: &str| message.contains("hello")'
+/// ```
+///
+/// ## Usage within when!
+///
+/// [`faux::when!`](crate::when!) does not have a special syntax for
+/// this matcher. See the [matcher
+/// syntax](macro.when.html#argument-matchers) for more
+/// information.
+///
+/// ```ignore
+/// // we can call it within `when!`
+/// faux::when!(my_struct.some_method(_ = faux::from_fn!(|_: &i32| true)))
+///     .then_return(5);
+///
+/// // or call outside `when!`
+/// faux::when!(my_struct.some_method)
+///     .with_args((faux::from_fn!(|_: &i32| true),)).then_return(5);
 /// ```
 #[macro_export]
 macro_rules! from_fn {
@@ -74,6 +93,8 @@ macro_rules! from_fn {
 /// Use the latter if you need to be specific about the type being
 /// matched against.
 ///
+/// # Examples
+///
 /// ```
 /// use faux::{pattern, matcher::ArgMatcher};
 ///
@@ -89,6 +110,22 @@ macro_rules! from_fn {
 ///
 /// println!("{}", exists_more_than_two); // 'Some(x) if *x > 2'
 /// ```
+///
+/// ## Usage within when!
+///
+/// [`faux::when!`](crate::when!) does not have a special syntax for
+/// this matcher. See the [matcher
+/// syntax](macro.when.html#argument-matchers) for more
+/// information.
+///
+/// ```ignore
+/// // we can call it within `when!`
+/// faux::when!(my_struct.some_method(_ = faux::pattern!(|_: &i32| true)))
+///     .then_return(5);
+///
+/// // or call outside `when!`
+/// faux::when!(my_struct.some_method)
+///     .with_args((faux::pattern!(|_: &i32| true),)).then_return(5);
 #[macro_export]
 macro_rules! pattern {
     ($( $pattern:pat )|+ $( if $guard: expr )? $(,)?) => (

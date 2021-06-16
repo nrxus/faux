@@ -60,6 +60,26 @@ where
 /// let ref_of_ref: &&i32 = &&5;
 /// assert!(matcher::eq(5).matches(ref_of_ref));
 /// ```
+///
+/// ## Usage within when!
+///
+/// For convenience, [`faux::when!`](crate::when!) defaults to the
+/// `eq` matcher. See the [matcher
+/// syntax](../macro.when.html#argument-matchers) for more
+/// information.
+///
+/// ```ignore
+/// // `_` means the `any` matcher
+/// faux::when!(my_struct.some_method(2)).then_return(5);
+///
+/// // we can also call it manually within `when!`
+/// faux::when!(my_struct.some_method(_ = faux::matcher::eq(2)))
+///     .then_return(5);
+///
+/// // or call it manually outside `when!`
+/// faux::when!(my_struct.some_method)
+///     .with_args((matcher::eq(2),)).then_return(5);
+/// ```
 pub fn eq<Arg, Expected>(expected: Expected) -> impl ArgMatcher<Arg>
 where
     Arg: Borrow<Expected>,
@@ -76,12 +96,31 @@ struct EqAgainst<Expected>(Expected);
 /// however, comes at the cost of not being able to match across
 /// borrows.
 ///
+/// # Examples
+///
 /// ```
 /// use faux::matcher::{self, ArgMatcher};
 ///
 /// // `String` implements `PartialEq<&str>`
 /// assert!(matcher::eq_against("x".to_string()).matches(&"x"));
 /// assert!(!matcher::eq_against("x".to_string()).matches(&"y"));
+/// ```
+///
+/// ## Usage within when!
+///
+/// [`faux::when!`](crate::when!) does not have a special syntax for
+/// this matcher. See the [matcher
+/// syntax](../macro.when.html#argument-matchers) for more
+/// information.
+///
+/// ```ignore
+/// // we can call it within `when!`
+/// faux::when!(my_struct.some_method(_ = faux::matcher::eq_against(2)))
+///     .then_return(5);
+///
+/// // or call it outside `when!`
+/// faux::when!(my_struct.some_method)
+///     .with_args((matcher::eq_against(2),)).then_return(5);
 /// ```
 ///
 /// [different types]:
