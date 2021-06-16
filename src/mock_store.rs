@@ -68,10 +68,10 @@ impl MockStore {
         self.store_mock(id, mock)
     }
 
-    pub(crate) unsafe fn mock_unchecked<'a, R, I, O>(
+    pub(crate) unsafe fn mock_unchecked<R, I, O>(
         &mut self,
         id: fn(R, I) -> O,
-        mock: Mock<'a, I, O>,
+        mock: Mock<'_, I, O>,
     ) {
         // pretend the lifetime is static
         self.store_mock(id, std::mem::transmute(mock))
