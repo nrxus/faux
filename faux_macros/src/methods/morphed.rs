@@ -29,22 +29,63 @@ pub struct MethodData<'a> {
 #[derive(Debug)]
 pub struct WhenArg<'a>(&'a syn::Type);
 
+pub fn has_impl_trait(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::ImplTrait(_) => true,
+        syn::Type::Reference(reference) => has_impl_trait(reference.elem.as_ref()),
+        _ => false,
+    }
+}
+
+pub fn replace_impl_trait(ty: &syn::Type) -> Option<syn::Type> {
+    match ty {
+        syn::Type::ImplTrait(ty) => {
+            let mut bounds = ty.bounds.clone();
+
+            if bounds
+                .iter()
+                .all(|b| !matches!(b, syn::TypeParamBound::Lifetime(_)))
+            {
+                bounds.push(syn::TypeParamBound::Lifetime(syn::Lifetime::new(
+                    "'_",
+                    proc_macro2::Span::call_site(),
+                )));
+            }
+
+            let ty = syn::Type::Paren(syn::TypeParen {
+                paren_token: syn::token::Paren(proc_macro2::Span::call_site()),
+                elem: Box::new(syn::Type::TraitObject(syn::TypeTraitObject {
+                    bounds,
+                    dyn_token: Some(syn::Token![dyn](proc_macro2::Span::call_site())),
+                })),
+            });
+
+            Some(ty)
+        }
+        syn::Type::Reference(syn::TypeReference {
+            and_token,
+            lifetime,
+            mutability,
+            elem,
+        }) => replace_impl_trait(elem).map(|ty| {
+            syn::Type::Reference(syn::TypeReference {
+                elem: Box::new(ty),
+                lifetime: lifetime.clone(),
+                mutability: *mutability,
+                and_token: *and_token,
+            })
+        }),
+        _ => None,
+    }
+}
+
 impl<'a> ToTokens for WhenArg<'a> {
     fn to_tokens(&self, token_stream: &mut proc_macro2::TokenStream) {
-        match self.0 {
-            syn::Type::ImplTrait(ty) => {
-                let bounds = &ty.bounds;
-                if bounds
-                    .iter()
-                    .any(|b| matches!(b, syn::TypeParamBound::Lifetime(_)))
-                {
-                    token_stream.extend(quote! { std::boxed::Box<dyn #bounds> });
-                } else {
-                    // avoid implicit static
-                    token_stream.extend(quote! { std::boxed::Box<dyn #bounds + '_> });
-                }
+        match replace_impl_trait(&self.0) {
+            None => self.0.to_tokens(token_stream),
+            Some(impl_ty) => {
+                token_stream.extend(quote! { std::boxed::Box<#impl_ty> });
             }
-            ty => ty.to_tokens(token_stream),
         }
     }
 }
@@ -157,14 +198,15 @@ impl<'a> Signature<'a> {
                         arg_idents
                             .iter()
                             .zip(method_data.arg_types.iter())
-                            .map(|(ident, ty)| match ty.0 {
-                                syn::Type::ImplTrait(ty) => {
-                                    let bounds = &ty.bounds;
+                            .map(|(ident, ty)| {
+                                if has_impl_trait(&ty.0) {
+                                    // let bounds = &ty.bounds;
                                     quote! {
-                                        std::boxed::Box::new(#ident) as std::boxed::Box<dyn #bounds>
+                                        std::boxed::Box::new(#ident)
                                     }
+                                } else {
+                                    quote! { #ident }
                                 }
-                                _ => quote! { #ident },
                             });
 
                     let args = if arg_idents.len() == 1 {
@@ -297,7 +339,8 @@ impl<'a> MethodData<'a> {
         let panic_message = format!("do not call this ({})", name);
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
-            pub fn #faux_ident(self: #receiver_tokens, input: (#(#arg_types),*)) -> #output {
+            #[allow(clippy::boxed_local)]
+            pub fn #faux_ident(self: #receiver_tokens, _: (#(#arg_types),*)) -> #output {
                 panic!(#panic_message)
             }
         };
