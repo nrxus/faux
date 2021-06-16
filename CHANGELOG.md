@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.1.3
+* Support mocking methods with arguments of type: `&impl Trait`
+  * [test](/tests/generic_methods.rs)
+
 ## v0.1.2
 * Fixes a bug that made tests either fail or segfault in release mode
 

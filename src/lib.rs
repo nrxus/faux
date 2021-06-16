@@ -1,4 +1,3 @@
-#![cfg_attr(doctest, feature(external_doc))]
 #![allow(clippy::needless_doctest_main)]
 
 //! A library to create [mocks] out of structs.
@@ -900,6 +899,8 @@ pub use matcher::ArgMatcher;
 // but purposefully not documented
 pub use mock_store::{MaybeFaux, MockStore};
 
-#[doc(include = "../README.md")]
-#[cfg(doctest)]
-pub struct ReadmeDoctests;
+// commenting out since running tests (without doctests)
+// still tries to expand nightly only code
+// #[doc = include_str!("../README.md")]
+// #[cfg(doctest)]
+// pub struct ReadmeDoctests;

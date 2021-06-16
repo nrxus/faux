@@ -8,13 +8,13 @@
 //! the macro.
 
 mod any;
-mod from_fn;
 mod eq;
+mod from_fn;
 mod invocation_matcher;
 
 pub use any::any;
-pub use from_fn::from_fn;
 pub use eq::{eq, eq_against};
+pub use from_fn::from_fn;
 pub use invocation_matcher::InvocationMatcher;
 
 use std::fmt::{self, Formatter};
