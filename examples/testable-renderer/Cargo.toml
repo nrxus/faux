@@ -1,0 +1,15 @@
+[package]
+name = "testable-renderer"
+version = "0.0.0"
+edition = "2018"
+publish = false
+
+[dependencies]
+# setup an optional feature outside of dev-dependencies so that users
+# of this library can use our mocks in their own tests
+faux = { path = "../../", optional = true }
+
+[dev-dependencies]
+# our tests still depend on faux; so add it again but do not make it
+# optional
+faux = { path = "../../" }

@@ -1,0 +1,19 @@
+[package]
+name = "world-renderer"
+version = "0.0.0"
+workspace = "../"
+edition = "2018"
+publish = false
+
+[dependencies]
+# our normal dependency does not activate `faux` thus keeping faux
+# away of our released binary
+testable-renderer = { path = "../testable-renderer" }
+
+[dev-dependencies]
+# for tests we activate the `faux` feature in our dependency so that
+# we can use the exposed mocks
+testable-renderer = { path = "../testable-renderer", features = ["faux"] }
+
+# still depend on `faux` so we can use setup the mocks
+faux = { path = "../../" }

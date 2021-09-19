@@ -1,0 +1,12 @@
+[workspace]
+members = [
+  "testable-renderer",
+  "world-renderer",
+]
+
+# important so features turned on by dev-dependencies don't infect the
+# binary when doing a normal build. This lets a crate expose faux
+# under an optional flag (to create the mocks), and have a user of
+# that crate activate it only for testing thus keeping their normal
+# builds faux-free.
+resolver = "2"
