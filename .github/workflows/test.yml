@@ -17,7 +17,5 @@ jobs:
       run: cargo build --verbose
     - name: test
       run: cargo test --verbose
-    - name: doc tests
-      run: cargo +nightly test --doc --verbose
     - name: test --release
       run: cargo test --release --verbose

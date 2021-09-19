@@ -10,9 +10,6 @@ edition = "2018"
 keywords = ["mock", "mocking", "test", "testing", "faux"]
 readme = "README.md"
 
-[lib]
-doctest = false
-
 [dependencies]
 faux_macros = { path = "faux_macros", version = "0.1.0" }
 paste = "1.0.4"

@@ -899,8 +899,6 @@ pub use matcher::ArgMatcher;
 // but purposefully not documented
 pub use mock_store::{MaybeFaux, MockStore};
 
-// commenting out since running tests (without doctests)
-// still tries to expand nightly only code
-// #[doc = include_str!("../README.md")]
-// #[cfg(doctest)]
-// pub struct ReadmeDoctests;
+#[doc = include_str!("../README.md")]
+#[cfg(doctest)]
+pub struct ReadmeDoctests;
