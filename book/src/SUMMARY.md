@@ -3,22 +3,20 @@
 [faux](./faux.md)
 [Motivation](./motivation.md)
 
-- [Getting Started (Coming Soon)]()
-  - [Install (Coming Soon)]()
-  - [Your First Mock (Coming Soon)]()
-- [Mock Expectations (Coming Soon)]()
+- [Getting Started](./guide/getting-started.md)
 - [Mock Behavior (Coming Soon)]()
-- [Argument matching (Coming Soon)]()
+<!-- - [Mock Expectations (Coming Soon)]() -->
+- [Argument Matching (Coming Soon)]()
   - [Equality (Coming Soon)]()
   - [Any (Coming Soon)]()
   - [Pattern (Coming Soon)]()
-  - [Custom closure (Coming Soon)]()
+  - [Custom Closure (Coming Soon)]()
   - [Advanced (Coming Soon)]()
 - [Pointer Receivers (Coming Soon)]()
 - [Interactions With Other Macros (Coming Soon)]()
-- [External modules (Coming Soon)]()
 - [Exporting your mocks (Coming Soon)]()
-- [Unsafe uses (Coming Soon)]()
+- [External Modules (Coming Soon)]()
+- [Unsafe Uses (Coming Soon)]()
 
 ---------------------------------------------
 
