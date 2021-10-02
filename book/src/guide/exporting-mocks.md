@@ -16,6 +16,9 @@ crates. Mocks can then be used within multiple crates of the same
 project, or even exposed to users of your library so they can mock
 your structs when testing their own library or application.
 
+> The solution explored in this chapter applies not only to `faux` but
+> to any "test" code you want to export across crates.
+
 To better explain, let's start with an example. Let's say we are
 building a graphics rendering library, `testable-renderer`. As
 expected, `faux` is declared in `dev-dependencies`
