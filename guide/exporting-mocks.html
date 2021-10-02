@@ -288,10 +288,7 @@ testable-renderer = * // some version
 </code></pre>
 <p>We would now like to use <code>testable-renderer</code> to render multiple
 textures for some <code>World</code> struct:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span><span class="boring">mod testable_renderer {
+<pre><pre class="playground"><code class="language-rust"><span class="boring">mod testable_renderer {
 </span><span class="boring">    extern crate faux;
 </span><span class="boring">    #[faux::create]
 </span><span class="boring">    pub struct Renderer {
@@ -337,7 +334,7 @@ impl World {
         Ok(())
     }
 }
-<span class="boring">}
+<span class="boring">fn main() {}
 </span></code></pre></pre>
 <p>We would like to write tests for our <code>World::render</code> method, but since
 rendering is an expensive opration, this is hard to do without
