@@ -522,7 +522,7 @@ See the [when docs] for more information.</p>
 <p>As an application or library grows, it is common to split it into
 multiple crates.  This separation of responsibilities help to simplify
 code, but there is a snag: mocks.</p>
-<p>If any code is tagged wth the <code>#[cfg(test)]</code> attribute, Rust does
+<p>If any code is tagged wth the <code>#[cfg(test)]</code> attribute, Rust does not
 allow it to be exported outside its crate. This is great! We
 definitely do not want to be building or running someone else's tests
 when testing our crate. This means, however, that the mockable version
