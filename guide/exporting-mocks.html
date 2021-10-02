@@ -153,6 +153,10 @@ during tests.</p>
 crates. Mocks can then be used within multiple crates of the same
 project, or even exposed to users of your library so they can mock
 your structs when testing their own library or application.</p>
+<blockquote>
+<p>The solution explored in this chapter applies not only to <code>faux</code> but
+to any &quot;test&quot; code you want to export across crates.</p>
+</blockquote>
 <p>To better explain, let's start with an example. Let's say we are
 building a graphics rendering library, <code>testable-renderer</code>. As
 expected, <code>faux</code> is declared in <code>dev-dependencies</code></p>
