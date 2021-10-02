@@ -14,8 +14,8 @@
   - [Advanced (Coming Soon)]()
 - [Pointer Receivers (Coming Soon)]()
 - [Interactions With Other Macros (Coming Soon)]()
-- [Exporting your mocks (Coming Soon)]()
 - [External Modules (Coming Soon)]()
+- [Exporting Mocks Across Crates](./guide/exporting-mocks.md)
 - [Unsafe Uses (Coming Soon)]()
 
 ---------------------------------------------
