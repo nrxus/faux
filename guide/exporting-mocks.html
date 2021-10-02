@@ -1,0 +1,470 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Exporting Mocks Across Crates - faux</title>
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="../">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+            </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div id="sidebar-scrollbox" class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../faux.html">faux</a></li><li class="chapter-item expanded affix "><a href="../motivation.html">Motivation</a></li><li class="chapter-item expanded "><a href="../guide/getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Mock Behavior (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.</strong> Argument Matching (Coming Soon)</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">3.1.</strong> Equality (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.2.</strong> Any (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.3.</strong> Pattern (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.4.</strong> Custom Closure (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.5.</strong> Advanced (Coming Soon)</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Pointer Receivers (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Interactions With Other Macros (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> External Modules (Coming Soon)</div></li><li class="chapter-item expanded "><a href="../guide/exporting-mocks.html" class="active"><strong aria-hidden="true">7.</strong> Exporting Mocks Across Crates</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Unsafe Uses (Coming Soon)</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../blog/introducing-faux.html">introducing faux</a></li><li class="chapter-item expanded affix "><a href="../blog/an-inside-look.html">an inside look</a></li><li class="chapter-item expanded affix "><a href="../blog/landing-v-0-1.html">landing v0.1</a></li></ol>            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                                                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                                                    </div>
+
+                        <h1 class="menu-title">faux</h1>
+
+                        <div class="right-buttons">
+                            <a href="../print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                                                    </div>
+                    </div>
+                </div>
+
+                                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="exporting-mocks-across-crates"><a class="header" href="#exporting-mocks-across-crates">Exporting Mocks Across Crates</a></h1>
+<p>As an application or library grows, it is common to split it into
+multiple crates.  This separation of responsibilities help to simplify
+code, but there is a snag: mocks.</p>
+<p>If any code is tagged wth the <code>#[cfg(test)]</code> attribute, Rust does
+allow it to be exported outside its crate. This is great! We
+definitely do not want to be building or running someone else's tests
+when testing our crate. This means, however, that the mockable version
+of our structs are also not exported, as <code>faux</code> was gated to only work
+during tests.</p>
+<p>This chapter explores a solution for exporting mocks across
+crates. Mocks can then be used within multiple crates of the same
+project, or even exposed to users of your library so they can mock
+your structs when testing their own library or application.</p>
+<p>To better explain, let's start with an example. Let's say we are
+building a graphics rendering library, <code>testable-renderer</code>. As
+expected, <code>faux</code> is declared in <code>dev-dependencies</code></p>
+<pre><code class="language-toml">[package]
+name = &quot;testable-renderer&quot;
+
+[dev-dependencies]
+faux = &quot;^0.1&quot;
+</code></pre>
+<p>And the code uses mocks:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">extern crate faux;
+</span><span class="boring">#[faux::create]
+</span>#[cfg_attr(test, faux::create)]
+pub struct Renderer {
+    /* snip */
+<span class="boring">    _inner: u8,
+</span>}
+
+<span class="boring">#[faux::methods]
+</span>#[cfg_attr(test, faux::methods)]
+impl Renderer {
+    pub fn new() -&gt; Renderer {
+        /* snip */
+<span class="boring">        unimplemented!()
+</span>    }
+
+    pub fn render(&amp;mut self, texture: &amp;Texture) -&gt; Result&lt;(), RenderError&gt; {
+        /* snip */
+<span class="boring">        unimplemented!()
+</span>    }
+}
+
+pub struct Texture;
+
+impl Texture {
+    pub fn render(&amp;self, renderer: &amp;mut Renderer) -&gt; Result&lt;(), RenderError&gt; {
+        renderer.render(self)
+    }
+}
+
+#[derive(Debug)]
+pub struct RenderError;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_textures() {
+        let mut renderer = Renderer::faux();
+        faux::when!(renderer.render).then(|_| Ok(()));
+
+        let subject = Texture {};
+        subject.render(&amp;mut renderer).expect(&quot;failed to render the texture&quot;)
+    }
+}
+<span class="boring">
+</span><span class="boring">fn main() {
+</span><span class="boring">    let mut renderer = Renderer::faux();
+</span><span class="boring">    faux::when!(renderer.render).then(|_| Ok(()));
+</span><span class="boring">    let subject = Texture {};
+</span><span class="boring">    subject.render(&amp;mut renderer).expect(&quot;failed to render the texture&quot;)
+</span><span class="boring">}
+</span></code></pre></pre>
+<h2 id="faux-as-a-feature"><a class="header" href="#faux-as-a-feature"><code>faux</code> as a feature</a></h2>
+<p>For the mocks to be exported, they need to be built even outside of
+tests. However, we do not want to pollute the production builds of our
+library nor anyone using our library with <code>faux</code> and mocks, so we make
+our dependency on <code>faux</code> optional:</p>
+<pre><code class="language-toml">[dependencies]
+# set up an optional feature outside of dev-dependencies so that users
+# of this library can use our mocks in their own tests
+faux = { version = &quot;^0.1&quot;, optional = true }
+
+[dev-dependencies]
+# our tests still depend on faux; so add it again but do not make it
+# optional
+faux = &quot;^0.1&quot;
+</code></pre>
+<p>Note that we still include <code>faux</code> in <code>dev-dependencies</code>. Our tests are
+always dependent on <code>faux</code>, since they use mocks, so the dependency is
+not optional.</p>
+<p>With this new config, Cargo exposes a new feature flag called
+<code>faux</code>. <code>faux</code> will only be built for tests and when the flag is
+enabled, which will be explained later.</p>
+<h2 id="gating-mocks-to-feature-flag"><a class="header" href="#gating-mocks-to-feature-flag">Gating mocks to feature flag</a></h2>
+<p>Now that we have a <code>faux</code> feature flag, we want our mocks to be
+created when that flag is turned on. This is accomplished using the
+<code>any</code> attribute:</p>
+<pre><pre class="playground"><code class="language-rust">// mocks are available for both test and the faux feature flag
+#[cfg_attr(any(test, feature = &quot;faux&quot;), faux::create)]
+pub struct Renderer {
+    /* snip */
+<span class="boring">    _inner: u8,
+</span>}
+
+// mocks are available for both test and the faux feature flag
+#[cfg_attr(any(test, feature = &quot;faux&quot;), faux::methods)]
+impl Renderer {
+    pub fn new() -&gt; Renderer {
+        /* snip */
+<span class="boring">        unimplemented!()
+</span>    }
+
+    pub fn render(&amp;mut self, texture: &amp;Texture) -&gt; Result&lt;(), RenderError&gt; {
+        /* snip */
+<span class="boring">        unimplemented!()
+</span>    }
+}
+
+<span class="boring">pub struct RenderError;
+</span><span class="boring">pub struct Texture;
+</span><span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>The key thing to remember here is replacing:</p>
+<pre><pre class="playground"><code class="language-rust">#[cfg_attr(test, ...)]
+<span class="boring">fn main()
+</span></code></pre></pre>
+<p>with</p>
+<pre><pre class="playground"><code class="language-rust">#[cfg_attr(any(test, feature = &quot;faux&quot;), ...)]
+<span class="boring">fn main()
+</span></code></pre></pre>
+<p>This tells Rust to use the <code>faux</code> attributes (<code>create</code> and <code>methods</code>)
+for either <code>test</code> or the <code>faux</code> feature flag. You can learn more about
+the <code>any</code> attribute in the <a href="https://doc.rust-lang.org/reference/conditional-compilation.html">Rust Reference</a>.</p>
+<p>These are all the changes necessary in our rendering library. The
+tests remain the same, and there are no implementation changes.</p>
+<h2 id="using-the-faux-feature"><a class="header" href="#using-the-faux-feature">Using the <code>faux</code> feature</a></h2>
+<p>Let's now move on to a dependent of our rendering library. The
+dependency is marked in its <code>Cargo.toml</code> as:</p>
+<pre><code class="language-toml">[dependencies]
+testable-renderer = * // some version
+</code></pre>
+<p>We would now like to use <code>testable-renderer</code> to render multiple
+textures for some <code>World</code> struct:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">mod testable_renderer {
+</span><span class="boring">    extern crate faux;
+</span><span class="boring">    #[faux::create]
+</span><span class="boring">    pub struct Renderer {
+</span><span class="boring">        _inner: u8,
+</span><span class="boring">    }
+</span><span class="boring">    #[faux::methods]
+</span><span class="boring">    impl Renderer {
+</span><span class="boring">        pub fn new() -&gt; Renderer {
+</span><span class="boring">            todo!()
+</span><span class="boring">        }
+</span><span class="boring">        pub fn render(&amp;mut self, texture: &amp;Texture) -&gt; Result&lt;(), RenderError&gt; {
+</span><span class="boring">            todo!()
+</span><span class="boring">        }
+</span><span class="boring">    }
+</span><span class="boring">    pub struct Texture;
+</span><span class="boring">    impl Texture {
+</span><span class="boring">        pub fn render(&amp;self, renderer: &amp;mut Renderer) -&gt; Result&lt;(), RenderError&gt; {
+</span><span class="boring">            renderer.render(self)
+</span><span class="boring">        }
+</span><span class="boring">    }
+</span><span class="boring">    #[derive(Debug)]
+</span><span class="boring">    pub struct RenderError;
+</span><span class="boring">}
+</span>use testable_renderer::{RenderError, Renderer, Texture};
+
+struct World {
+    player: Texture,
+    enemy: Texture,
+}
+
+impl World {
+    pub fn new() -&gt; Self {
+        World {
+            player: Texture {},
+            enemy: Texture {},
+        }
+    }
+
+    pub fn render(&amp;self, renderer: &amp;mut Renderer) -&gt; Result&lt;(), RenderError&gt; {
+        self.player.render(renderer)?;
+        self.enemy.render(renderer)?;
+
+        Ok(())
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>We would like to write tests for our <code>World::render</code> method, but since
+rendering is an expensive opration, this is hard to do without
+mocks. Thankfully, <code>testable-renderer</code> is set up to expose its mocks,
+so we activate them by configuring the feature flag in our
+<code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[package]
+# important so features turned on by dev-dependencies don't infect the
+# binary when doing a normal build. This lets us have different feature
+# flags in dev-dependencies vs normal dependencies.
+resolver = &quot;2&quot;
+
+[dependencies]
+# our normal dependency does not activate `faux`, thus keeping it out of
+# our released binary
+testable-renderer = * # some version
+
+[dev-dependencies]
+# for tests, we activate the `faux` feature in our dependency so that
+# we can use the exposed mocks
+testable-renderer = { version = &quot;*&quot;, features = [&quot;faux&quot;] }
+
+# still depend on `faux` so we can use setup the mocks
+faux = &quot;^0.1&quot;
+</code></pre>
+<p>The important takeaways are:</p>
+<ul>
+<li>
+<p><code>resolver = &quot;2&quot;</code>. This is needed so <code>faux</code> stays out of our normal
+builds. See the <a href="https://doc.rust-lang.org/nightly/cargo/reference/features.html#feature-resolver-version-2">Cargo Reference</a>.</p>
+</li>
+<li>
+<p>Turn on the feature flag under <code>[dev-dependencies]</code>. We only want to
+have access to the mocks in <code>testable-renderer</code> when building tests.</p>
+</li>
+</ul>
+<p>We can now write tests as per usual:</p>
+<pre><pre class="playground"><code class="language-rust">#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_the_world() {
+        // the test target enables the faux feature on `testable-renderer`
+        // thus allowing us to use the mocks of the *external* crate
+        let mut renderer = Renderer::faux();
+        faux::when!(renderer.render).then(|_| Ok(()));
+
+        let world = World::new();
+        world.render(&amp;mut renderer).expect(&quot;failed to render the world&quot;)
+    }
+}
+
+<span class="boring">fn main() {}
+</span></code></pre></pre>
+<h2 id="recap"><a class="header" href="#recap">Recap</a></h2>
+<p>The library that wants to export its mocks needs to:</p>
+<ul>
+<li>
+<p>Add <code>faux</code> as an optional dependency in <code>Cargo.toml</code>.</p>
+</li>
+<li>
+<p>Create the mocks not only during tests, but also when the <code>faux</code>
+feature flag is turned on.</p>
+</li>
+</ul>
+<p>The library or application that wants to use the exported mocks needs
+to:</p>
+<ul>
+<li>
+<p>Change the feature resolver to &quot;2&quot; in its <code>Cargo.toml</code>. Be aware
+that if you are using a workspace, this needs to be changed in the
+workspace's <code>Cargo.toml</code>.</p>
+</li>
+<li>
+<p>Add the dependency with the exported mocks under <code>dev-dependencies</code>
+with the <code>faux</code> flag enabled in <code>Cargo.toml</code>.</p>
+</li>
+</ul>
+<p>To see this in action, take a look at the example in the <a href="https://github.com/nrxus/faux/tree/master/examples">faux
+repository</a>. <code>testable-renderer</code> is the library with the exported
+mocks and <code>world-renderer</code> is the application that uses these mocks.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                                                    <a rel="prev" href="../guide/getting-started.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+                                                    <a rel="next" href="../blog/introducing-faux.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                                    <a href="../guide/getting-started.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+                                    <a href="../blog/introducing-faux.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                            </nav>
+
+        </div>
+
+        
+        
+                
+        
+        
+                <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+        
+    </body>
+</html>

@@ -1,0 +1,519 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Getting Started - faux</title>
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="../">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+            </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div id="sidebar-scrollbox" class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../faux.html">faux</a></li><li class="chapter-item expanded affix "><a href="../motivation.html">Motivation</a></li><li class="chapter-item expanded "><a href="../guide/getting-started.html" class="active"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Mock Behavior (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.</strong> Argument Matching (Coming Soon)</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">3.1.</strong> Equality (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.2.</strong> Any (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.3.</strong> Pattern (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.4.</strong> Custom Closure (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.5.</strong> Advanced (Coming Soon)</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Pointer Receivers (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Interactions With Other Macros (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> External Modules (Coming Soon)</div></li><li class="chapter-item expanded "><a href="../guide/exporting-mocks.html"><strong aria-hidden="true">7.</strong> Exporting Mocks Across Crates</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Unsafe Uses (Coming Soon)</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../blog/introducing-faux.html">introducing faux</a></li><li class="chapter-item expanded affix "><a href="../blog/an-inside-look.html">an inside look</a></li><li class="chapter-item expanded affix "><a href="../blog/landing-v-0-1.html">landing v0.1</a></li></ol>            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                                                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                                                    </div>
+
+                        <h1 class="menu-title">faux</h1>
+
+                        <div class="right-buttons">
+                            <a href="../print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                                                    </div>
+                    </div>
+                </div>
+
+                                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<p><code>faux</code> makes liberal use of unsafe Rust feature, so it is only
+recommended for use inside tests. Follow the steps below to configure
+<code>faux</code> and the created mocks to only exist during tests.</p>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<p><code>faux</code> should be added under <code>[dev-dependencies]</code> in <code>Cargo.toml</code>.</p>
+<pre><code class="language-toml">[dev-dependencies]
+faux = &quot;^0.1&quot;
+</code></pre>
+<p>This makes sure that <code>faux</code> only gets included when compiling and
+running tests, thus making it impossible to leak into production code.</p>
+<h2 id="your-first-mock"><a class="header" href="#your-first-mock">Your First Mock</a></h2>
+<p><code>faux</code> is able to mock a <code>struct</code> and its public methods. To do this,
+<code>faux</code> provides two attributes: <code>#[faux::create]</code> and
+<code>#[faux::methods]</code>. <code>#[faux::create]</code> tags the struct we wish to make
+mockable. <code>#[faux::methods]</code> tags the <code>impl</code> blocks of that
+struct. Both of these attributes must be used.</p>
+<pre><pre class="playground"><code class="language-rust">#[cfg_attr(test, faux::create)]
+pub struct MyStructToMock { /* fields */ }
+
+#[cfg_attr(test, faux::methods)]
+impl MyStructToMock { /* methods to mock */ }
+<span class="boring">fn main() {}
+</span></code></pre></pre>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>Let's say you are writing a restaurant reservation system. One of the
+core structs in this system is a <code>RestaurantClient</code> which sends HTTP
+requests to get availability times for a restaurant, create a
+reservation, cancel, etc.</p>
+<pre><pre class="playground"><code class="language-rust">pub struct RestaurantClient {
+    /* snip */
+}
+
+impl RestaurantClient {
+    pub fn new() -&gt; Self {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn availabilities(&amp;self) -&gt; Result&lt;Vec&lt;Availability&gt;, Error&gt; {
+        /* GET to some HTTP endpoint */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn reserve(&amp;self, availability: Availability) -&gt; Result&lt;Reservation, Error&gt; {
+        /* POST to some HTTP endpoint */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn cancel(&amp;self, reservation: Reservation) -&gt; Result&lt;(), Error&gt; {
+        /* DELETE to some HTTP endpoint */
+<span class="boring">        todo!()
+</span>    }
+}
+<span class="boring">
+</span><span class="boring">pub struct Reservation { /* snip */ }
+</span><span class="boring">pub struct Availability { /* snip */ }
+</span><span class="boring">pub struct Error { /* snip */ }
+</span><span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>This type is not interesting to unit-test in itself as it is very
+declarative. Aside from the fact that it doesn't have any real logic
+to unit-test, calling these methods will send actual HTTP requests to
+create or cancel reservations, which is bound to make your tests slow
+and flaky. You will also probably have some really angry restaurants.</p>
+<blockquote>
+<p>You may want to have some kind of integration or enemy tests that
+verifies the overall correctness of your service that will end up
+testing this struct, but that goes beyond the scope of this guide.</p>
+</blockquote>
+<p>However, a more interessting part of your library deals with
+<em>choosing</em> from the possible availabilities and reserves a spot at the
+restaurant. Let's call it <code>Concierge</code>.</p>
+<pre><pre class="playground"><code class="language-rust">use restaurant_client::{RestaurantClient, Reservation};
+
+pub struct Concierge {
+    client: RestaurantClient,
+}
+
+impl Concierge {
+    pub fn new(client: RestaurantClient) -&gt; Self {
+        Concierge {
+            client,
+        }
+    }
+
+    pub fn reserve_matching(&amp;self, options: Options) -&gt; Result&lt;Reservation, Error&gt; {
+        /* logic to find a matching availability and reserve it */
+<span class="boring">        todo!()
+</span>    }
+}
+<span class="boring">
+</span><span class="boring">pub struct Options { /* snip */ }
+</span><span class="boring">pub enum Error {
+</span><span class="boring">    Client(restaurant_client::Error),
+</span><span class="boring">}
+</span><span class="boring">impl From&lt;restaurant_client::Error&gt; for Error {
+</span><span class="boring">    fn from(error: restaurant_client::Error) -&gt; Self {
+</span><span class="boring">        Error::Client(error)
+</span><span class="boring">    }
+</span><span class="boring">}
+</span><span class="boring">mod restaurant_client {
+</span><span class="boring">    pub struct RestaurantClient {}
+</span><span class="boring">    impl RestaurantClient {
+</span><span class="boring">       pub fn availabilities(&amp;self) -&gt; Result&lt;Vec&lt;Availability&gt;&gt; {
+</span><span class="boring">           todo!()
+</span><span class="boring">       }
+</span><span class="boring">       pub fn reserve(&amp;self, availability: Availability) -&gt; Result&lt;Reservation&gt; {
+</span><span class="boring">           todo!()
+</span><span class="boring">       }
+</span><span class="boring">    }
+</span><span class="boring">    pub struct Reservation { /* snip */ }
+</span><span class="boring">    pub struct Availability { /* snip */ }
+</span><span class="boring">    pub struct Error { /* snip */ }
+</span><span class="boring">    pub type Result&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
+</span><span class="boring">}
+</span><span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>Unlike <code>ReservationClient</code>, the <code>Concierge</code> does hold a key piece of
+domain logic: how to choose between the available times. This logic is
+worth unit tests as it is vital to our service and we want to make
+sure that it continues working as we refactor or add features to
+<code>reserve_matching</code>. However, we do not want to make actual calls to
+the <code>ReservationClient</code> as that would mean having to make network
+requests. To solve this, we decide to mock <code>ReservationClient</code> for our
+tests. <code>faux</code> makes it easy to make this struct mockable using the
+<code>faux::create</code> and <code>faux::methods</code> attributes.</p>
+<pre><pre class="playground"><code class="language-rust">// gate the attribute to only tests
+// `faux` is (and should be!) only available when running tests
+#[cfg_attr(test, faux::create)]
+pub struct RestaurantClient {
+    /* snip */
+}
+
+// gate the attribute to only tests
+#[cfg_attr(test, faux::methods)]
+impl RestaurantClient {
+    pub fn new() -&gt; Self {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn availabilities(&amp;self) -&gt; Result&lt;Vec&lt;Availability&gt;, Error&gt; {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn reserve(&amp;self, availability: Availability) -&gt; Result&lt;Reservation, Error&gt; {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn cancel(&amp;self,  reservation: Reservation) -&gt; Result&lt;(), Error&gt; {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+}
+<span class="boring">
+</span><span class="boring">pub struct Reservation { /* snip */ }
+</span><span class="boring">pub struct Availability { /* snip */ }
+</span><span class="boring">pub struct Error { /* snip */ }
+</span><span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>Using these two attributes allows/signals <code>faux</code> to hook into the
+struct and its methods at compile time to create mockable versions of
+them that can be used in your tests. Note that there are zero changes
+to the implementation or signature of <code>ReservationClient</code>, the only
+change is tagging it with the <code>faux</code> attributes.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">use restaurant_client::{RestaurantClient, Reservation};
+</span><span class="boring">pub struct Concierge {
+</span><span class="boring">    client: RestaurantClient,
+</span><span class="boring">}
+</span><span class="boring">impl Concierge {
+</span><span class="boring">    pub fn new(client: RestaurantClient) -&gt; Self {
+</span><span class="boring">        Concierge {
+</span><span class="boring">            client,
+</span><span class="boring">        }
+</span><span class="boring">    }
+</span><span class="boring">    pub fn reserve_matching(&amp;self, options: Options) -&gt; Result&lt;Reservation, Error&gt; {
+</span><span class="boring">        let _ = options;
+</span><span class="boring">        let chosen_availability = self.client
+</span><span class="boring">            .availabilities()?
+</span><span class="boring">            .pop()
+</span><span class="boring">            .ok_or(Error::NoReservations)?;
+</span><span class="boring">        let reservation = self.client.reserve(chosen_availability)?;
+</span><span class="boring">        Ok(reservation)
+</span><span class="boring">    }
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">pub struct Options { /* snip */ }
+</span><span class="boring">#[derive(Clone, Debug)]
+</span><span class="boring">pub enum Error {
+</span><span class="boring">    Client(restaurant_client::Error),
+</span><span class="boring">    NoReservations,
+</span><span class="boring">}
+</span><span class="boring">impl From&lt;restaurant_client::Error&gt; for Error {
+</span><span class="boring">    fn from(error: restaurant_client::Error) -&gt; Self {
+</span><span class="boring">        Error::Client(error)
+</span><span class="boring">    }
+</span><span class="boring">}
+</span><span class="boring">mod restaurant_client {
+</span><span class="boring">    #[faux::create]
+</span><span class="boring">    pub struct RestaurantClient {}
+</span><span class="boring">    #[faux::methods]
+</span><span class="boring">    impl RestaurantClient {
+</span><span class="boring">       pub fn availabilities(&amp;self) -&gt; Result&lt;Vec&lt;Availability&gt;&gt; {
+</span><span class="boring">           todo!()
+</span><span class="boring">       }
+</span><span class="boring">       pub fn reserve(&amp;self, availability: Availability) -&gt; Result&lt;Reservation&gt; {
+</span><span class="boring">           todo!()
+</span><span class="boring">       }
+</span><span class="boring">    }
+</span><span class="boring">    #[derive(Clone, Debug, PartialEq)]
+</span><span class="boring">    pub struct Reservation { /* snip */ }
+</span><span class="boring">    #[derive(Clone, Debug, PartialEq)]
+</span><span class="boring">    pub struct Availability { /* snip */ }
+</span><span class="boring">    #[derive(Clone, Debug)]
+</span><span class="boring">    pub struct Error { /* snip */ }
+</span><span class="boring">    pub type Result&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
+</span><span class="boring">}
+</span><span class="boring">extern crate faux;
+</span><span class="boring">use faux::when;
+</span><span class="boring">use restaurant_client::Availability;
+</span><span class="boring">fn main() {
+</span><span class="boring">    // first test
+</span><span class="boring">    let mut client = RestaurantClient::faux();
+</span><span class="boring">    let availability = Availability { /*snip */ };
+</span><span class="boring">    let expected_reservation = Reservation { /* snip */ };
+</span><span class="boring">
+</span><span class="boring">    when!(client.availabilities())
+</span><span class="boring">        .then_return(Ok(vec![availability.clone()]));
+</span><span class="boring">
+</span><span class="boring">    when!(client.reserve(availability))
+</span><span class="boring">        .then_return(Ok(expected_reservation.clone()));
+</span><span class="boring">
+</span><span class="boring">    let subject = Concierge::new(client);
+</span><span class="boring">    let options = Options { /* snip */ };
+</span><span class="boring">    let reservation = subject
+</span><span class="boring">        .reserve_matching(options).expect(&quot;expected successful reservation&quot;);
+</span><span class="boring">
+</span><span class="boring">    assert_eq!(reservation, expected_reservation);
+</span><span class="boring">
+</span><span class="boring">    // second test
+</span><span class="boring">    let mut client = RestaurantClient::faux();
+</span><span class="boring">    when!(client.availabilities()).then_return(Ok(vec![]));
+</span><span class="boring">
+</span><span class="boring">    let subject = Concierge::new(client);
+</span><span class="boring">    let options = Options { /* snip */ };
+</span><span class="boring">    let error = subject
+</span><span class="boring">        .reserve_matching(options)
+</span><span class="boring">        .expect_err(&quot;expected error reservation&quot;);
+</span><span class="boring">
+</span><span class="boring">    assert!(matches!(error, Error::NoReservations));
+</span><span class="boring">}
+</span><span class="boring">
+</span>#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use faux::when;
+
+    #[test]
+    fn selects_the_only_one() {
+        // A `faux()` function to every mockable struct
+        // to instantiate a mock instance
+        let mut client = RestaurantClient::faux();
+        let availability = Availability { /*snip */ };
+        let expected_reservation = Reservation { /* snip */ };
+
+        // when!(...) lets you stub the return method of the mock struct
+        when!(client.availabilities())
+            .then_return(Ok(vec![availability.clone()]));
+
+        // when!(...) lets you specify expected arguments
+        // so only invocations that match that argument return the stubbed data
+        when!(client.reserve(availability))
+            .then_return(Ok(expected_reservation.clone()));
+
+        let subject = Concierge::new(client);
+        let options = Options { /* snip */ };
+        let reservation = subject
+            .reserve_matching(options)
+            .expect(&quot;expected successful reservation&quot;);
+
+        assert_eq!(reservation, expected_reservation);
+    }
+
+    #[test]
+    fn fails_when_empty() {
+        let mut client = RestaurantClient::faux();
+        when!(client.availabilities()).then_return(Ok(vec![]));
+
+        let subject = Concierge::new(client);
+        let options = Options { /* snip */ };
+        let error = subject
+            .reserve_matching(options)
+            .expect_err(&quot;expected error reservation&quot;);
+
+        assert!(matches!(error, Error::NoReservations));
+    }
+}
+</code></pre></pre>
+<p>You have now successfully added tests for <code>Concierge</code> that use a mock
+instance of the <code>RestaurantClient</code>. Note that neither the
+implementation of <code>Concierge</code> nor <code>RestaurantClient</code> had to change in
+order to be mockable. You can write production ready code without
+incurring any abstraction penalty for using mocks in testing.</p>
+<h2 id="recap"><a class="header" href="#recap">Recap</a></h2>
+<ul>
+<li>
+<p>Use <code>faux</code> as a <code>dev-dependency</code> to avoid it leaking into production
+code.</p>
+</li>
+<li>
+<p><code>faux::create</code> and <code>faux::methods</code> are attributes used to tag
+structs and methods for mocking. These tags should be gated to tests
+only using <code>#[cfg_attr(test, ...)]</code></p>
+</li>
+<li>
+<p><code>faux::when!</code> is used to stub the returned data of a method in a
+mocked struct.</p>
+</li>
+<li>
+<p><code>faux::when!</code> lets you specify argument matchers so mocks are used
+only for certain invocations. The default is an equality matcher,
+but there are also other matchers if you want to match any argument,
+match a pattern, or match based on the result of a given predicate.
+See the [when docs] for more information.</p>
+</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                                                    <a rel="prev" href="../motivation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+                                                    <a rel="next" href="../guide/exporting-mocks.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                                    <a href="../motivation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+                                    <a href="../guide/exporting-mocks.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                            </nav>
+
+        </div>
+
+        
+        
+                
+        
+        
+                <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+        
+    </body>
+</html>

@@ -79,7 +79,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="faux.html">faux</a></li><li class="chapter-item expanded affix "><a href="motivation.html">Motivation</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.</strong> Getting Started (Coming Soon)</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">1.1.</strong> Install (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">1.2.</strong> Your First Mock (Coming Soon)</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Mock Expectations (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.</strong> Mock Behavior (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Argument matching (Coming Soon)</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">4.1.</strong> Equality (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.2.</strong> Any (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.3.</strong> Pattern (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.4.</strong> Custom closure (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.5.</strong> Advanced (Coming Soon)</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Pointer Receivers (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Interactions With Other Macros (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">7.</strong> External modules (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Exporting your mocks (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">9.</strong> Unsafe uses (Coming Soon)</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="blog/introducing-faux.html">introducing faux</a></li><li class="chapter-item expanded affix "><a href="blog/an-inside-look.html">an inside look</a></li><li class="chapter-item expanded affix "><a href="blog/landing-v-0-1.html">landing v0.1</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="faux.html">faux</a></li><li class="chapter-item expanded affix "><a href="motivation.html">Motivation</a></li><li class="chapter-item expanded "><a href="guide/getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">2.</strong> Mock Behavior (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.</strong> Argument Matching (Coming Soon)</div></li><li><ol class="section"><li class="chapter-item expanded "><div><strong aria-hidden="true">3.1.</strong> Equality (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.2.</strong> Any (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.3.</strong> Pattern (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.4.</strong> Custom Closure (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">3.5.</strong> Advanced (Coming Soon)</div></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Pointer Receivers (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Interactions With Other Macros (Coming Soon)</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> External Modules (Coming Soon)</div></li><li class="chapter-item expanded "><a href="guide/exporting-mocks.html"><strong aria-hidden="true">7.</strong> Exporting Mocks Across Crates</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">8.</strong> Unsafe Uses (Coming Soon)</div></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="blog/introducing-faux.html">introducing faux</a></li><li class="chapter-item expanded affix "><a href="blog/an-inside-look.html">an inside look</a></li><li class="chapter-item expanded affix "><a href="blog/landing-v-0-1.html">landing v0.1</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -188,6 +188,617 @@ currently supported by faux. faux's current focus is object mocking,
 but functions may come in the future. Submit an issue if you wish to
 see function mocking so its relative priority can be known.</p>
 </blockquote>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<p><code>faux</code> makes liberal use of unsafe Rust feature, so it is only
+recommended for use inside tests. Follow the steps below to configure
+<code>faux</code> and the created mocks to only exist during tests.</p>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<p><code>faux</code> should be added under <code>[dev-dependencies]</code> in <code>Cargo.toml</code>.</p>
+<pre><code class="language-toml">[dev-dependencies]
+faux = &quot;^0.1&quot;
+</code></pre>
+<p>This makes sure that <code>faux</code> only gets included when compiling and
+running tests, thus making it impossible to leak into production code.</p>
+<h2 id="your-first-mock"><a class="header" href="#your-first-mock">Your First Mock</a></h2>
+<p><code>faux</code> is able to mock a <code>struct</code> and its public methods. To do this,
+<code>faux</code> provides two attributes: <code>#[faux::create]</code> and
+<code>#[faux::methods]</code>. <code>#[faux::create]</code> tags the struct we wish to make
+mockable. <code>#[faux::methods]</code> tags the <code>impl</code> blocks of that
+struct. Both of these attributes must be used.</p>
+<pre><pre class="playground"><code class="language-rust">#[cfg_attr(test, faux::create)]
+pub struct MyStructToMock { /* fields */ }
+
+#[cfg_attr(test, faux::methods)]
+impl MyStructToMock { /* methods to mock */ }
+<span class="boring">fn main() {}
+</span></code></pre></pre>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>Let's say you are writing a restaurant reservation system. One of the
+core structs in this system is a <code>RestaurantClient</code> which sends HTTP
+requests to get availability times for a restaurant, create a
+reservation, cancel, etc.</p>
+<pre><pre class="playground"><code class="language-rust">pub struct RestaurantClient {
+    /* snip */
+}
+
+impl RestaurantClient {
+    pub fn new() -&gt; Self {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn availabilities(&amp;self) -&gt; Result&lt;Vec&lt;Availability&gt;, Error&gt; {
+        /* GET to some HTTP endpoint */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn reserve(&amp;self, availability: Availability) -&gt; Result&lt;Reservation, Error&gt; {
+        /* POST to some HTTP endpoint */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn cancel(&amp;self, reservation: Reservation) -&gt; Result&lt;(), Error&gt; {
+        /* DELETE to some HTTP endpoint */
+<span class="boring">        todo!()
+</span>    }
+}
+<span class="boring">
+</span><span class="boring">pub struct Reservation { /* snip */ }
+</span><span class="boring">pub struct Availability { /* snip */ }
+</span><span class="boring">pub struct Error { /* snip */ }
+</span><span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>This type is not interesting to unit-test in itself as it is very
+declarative. Aside from the fact that it doesn't have any real logic
+to unit-test, calling these methods will send actual HTTP requests to
+create or cancel reservations, which is bound to make your tests slow
+and flaky. You will also probably have some really angry restaurants.</p>
+<blockquote>
+<p>You may want to have some kind of integration or enemy tests that
+verifies the overall correctness of your service that will end up
+testing this struct, but that goes beyond the scope of this guide.</p>
+</blockquote>
+<p>However, a more interessting part of your library deals with
+<em>choosing</em> from the possible availabilities and reserves a spot at the
+restaurant. Let's call it <code>Concierge</code>.</p>
+<pre><pre class="playground"><code class="language-rust">use restaurant_client::{RestaurantClient, Reservation};
+
+pub struct Concierge {
+    client: RestaurantClient,
+}
+
+impl Concierge {
+    pub fn new(client: RestaurantClient) -&gt; Self {
+        Concierge {
+            client,
+        }
+    }
+
+    pub fn reserve_matching(&amp;self, options: Options) -&gt; Result&lt;Reservation, Error&gt; {
+        /* logic to find a matching availability and reserve it */
+<span class="boring">        todo!()
+</span>    }
+}
+<span class="boring">
+</span><span class="boring">pub struct Options { /* snip */ }
+</span><span class="boring">pub enum Error {
+</span><span class="boring">    Client(restaurant_client::Error),
+</span><span class="boring">}
+</span><span class="boring">impl From&lt;restaurant_client::Error&gt; for Error {
+</span><span class="boring">    fn from(error: restaurant_client::Error) -&gt; Self {
+</span><span class="boring">        Error::Client(error)
+</span><span class="boring">    }
+</span><span class="boring">}
+</span><span class="boring">mod restaurant_client {
+</span><span class="boring">    pub struct RestaurantClient {}
+</span><span class="boring">    impl RestaurantClient {
+</span><span class="boring">       pub fn availabilities(&amp;self) -&gt; Result&lt;Vec&lt;Availability&gt;&gt; {
+</span><span class="boring">           todo!()
+</span><span class="boring">       }
+</span><span class="boring">       pub fn reserve(&amp;self, availability: Availability) -&gt; Result&lt;Reservation&gt; {
+</span><span class="boring">           todo!()
+</span><span class="boring">       }
+</span><span class="boring">    }
+</span><span class="boring">    pub struct Reservation { /* snip */ }
+</span><span class="boring">    pub struct Availability { /* snip */ }
+</span><span class="boring">    pub struct Error { /* snip */ }
+</span><span class="boring">    pub type Result&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
+</span><span class="boring">}
+</span><span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>Unlike <code>ReservationClient</code>, the <code>Concierge</code> does hold a key piece of
+domain logic: how to choose between the available times. This logic is
+worth unit tests as it is vital to our service and we want to make
+sure that it continues working as we refactor or add features to
+<code>reserve_matching</code>. However, we do not want to make actual calls to
+the <code>ReservationClient</code> as that would mean having to make network
+requests. To solve this, we decide to mock <code>ReservationClient</code> for our
+tests. <code>faux</code> makes it easy to make this struct mockable using the
+<code>faux::create</code> and <code>faux::methods</code> attributes.</p>
+<pre><pre class="playground"><code class="language-rust">// gate the attribute to only tests
+// `faux` is (and should be!) only available when running tests
+#[cfg_attr(test, faux::create)]
+pub struct RestaurantClient {
+    /* snip */
+}
+
+// gate the attribute to only tests
+#[cfg_attr(test, faux::methods)]
+impl RestaurantClient {
+    pub fn new() -&gt; Self {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn availabilities(&amp;self) -&gt; Result&lt;Vec&lt;Availability&gt;, Error&gt; {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn reserve(&amp;self, availability: Availability) -&gt; Result&lt;Reservation, Error&gt; {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+
+    pub fn cancel(&amp;self,  reservation: Reservation) -&gt; Result&lt;(), Error&gt; {
+        /* snip */
+<span class="boring">        todo!()
+</span>    }
+}
+<span class="boring">
+</span><span class="boring">pub struct Reservation { /* snip */ }
+</span><span class="boring">pub struct Availability { /* snip */ }
+</span><span class="boring">pub struct Error { /* snip */ }
+</span><span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>Using these two attributes allows/signals <code>faux</code> to hook into the
+struct and its methods at compile time to create mockable versions of
+them that can be used in your tests. Note that there are zero changes
+to the implementation or signature of <code>ReservationClient</code>, the only
+change is tagging it with the <code>faux</code> attributes.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">use restaurant_client::{RestaurantClient, Reservation};
+</span><span class="boring">pub struct Concierge {
+</span><span class="boring">    client: RestaurantClient,
+</span><span class="boring">}
+</span><span class="boring">impl Concierge {
+</span><span class="boring">    pub fn new(client: RestaurantClient) -&gt; Self {
+</span><span class="boring">        Concierge {
+</span><span class="boring">            client,
+</span><span class="boring">        }
+</span><span class="boring">    }
+</span><span class="boring">    pub fn reserve_matching(&amp;self, options: Options) -&gt; Result&lt;Reservation, Error&gt; {
+</span><span class="boring">        let _ = options;
+</span><span class="boring">        let chosen_availability = self.client
+</span><span class="boring">            .availabilities()?
+</span><span class="boring">            .pop()
+</span><span class="boring">            .ok_or(Error::NoReservations)?;
+</span><span class="boring">        let reservation = self.client.reserve(chosen_availability)?;
+</span><span class="boring">        Ok(reservation)
+</span><span class="boring">    }
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">pub struct Options { /* snip */ }
+</span><span class="boring">#[derive(Clone, Debug)]
+</span><span class="boring">pub enum Error {
+</span><span class="boring">    Client(restaurant_client::Error),
+</span><span class="boring">    NoReservations,
+</span><span class="boring">}
+</span><span class="boring">impl From&lt;restaurant_client::Error&gt; for Error {
+</span><span class="boring">    fn from(error: restaurant_client::Error) -&gt; Self {
+</span><span class="boring">        Error::Client(error)
+</span><span class="boring">    }
+</span><span class="boring">}
+</span><span class="boring">mod restaurant_client {
+</span><span class="boring">    #[faux::create]
+</span><span class="boring">    pub struct RestaurantClient {}
+</span><span class="boring">    #[faux::methods]
+</span><span class="boring">    impl RestaurantClient {
+</span><span class="boring">       pub fn availabilities(&amp;self) -&gt; Result&lt;Vec&lt;Availability&gt;&gt; {
+</span><span class="boring">           todo!()
+</span><span class="boring">       }
+</span><span class="boring">       pub fn reserve(&amp;self, availability: Availability) -&gt; Result&lt;Reservation&gt; {
+</span><span class="boring">           todo!()
+</span><span class="boring">       }
+</span><span class="boring">    }
+</span><span class="boring">    #[derive(Clone, Debug, PartialEq)]
+</span><span class="boring">    pub struct Reservation { /* snip */ }
+</span><span class="boring">    #[derive(Clone, Debug, PartialEq)]
+</span><span class="boring">    pub struct Availability { /* snip */ }
+</span><span class="boring">    #[derive(Clone, Debug)]
+</span><span class="boring">    pub struct Error { /* snip */ }
+</span><span class="boring">    pub type Result&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
+</span><span class="boring">}
+</span><span class="boring">extern crate faux;
+</span><span class="boring">use faux::when;
+</span><span class="boring">use restaurant_client::Availability;
+</span><span class="boring">fn main() {
+</span><span class="boring">    // first test
+</span><span class="boring">    let mut client = RestaurantClient::faux();
+</span><span class="boring">    let availability = Availability { /*snip */ };
+</span><span class="boring">    let expected_reservation = Reservation { /* snip */ };
+</span><span class="boring">
+</span><span class="boring">    when!(client.availabilities())
+</span><span class="boring">        .then_return(Ok(vec![availability.clone()]));
+</span><span class="boring">
+</span><span class="boring">    when!(client.reserve(availability))
+</span><span class="boring">        .then_return(Ok(expected_reservation.clone()));
+</span><span class="boring">
+</span><span class="boring">    let subject = Concierge::new(client);
+</span><span class="boring">    let options = Options { /* snip */ };
+</span><span class="boring">    let reservation = subject
+</span><span class="boring">        .reserve_matching(options).expect(&quot;expected successful reservation&quot;);
+</span><span class="boring">
+</span><span class="boring">    assert_eq!(reservation, expected_reservation);
+</span><span class="boring">
+</span><span class="boring">    // second test
+</span><span class="boring">    let mut client = RestaurantClient::faux();
+</span><span class="boring">    when!(client.availabilities()).then_return(Ok(vec![]));
+</span><span class="boring">
+</span><span class="boring">    let subject = Concierge::new(client);
+</span><span class="boring">    let options = Options { /* snip */ };
+</span><span class="boring">    let error = subject
+</span><span class="boring">        .reserve_matching(options)
+</span><span class="boring">        .expect_err(&quot;expected error reservation&quot;);
+</span><span class="boring">
+</span><span class="boring">    assert!(matches!(error, Error::NoReservations));
+</span><span class="boring">}
+</span><span class="boring">
+</span>#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use faux::when;
+
+    #[test]
+    fn selects_the_only_one() {
+        // A `faux()` function to every mockable struct
+        // to instantiate a mock instance
+        let mut client = RestaurantClient::faux();
+        let availability = Availability { /*snip */ };
+        let expected_reservation = Reservation { /* snip */ };
+
+        // when!(...) lets you stub the return method of the mock struct
+        when!(client.availabilities())
+            .then_return(Ok(vec![availability.clone()]));
+
+        // when!(...) lets you specify expected arguments
+        // so only invocations that match that argument return the stubbed data
+        when!(client.reserve(availability))
+            .then_return(Ok(expected_reservation.clone()));
+
+        let subject = Concierge::new(client);
+        let options = Options { /* snip */ };
+        let reservation = subject
+            .reserve_matching(options)
+            .expect(&quot;expected successful reservation&quot;);
+
+        assert_eq!(reservation, expected_reservation);
+    }
+
+    #[test]
+    fn fails_when_empty() {
+        let mut client = RestaurantClient::faux();
+        when!(client.availabilities()).then_return(Ok(vec![]));
+
+        let subject = Concierge::new(client);
+        let options = Options { /* snip */ };
+        let error = subject
+            .reserve_matching(options)
+            .expect_err(&quot;expected error reservation&quot;);
+
+        assert!(matches!(error, Error::NoReservations));
+    }
+}
+</code></pre></pre>
+<p>You have now successfully added tests for <code>Concierge</code> that use a mock
+instance of the <code>RestaurantClient</code>. Note that neither the
+implementation of <code>Concierge</code> nor <code>RestaurantClient</code> had to change in
+order to be mockable. You can write production ready code without
+incurring any abstraction penalty for using mocks in testing.</p>
+<h2 id="recap"><a class="header" href="#recap">Recap</a></h2>
+<ul>
+<li>
+<p>Use <code>faux</code> as a <code>dev-dependency</code> to avoid it leaking into production
+code.</p>
+</li>
+<li>
+<p><code>faux::create</code> and <code>faux::methods</code> are attributes used to tag
+structs and methods for mocking. These tags should be gated to tests
+only using <code>#[cfg_attr(test, ...)]</code></p>
+</li>
+<li>
+<p><code>faux::when!</code> is used to stub the returned data of a method in a
+mocked struct.</p>
+</li>
+<li>
+<p><code>faux::when!</code> lets you specify argument matchers so mocks are used
+only for certain invocations. The default is an equality matcher,
+but there are also other matchers if you want to match any argument,
+match a pattern, or match based on the result of a given predicate.
+See the [when docs] for more information.</p>
+</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="exporting-mocks-across-crates"><a class="header" href="#exporting-mocks-across-crates">Exporting Mocks Across Crates</a></h1>
+<p>As an application or library grows, it is common to split it into
+multiple crates.  This separation of responsibilities help to simplify
+code, but there is a snag: mocks.</p>
+<p>If any code is tagged wth the <code>#[cfg(test)]</code> attribute, Rust does
+allow it to be exported outside its crate. This is great! We
+definitely do not want to be building or running someone else's tests
+when testing our crate. This means, however, that the mockable version
+of our structs are also not exported, as <code>faux</code> was gated to only work
+during tests.</p>
+<p>This chapter explores a solution for exporting mocks across
+crates. Mocks can then be used within multiple crates of the same
+project, or even exposed to users of your library so they can mock
+your structs when testing their own library or application.</p>
+<p>To better explain, let's start with an example. Let's say we are
+building a graphics rendering library, <code>testable-renderer</code>. As
+expected, <code>faux</code> is declared in <code>dev-dependencies</code></p>
+<pre><code class="language-toml">[package]
+name = &quot;testable-renderer&quot;
+
+[dev-dependencies]
+faux = &quot;^0.1&quot;
+</code></pre>
+<p>And the code uses mocks:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">extern crate faux;
+</span><span class="boring">#[faux::create]
+</span>#[cfg_attr(test, faux::create)]
+pub struct Renderer {
+    /* snip */
+<span class="boring">    _inner: u8,
+</span>}
+
+<span class="boring">#[faux::methods]
+</span>#[cfg_attr(test, faux::methods)]
+impl Renderer {
+    pub fn new() -&gt; Renderer {
+        /* snip */
+<span class="boring">        unimplemented!()
+</span>    }
+
+    pub fn render(&amp;mut self, texture: &amp;Texture) -&gt; Result&lt;(), RenderError&gt; {
+        /* snip */
+<span class="boring">        unimplemented!()
+</span>    }
+}
+
+pub struct Texture;
+
+impl Texture {
+    pub fn render(&amp;self, renderer: &amp;mut Renderer) -&gt; Result&lt;(), RenderError&gt; {
+        renderer.render(self)
+    }
+}
+
+#[derive(Debug)]
+pub struct RenderError;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_textures() {
+        let mut renderer = Renderer::faux();
+        faux::when!(renderer.render).then(|_| Ok(()));
+
+        let subject = Texture {};
+        subject.render(&amp;mut renderer).expect(&quot;failed to render the texture&quot;)
+    }
+}
+<span class="boring">
+</span><span class="boring">fn main() {
+</span><span class="boring">    let mut renderer = Renderer::faux();
+</span><span class="boring">    faux::when!(renderer.render).then(|_| Ok(()));
+</span><span class="boring">    let subject = Texture {};
+</span><span class="boring">    subject.render(&amp;mut renderer).expect(&quot;failed to render the texture&quot;)
+</span><span class="boring">}
+</span></code></pre></pre>
+<h2 id="faux-as-a-feature"><a class="header" href="#faux-as-a-feature"><code>faux</code> as a feature</a></h2>
+<p>For the mocks to be exported, they need to be built even outside of
+tests. However, we do not want to pollute the production builds of our
+library nor anyone using our library with <code>faux</code> and mocks, so we make
+our dependency on <code>faux</code> optional:</p>
+<pre><code class="language-toml">[dependencies]
+# set up an optional feature outside of dev-dependencies so that users
+# of this library can use our mocks in their own tests
+faux = { version = &quot;^0.1&quot;, optional = true }
+
+[dev-dependencies]
+# our tests still depend on faux; so add it again but do not make it
+# optional
+faux = &quot;^0.1&quot;
+</code></pre>
+<p>Note that we still include <code>faux</code> in <code>dev-dependencies</code>. Our tests are
+always dependent on <code>faux</code>, since they use mocks, so the dependency is
+not optional.</p>
+<p>With this new config, Cargo exposes a new feature flag called
+<code>faux</code>. <code>faux</code> will only be built for tests and when the flag is
+enabled, which will be explained later.</p>
+<h2 id="gating-mocks-to-feature-flag"><a class="header" href="#gating-mocks-to-feature-flag">Gating mocks to feature flag</a></h2>
+<p>Now that we have a <code>faux</code> feature flag, we want our mocks to be
+created when that flag is turned on. This is accomplished using the
+<code>any</code> attribute:</p>
+<pre><pre class="playground"><code class="language-rust">// mocks are available for both test and the faux feature flag
+#[cfg_attr(any(test, feature = &quot;faux&quot;), faux::create)]
+pub struct Renderer {
+    /* snip */
+<span class="boring">    _inner: u8,
+</span>}
+
+// mocks are available for both test and the faux feature flag
+#[cfg_attr(any(test, feature = &quot;faux&quot;), faux::methods)]
+impl Renderer {
+    pub fn new() -&gt; Renderer {
+        /* snip */
+<span class="boring">        unimplemented!()
+</span>    }
+
+    pub fn render(&amp;mut self, texture: &amp;Texture) -&gt; Result&lt;(), RenderError&gt; {
+        /* snip */
+<span class="boring">        unimplemented!()
+</span>    }
+}
+
+<span class="boring">pub struct RenderError;
+</span><span class="boring">pub struct Texture;
+</span><span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>The key thing to remember here is replacing:</p>
+<pre><pre class="playground"><code class="language-rust">#[cfg_attr(test, ...)]
+<span class="boring">fn main()
+</span></code></pre></pre>
+<p>with</p>
+<pre><pre class="playground"><code class="language-rust">#[cfg_attr(any(test, feature = &quot;faux&quot;), ...)]
+<span class="boring">fn main()
+</span></code></pre></pre>
+<p>This tells Rust to use the <code>faux</code> attributes (<code>create</code> and <code>methods</code>)
+for either <code>test</code> or the <code>faux</code> feature flag. You can learn more about
+the <code>any</code> attribute in the <a href="https://doc.rust-lang.org/reference/conditional-compilation.html">Rust Reference</a>.</p>
+<p>These are all the changes necessary in our rendering library. The
+tests remain the same, and there are no implementation changes.</p>
+<h2 id="using-the-faux-feature"><a class="header" href="#using-the-faux-feature">Using the <code>faux</code> feature</a></h2>
+<p>Let's now move on to a dependent of our rendering library. The
+dependency is marked in its <code>Cargo.toml</code> as:</p>
+<pre><code class="language-toml">[dependencies]
+testable-renderer = * // some version
+</code></pre>
+<p>We would now like to use <code>testable-renderer</code> to render multiple
+textures for some <code>World</code> struct:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">mod testable_renderer {
+</span><span class="boring">    extern crate faux;
+</span><span class="boring">    #[faux::create]
+</span><span class="boring">    pub struct Renderer {
+</span><span class="boring">        _inner: u8,
+</span><span class="boring">    }
+</span><span class="boring">    #[faux::methods]
+</span><span class="boring">    impl Renderer {
+</span><span class="boring">        pub fn new() -&gt; Renderer {
+</span><span class="boring">            todo!()
+</span><span class="boring">        }
+</span><span class="boring">        pub fn render(&amp;mut self, texture: &amp;Texture) -&gt; Result&lt;(), RenderError&gt; {
+</span><span class="boring">            todo!()
+</span><span class="boring">        }
+</span><span class="boring">    }
+</span><span class="boring">    pub struct Texture;
+</span><span class="boring">    impl Texture {
+</span><span class="boring">        pub fn render(&amp;self, renderer: &amp;mut Renderer) -&gt; Result&lt;(), RenderError&gt; {
+</span><span class="boring">            renderer.render(self)
+</span><span class="boring">        }
+</span><span class="boring">    }
+</span><span class="boring">    #[derive(Debug)]
+</span><span class="boring">    pub struct RenderError;
+</span><span class="boring">}
+</span>use testable_renderer::{RenderError, Renderer, Texture};
+
+struct World {
+    player: Texture,
+    enemy: Texture,
+}
+
+impl World {
+    pub fn new() -&gt; Self {
+        World {
+            player: Texture {},
+            enemy: Texture {},
+        }
+    }
+
+    pub fn render(&amp;self, renderer: &amp;mut Renderer) -&gt; Result&lt;(), RenderError&gt; {
+        self.player.render(renderer)?;
+        self.enemy.render(renderer)?;
+
+        Ok(())
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>We would like to write tests for our <code>World::render</code> method, but since
+rendering is an expensive opration, this is hard to do without
+mocks. Thankfully, <code>testable-renderer</code> is set up to expose its mocks,
+so we activate them by configuring the feature flag in our
+<code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[package]
+# important so features turned on by dev-dependencies don't infect the
+# binary when doing a normal build. This lets us have different feature
+# flags in dev-dependencies vs normal dependencies.
+resolver = &quot;2&quot;
+
+[dependencies]
+# our normal dependency does not activate `faux`, thus keeping it out of
+# our released binary
+testable-renderer = * # some version
+
+[dev-dependencies]
+# for tests, we activate the `faux` feature in our dependency so that
+# we can use the exposed mocks
+testable-renderer = { version = &quot;*&quot;, features = [&quot;faux&quot;] }
+
+# still depend on `faux` so we can use setup the mocks
+faux = &quot;^0.1&quot;
+</code></pre>
+<p>The important takeaways are:</p>
+<ul>
+<li>
+<p><code>resolver = &quot;2&quot;</code>. This is needed so <code>faux</code> stays out of our normal
+builds. See the <a href="https://doc.rust-lang.org/nightly/cargo/reference/features.html#feature-resolver-version-2">Cargo Reference</a>.</p>
+</li>
+<li>
+<p>Turn on the feature flag under <code>[dev-dependencies]</code>. We only want to
+have access to the mocks in <code>testable-renderer</code> when building tests.</p>
+</li>
+</ul>
+<p>We can now write tests as per usual:</p>
+<pre><pre class="playground"><code class="language-rust">#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_the_world() {
+        // the test target enables the faux feature on `testable-renderer`
+        // thus allowing us to use the mocks of the *external* crate
+        let mut renderer = Renderer::faux();
+        faux::when!(renderer.render).then(|_| Ok(()));
+
+        let world = World::new();
+        world.render(&amp;mut renderer).expect(&quot;failed to render the world&quot;)
+    }
+}
+
+<span class="boring">fn main() {}
+</span></code></pre></pre>
+<h2 id="recap-1"><a class="header" href="#recap-1">Recap</a></h2>
+<p>The library that wants to export its mocks needs to:</p>
+<ul>
+<li>
+<p>Add <code>faux</code> as an optional dependency in <code>Cargo.toml</code>.</p>
+</li>
+<li>
+<p>Create the mocks not only during tests, but also when the <code>faux</code>
+feature flag is turned on.</p>
+</li>
+</ul>
+<p>The library or application that wants to use the exported mocks needs
+to:</p>
+<ul>
+<li>
+<p>Change the feature resolver to &quot;2&quot; in its <code>Cargo.toml</code>. Be aware
+that if you are using a workspace, this needs to be changed in the
+workspace's <code>Cargo.toml</code>.</p>
+</li>
+<li>
+<p>Add the dependency with the exported mocks under <code>dev-dependencies</code>
+with the <code>faux</code> flag enabled in <code>Cargo.toml</code>.</p>
+</li>
+</ul>
+<p>To see this in action, take a look at the example in the <a href="https://github.com/nrxus/faux/tree/master/examples">faux
+repository</a>. <code>testable-renderer</code> is the library with the exported
+mocks and <code>world-renderer</code> is the application that uses these mocks.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="--introducing-faux--"><a class="header" href="#--introducing-faux--">🎉 🎉 Introducing faux 🎉 🎉</a></h1>
 <h2 id="what-is-faux"><a class="header" href="#what-is-faux">What is faux?</a></h2>
 <p><a href="https://github.com/nrxus/faux"><code>faux</code></a> is a traitless Rust mocking framework for creating mock
@@ -200,7 +811,7 @@ actions, it is often useful to mock that behavior. Mocking can help
 make your tests into true unit tests that run quickly and produce the
 same result every time without relying on external dependencies. For a
 deeper dive into mocks, read this <a href="https://martinfowler.com/articles/mocksArentStubs.html">post</a>.</p>
-<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<h2 id="example-1"><a class="header" href="#example-1">Example</a></h2>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">extern crate faux;
 </span><span class="boring">
 </span>#[cfg_attr(test, faux::create)]
