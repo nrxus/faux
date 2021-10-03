@@ -26,6 +26,19 @@ impl Foo {
     }
 }
 
+fn load_a() -> Result<u32, Box<dyn std::error::Error>> {
+    Ok(3)
+}
+
+// tests that functions not tagged by `faux::methods` can use the ones
+// that are in a `faux::methods` impl block
+impl Foo {
+    pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
+        let a = load_a()?;
+        Ok(Foo::new(a))
+    }
+}
+
 #[test]
 fn real_struct() {
     let real = Foo::new(3);
