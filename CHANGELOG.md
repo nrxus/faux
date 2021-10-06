@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.4
+* Make sure `faux` is using the latest version of `faux_macros`
+
 ## v0.1.3
 * Support mocking methods with arguments of type: `&impl Trait`
   * [test](/tests/generic_methods.rs)

@@ -1,6 +1,6 @@
 # Getting Started
 
-`faux` makes liberal use of unsafe Rust feature, so it is only
+`faux` makes liberal use of unsafe Rust features, so it is only
 recommended for use inside tests. Follow the steps below to configure
 `faux` and the created mocks to only exist during tests.
 
