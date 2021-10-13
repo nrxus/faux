@@ -319,6 +319,8 @@ impl<'a> MethodData<'a> {
             syn::Ident::new(&format!("_when_{}", name), proc_macro2::Span::call_site());
         let faux_ident =
             syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
+        let expect_ident =
+            syn::Ident::new(&format!("_expect_{}", name), proc_macro2::Span::call_site());
 
         let empty = syn::parse_quote! { () };
         let output = output.unwrap_or(&empty);
@@ -335,6 +337,19 @@ impl<'a> MethodData<'a> {
             }
         };
 
+        let expect_method = syn::parse_quote! {
+            pub fn #expect_ident(&mut self) -> faux::Expect<(#(#arg_types),*)> {
+                match &mut self.0 {
+                    faux::MaybeFaux::Faux(faux) => faux::Expect::new(
+                        <Self>::#faux_ident,
+                        faux,
+                        stringify!(#name),
+                    ),
+                    faux::MaybeFaux::Real(_) => panic!("real instances cannot have expectations!"),
+                }
+            }
+        };
+
         let panic_message = format!("do not call this ({})", name);
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
@@ -344,7 +359,7 @@ impl<'a> MethodData<'a> {
             }
         };
 
-        vec![when_method, faux_method]
+        vec![when_method, faux_method, expect_method]
     }
 }
 

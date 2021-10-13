@@ -79,6 +79,42 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 }
 
+#[proc_macro]
+pub fn expect(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    match syn::parse_macro_input!(input as syn::Expr) {
+        syn::Expr::Field(syn::ExprField {
+            base,
+            member: syn::Member::Named(ident),
+            ..
+        }) => {
+            let expect = quote::format_ident!("_expect_{}", ident);
+            TokenStream::from(quote!( { #base.#expect() }))
+        }
+        syn::Expr::MethodCall(syn::ExprMethodCall {
+            receiver,
+            method,
+            args,
+            ..
+        }) => {
+            let expect = quote::format_ident!("_expect_{}", method);
+
+            let args = args
+                .into_iter()
+                .map(expr_to_matcher)
+                .collect::<Result<Vec<_>, _>>();
+
+            match args {
+                Err(e) => e.write_errors().into(),
+                Ok(args) => TokenStream::from(quote!({ #receiver.#expect().with_args((#(#args,)*)) }))
+            }
+        }
+        expr => darling::Error::custom("faux::when! only accepts arguments in the format of: `when!(receiver.method)` or `receiver.method(args...)`")
+             .with_span(&expr)
+             .write_errors()
+             .into(),
+    }
+}
+
 use quote::ToTokens;
 
 fn ref_matcher_maybe(

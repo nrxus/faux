@@ -138,10 +138,10 @@ fn multiple_mocks() {
 }
 
 #[test]
-#[should_panic]
+// #[should_panic]
 fn unmatched_args() {
     let mut mock = Foo::faux();
     let data = Data { a: 2, b: 3 };
-    faux::when!(mock.two_args(_, 4)).then_return(777);
+    faux::when!(mock.two_args(_, 42)).then_return(777);
     mock.two_args(&data, 2);
 }

@@ -247,6 +247,7 @@
 mod mock_store;
 mod stub;
 
+pub mod expect;
 pub mod matcher;
 pub mod when;
 
@@ -889,8 +890,13 @@ pub use faux_macros::methods;
 /// [`with_args`]: struct.When.html#method.with_args
 pub use faux_macros::when;
 
+pub use faux_macros::expect;
+
 #[doc(inline)]
 pub use when::When;
+
+#[doc(inline)]
+pub use expect::Expect;
 
 #[doc(inline)]
 pub use matcher::ArgMatcher;

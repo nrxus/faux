@@ -90,7 +90,14 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     where
         O: Send + Clone + 'static,
     {
-        self.then(move |_: I| value.clone());
+        self.then(move |_| value.clone());
+    }
+
+    pub fn then_return_default(self)
+    where
+        O: 'static + Default,
+    {
+        self.then(|_| O::default());
     }
 
     /// Sets the implementation of the stubbed method to the provided
