@@ -1,6 +1,8 @@
-use crate::mock::{Mock, SavedMock};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use crate::stub::{self, Stub};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 #[doc(hidden)]
 /// ```
@@ -54,39 +56,39 @@ impl<T> MaybeFaux<T> {
 #[derive(Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: Mutex<HashMap<usize, Arc<Mutex<Vec<SavedMock<'static>>>>>>,
+    stubs: Mutex<HashMap<usize, Arc<Mutex<Vec<stub::Saved<'static>>>>>>,
 }
 
 impl MockStore {
     fn new() -> Self {
         MockStore {
-            mocks: Mutex::new(HashMap::new()),
+            stubs: Mutex::new(HashMap::new()),
         }
     }
 
-    pub(crate) fn mock<R, I, O: 'static>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
-        self.store_mock(id, mock)
+    pub(crate) fn stub<R, I, O: 'static>(&mut self, id: fn(R, I) -> O, stub: Stub<'static, I, O>) {
+        self.store_stub(id, stub)
     }
 
-    pub(crate) unsafe fn mock_unchecked<R, I, O>(
+    pub(crate) unsafe fn stub_unchecked<R, I, O>(
         &mut self,
         id: fn(R, I) -> O,
-        mock: Mock<'_, I, O>,
+        stub: Stub<'_, I, O>,
     ) {
         // pretend the lifetime is static
-        self.store_mock(id, std::mem::transmute(mock))
+        self.store_stub(id, std::mem::transmute(stub))
     }
 
-    fn store_mock<R, I, O>(&mut self, id: fn(R, I) -> O, mock: Mock<'static, I, O>) {
-        let mocks = self
-            .mocks
+    fn store_stub<R, I, O>(&mut self, id: fn(R, I) -> O, stub: Stub<'static, I, O>) {
+        let stubs = self
+            .stubs
             .lock()
             .unwrap()
             .entry(id as usize)
             .or_default()
             .clone();
 
-        mocks.lock().unwrap().push(unsafe { mock.unchecked() });
+        stubs.lock().unwrap().push(unsafe { stub.unchecked() });
     }
 
     #[doc(hidden)]
@@ -94,21 +96,21 @@ impl MockStore {
     ///
     /// Do *NOT* call this function directly.
     /// This should only be called by the generated code from #[faux::methods]
-    pub unsafe fn call_mock<R, I, O>(&self, id: fn(R, I) -> O, mut input: I) -> Result<O, String> {
-        let locked_store = self.mocks.lock().unwrap();
-        let potential_mocks = locked_store
+    pub unsafe fn call_stub<R, I, O>(&self, id: fn(R, I) -> O, mut input: I) -> Result<O, String> {
+        let locked_store = self.stubs.lock().unwrap();
+        let potential_stubs = locked_store
             .get(&(id as usize))
             .cloned()
-            .ok_or_else(|| "✗ method was never mocked".to_string())?;
+            .ok_or_else(|| "✗ method was never stubbed".to_string())?;
 
-        // drop the lock before calling the mock to avoid deadlocking in the mock
+        // drop the lock before calling the stub to avoid deadlocking in the mock
         std::mem::drop(locked_store);
 
-        let mut potential_mocks = potential_mocks.lock().unwrap();
+        let mut potential_subs = potential_stubs.lock().unwrap();
         let mut errors = vec![];
 
-        for mock in potential_mocks.iter_mut().rev() {
-            match mock.call(input) {
+        for stub in potential_subs.iter_mut().rev() {
+            match stub.call(input) {
                 Err((i, e)) => {
                     errors.push(format!("✗ {}", e));
                     input = i

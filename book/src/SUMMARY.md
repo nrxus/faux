@@ -4,7 +4,7 @@
 [Motivation](./motivation.md)
 
 - [Getting Started](./guide/getting-started.md)
-- [Mock Behavior (Coming Soon)]()
+- [Stub Behavior (Coming Soon)]()
 <!-- - [Mock Expectations (Coming Soon)]() -->
 - [Argument Matching (Coming Soon)]()
   - [Equality (Coming Soon)]()

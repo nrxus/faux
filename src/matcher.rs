@@ -15,7 +15,7 @@ mod invocation_matcher;
 pub use any::any;
 pub use eq::{eq, eq_against};
 pub use from_fn::from_fn;
-pub use invocation_matcher::InvocationMatcher;
+pub use invocation_matcher::{AnyInvocation, InvocationMatcher};
 
 use std::fmt::{self, Formatter};
 

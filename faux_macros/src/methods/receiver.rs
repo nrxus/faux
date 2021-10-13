@@ -1,7 +1,10 @@
 use crate::self_type::SelfType;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use std::boxed::Box;
+use std::{
+    boxed::Box,
+    fmt::{self, Formatter},
+};
 use syn::spanned::Spanned;
 
 pub struct Receiver {
@@ -46,7 +49,7 @@ impl Receiver {
         &self,
         self_type: SelfType,
         proxy_real: TokenStream,
-        call_mock: TokenStream,
+        call_stub: TokenStream,
     ) -> darling::Result<syn::Expr> {
         let get_self = match &self.kind {
             SelfKind::Owned
@@ -173,7 +176,7 @@ impl Receiver {
         Ok(syn::parse_quote! {
             match #get_self {
                 Self(faux::MaybeFaux::Real(r)) => { #proxy_real },
-                Self(faux::MaybeFaux::Faux(q)) => { #call_mock },
+                Self(faux::MaybeFaux::Faux(q)) => { #call_stub },
             }
         })
     }
@@ -208,8 +211,8 @@ impl SelfKind {
     }
 }
 
-impl std::fmt::Display for SelfKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for SelfKind {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             SelfKind::Owned => write!(f, "Self"),
             SelfKind::Pointer(p) => write!(f, "{}", p),
@@ -217,8 +220,8 @@ impl std::fmt::Display for SelfKind {
     }
 }
 
-impl std::fmt::Display for PointerKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for PointerKind {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             PointerKind::Ref => write!(f, "&Self"),
             PointerKind::MutRef => write!(f, "&mut Self"),

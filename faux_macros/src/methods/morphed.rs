@@ -81,7 +81,7 @@ pub fn replace_impl_trait(ty: &syn::Type) -> Option<syn::Type> {
 
 impl<'a> ToTokens for WhenArg<'a> {
     fn to_tokens(&self, token_stream: &mut proc_macro2::TokenStream) {
-        match replace_impl_trait(&self.0) {
+        match replace_impl_trait(self.0) {
             None => self.0.to_tokens(token_stream),
             Some(impl_ty) => {
                 token_stream.extend(quote! { std::boxed::Box<#impl_ty> });
@@ -182,14 +182,14 @@ impl<'a> Signature<'a> {
         }
 
         let ret = match &self.method_data {
-            // not mockable
+            // not stubbable
             // proxy to real associated function
             None => syn::parse2(proxy_real).unwrap(),
             // else we can either proxy for real instances
             // or call the mock store for faux instances
             Some(method_data) => {
-                let call_mock = if method_data.is_private {
-                    quote! { panic!("faux error: private methods are not mockable; and therefore not directly callable in a mock") }
+                let call_stub = if method_data.is_private {
+                    quote! { panic!("faux error: private methods are not stubbable; and therefore not directly callable in a mock") }
                 } else {
                     let faux_ident =
                         syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
@@ -199,8 +199,7 @@ impl<'a> Signature<'a> {
                             .iter()
                             .zip(method_data.arg_types.iter())
                             .map(|(ident, ty)| {
-                                if has_impl_trait(&ty.0) {
-                                    // let bounds = &ty.bounds;
+                                if has_impl_trait(ty.0) {
                                     quote! {
                                         std::boxed::Box::new(#ident)
                                     }
@@ -220,10 +219,10 @@ impl<'a> Signature<'a> {
                         format!("{}::{}", morphed_ty.to_token_stream(), name);
                     quote! {
                         unsafe {
-                            match q.call_mock(<Self>::#faux_ident, #args) {
+                            match q.call_stub(<Self>::#faux_ident, #args) {
                                 std::result::Result::Ok(o) => o,
                                 std::result::Result::Err(e) => {
-                                    panic!("failed to call mock on '{}':\n{}", #struct_and_method_name, e);
+                                    panic!("failed to call stub on '{}':\n{}", #struct_and_method_name, e);
                                 }
                             }
                         }
@@ -232,7 +231,7 @@ impl<'a> Signature<'a> {
 
                 method_data
                     .receiver
-                    .method_body(real_self, proxy_real, call_mock)?
+                    .method_body(real_self, proxy_real, call_stub)?
             }
         };
 
@@ -246,7 +245,7 @@ impl<'a> Signature<'a> {
         self.method_data
             .as_ref()
             .filter(|m| !m.is_private)
-            .map(|m| m.create_when(self.output, &self.name))
+            .map(|m| m.create_when(self.output, self.name))
     }
 
     fn wrap_self(
@@ -264,7 +263,7 @@ impl<'a> Signature<'a> {
                 args,
                 ..
             }) if args.len() == 1 => match args.first().unwrap() {
-                syn::GenericArgument::Type(syn::Type::Path(ty)) => is_self(&ty),
+                syn::GenericArgument::Type(syn::Type::Path(ty)) => is_self(ty),
                 _ => false,
             },
             _ => false,
@@ -325,13 +324,13 @@ impl<'a> MethodData<'a> {
         let output = output.unwrap_or(&empty);
 
         let when_method = syn::parse_quote! {
-            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::when::Any> {
+            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
                         <Self>::#faux_ident,
                         faux
                     ),
-                    faux::MaybeFaux::Real(_) => panic!("not allowed to mock a real instance!"),
+                    faux::MaybeFaux::Real(_) => panic!("not allowed to stub a real instance!"),
                 }
             }
         };

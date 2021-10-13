@@ -342,7 +342,7 @@ incurring any abstraction penalty for using mocks in testing.
 * `faux::when!` is used to stub the returned data of a method in a
   mocked struct.
 
-* `faux::when!` lets you specify argument matchers so mocks are used
+* `faux::when!` lets you specify argument matchers so stubs are used
   only for certain invocations. The default is an equality matcher,
   but there are also other matchers if you want to match any argument,
   match a pattern, or match based on the result of a given predicate.

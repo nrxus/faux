@@ -1,86 +1,87 @@
-use crate::matcher;
-use std::fmt;
+use crate::matcher::InvocationMatcher;
+use std::fmt::{self, Formatter};
 
-pub struct Mock<'a, I, O> {
-    matcher: Box<dyn matcher::InvocationMatcher<I> + Send>,
-    stub: Stub<'a, I, O>,
+pub struct Stub<'a, I, O> {
+    matcher: Box<dyn InvocationMatcher<I> + Send>,
+    stub: Answer<'a, I, O>,
 }
 
-pub enum Stub<'a, I, O> {
+pub enum Answer<'a, I, O> {
     Once(Box<dyn FnOnce(I) -> O + Send + 'a>),
     Many {
         stub: Box<dyn FnMut(I) -> O + Send + 'a>,
-        times: MockTimes,
+        times: Times,
     },
 }
 
-pub struct SavedMock<'a> {
-    transmuted_matcher: Box<dyn matcher::InvocationMatcher<()> + Send>,
-    stub: SavedStub<'a>,
+pub struct Saved<'a> {
+    transmuted_matcher: Box<dyn InvocationMatcher<()> + Send>,
+    stub: SavedAnswer<'a>,
 }
 
-pub enum SavedStub<'a> {
+pub enum SavedAnswer<'a> {
     Exhausted,
     Once {
         transmuted_stub: Box<dyn FnOnce(()) + Send + 'a>,
     },
     Many {
         transmuted_stub: Box<dyn FnMut(()) + Send + 'a>,
-        times: MockTimes,
+        times: Times,
     },
 }
 
 #[derive(Debug)]
-pub enum MockTimes {
+pub enum Times {
     Always,
     Times(usize),
 }
 
-impl MockTimes {
+impl Times {
     pub fn decrement(&mut self) {
-        if let MockTimes::Times(times) = self {
+        if let Times::Times(times) = self {
             *times -= 1;
         }
     }
 }
 
-impl<'a, I, O> Mock<'a, I, O> {
-    pub fn new<M: matcher::InvocationMatcher<I> + Send + 'static>(
-        stub: Stub<'a, I, O>,
-        matcher: M,
+impl<'a, I, O> Stub<'a, I, O> {
+    pub fn new(
+        stub: Answer<'a, I, O>,
+        matcher: impl InvocationMatcher<I> + Send + 'static,
     ) -> Self {
-        Mock {
+        Stub {
             matcher: Box::new(matcher),
             stub,
         }
     }
 
-    pub unsafe fn unchecked(self) -> SavedMock<'a> {
-        let matcher: Box<dyn matcher::InvocationMatcher<()>> = std::mem::transmute(self.matcher);
+    pub unsafe fn unchecked(self) -> Saved<'a> {
+        let transmuted_matcher: Box<dyn InvocationMatcher<()> + Send> =
+            std::mem::transmute(self.matcher);
         let stub = match self.stub {
-            Stub::Once(mock) => SavedStub::Once {
-                transmuted_stub: std::mem::transmute(mock),
+            Answer::Once(stub) => SavedAnswer::Once {
+                transmuted_stub: std::mem::transmute(stub),
             },
-            Stub::Many { stub, times } => SavedStub::Many {
+            Answer::Many { stub, times } => SavedAnswer::Many {
                 times,
                 transmuted_stub: std::mem::transmute(stub),
             },
         };
-        SavedMock {
-            transmuted_matcher: std::mem::transmute(matcher),
+        Saved {
+            transmuted_matcher,
             stub,
         }
     }
 }
 
-impl<'a> SavedMock<'a> {
+impl<'a> Saved<'a> {
     /// # Safety
     ///
     /// Only call this method if you know for sure these are the right
     /// input and output from the non-transmuted stubs
     pub unsafe fn call<I, O>(&mut self, input: I) -> Result<O, (I, String)> {
         let matcher = &mut *(&mut self.transmuted_matcher as *mut Box<_>
-            as *mut Box<dyn matcher::InvocationMatcher<I>>);
+            as *mut Box<dyn InvocationMatcher<I>>);
 
         // TODO: should the error message be different if the stub is also exhausted?
         if let Err(e) = matcher.matches(&input) {
@@ -88,16 +89,16 @@ impl<'a> SavedMock<'a> {
         }
 
         let just_exhausted = match &mut self.stub {
-            SavedStub::Once { .. }
-            | SavedStub::Many {
-                times: MockTimes::Times(0),
+            SavedAnswer::Once { .. }
+            | SavedAnswer::Many {
+                times: Times::Times(0),
                 ..
             }
-            | SavedStub::Many {
-                times: MockTimes::Times(1),
+            | SavedAnswer::Many {
+                times: Times::Times(1),
                 ..
-            } => std::mem::replace(&mut self.stub, SavedStub::Exhausted),
-            SavedStub::Many {
+            } => std::mem::replace(&mut self.stub, SavedAnswer::Exhausted),
+            SavedAnswer::Many {
                 times,
                 transmuted_stub,
             } => {
@@ -106,22 +107,22 @@ impl<'a> SavedMock<'a> {
                     as *mut Box<dyn FnMut(I) -> O + Send>);
                 return Ok(stub(input));
             }
-            SavedStub::Exhausted => {
-                return Err((input, "this mock has been exhausted".to_string()))
+            SavedAnswer::Exhausted => {
+                return Err((input, "this stub has been exhausted".to_string()))
             }
         };
 
         match just_exhausted {
-            SavedStub::Once { transmuted_stub } => {
+            SavedAnswer::Once { transmuted_stub } => {
                 let stub: Box<dyn FnOnce(I) -> O> = std::mem::transmute(transmuted_stub);
                 Ok(stub(input))
             }
-            SavedStub::Many {
-                times: MockTimes::Times(0),
+            SavedAnswer::Many {
+                times: Times::Times(0),
                 ..
-            } => Err((input, "this mock has been exhausted".to_string())),
-            SavedStub::Many {
-                times: MockTimes::Times(1),
+            } => Err((input, "this stub has been exhausted".to_string())),
+            SavedAnswer::Many {
+                times: Times::Times(1),
                 transmuted_stub,
             } => {
                 let mut stub: Box<dyn FnMut(I) -> O> = std::mem::transmute(transmuted_stub);
@@ -132,12 +133,12 @@ impl<'a> SavedMock<'a> {
     }
 }
 
-impl fmt::Debug for SavedMock<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Debug for Saved<'_> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match &self.stub {
-            SavedStub::Exhausted => f.write_str("exhausted mock"),
-            SavedStub::Once { .. } => f.write_str("once mock"),
-            SavedStub::Many { times, .. } => write!(f, "mock {:?} times", times),
+            SavedAnswer::Exhausted => f.write_str("exhausted stub"),
+            SavedAnswer::Once { .. } => f.write_str("once stub"),
+            SavedAnswer::Many { times, .. } => write!(f, "stub {:?} times", times),
         }
     }
 }

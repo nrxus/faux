@@ -40,6 +40,16 @@ pub trait InvocationMatcher<Args> {
     fn matches(&self, args: &Args) -> Result<(), String>;
 }
 
+#[doc(hidden)]
+pub struct AnyInvocation;
+
+impl<Arg> InvocationMatcher<Arg> for AnyInvocation {
+    /// Always returns Ok(())
+    fn matches(&self, _: &Arg) -> Result<(), String> {
+        Ok(())
+    }
+}
+
 impl InvocationMatcher<()> for () {
     /// Always succeeds, as there are no arguments to match against.
     fn matches(&self, _: &()) -> Result<(), String> {

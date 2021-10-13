@@ -1,6 +1,7 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
+use std::fmt::{self, Formatter};
 
 #[derive(FromMeta, PartialEq, Eq, Copy, Clone)]
 #[darling(rename_all = "PascalCase")]
@@ -51,8 +52,8 @@ impl Default for SelfType {
     }
 }
 
-impl std::fmt::Display for SelfType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for SelfType {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         (match self {
             SelfType::Owned => "owned",
             SelfType::Rc => "Rc",

@@ -1,10 +1,10 @@
 use crate::{
-    matcher,
-    mock::{Mock, Stub},
+    matcher::InvocationMatcher,
+    stub::{self, Stub},
     MockStore,
 };
 
-/// Similar to [When](struct.When), but only mocks once.
+/// Similar to [When](struct.When), but only stubs once.
 ///
 /// Stubbed values do not need to be cloneable. Stubbed
 /// implementations may consume variables.
@@ -12,13 +12,13 @@ use crate::{
 /// Do *NOT* rely on the signature of `Once`. While changing the
 /// methods of `Once` will be considered a breaking change, changing
 /// the generics within `Once` will not.
-pub struct Once<'q, R, I, O, M: matcher::InvocationMatcher<I>> {
+pub struct Once<'q, R, I, O, M: InvocationMatcher<I>> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,
     matcher: M,
 }
 
-impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> Once<'q, R, I, O, M> {
+impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'q, R, I, O, M> {
     #[doc(hidden)]
     pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
         Once { id, store, matcher }
@@ -61,7 +61,7 @@ impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> Once<'q, R,
         unsafe { self.then_unchecked_return(value) }
     }
 
-    /// Analog of [When.then] where the mock may consume captured
+    /// Analog of [When.then] where the stub may consume captured
     /// variables.
     ///
     /// [When.then]: struct.When.html#method.then
@@ -88,12 +88,14 @@ impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> Once<'q, R,
     ///   assert_eq!(mock.single_arg(8), vec![25]);
     /// }
     /// ```
-    pub fn then(self, mock: impl FnOnce(I) -> O + 'static + Send)
+    pub fn then(self, stub: impl FnOnce(I) -> O + 'static + Send)
     where
         O: 'static,
     {
-        self.store
-            .mock(self.id, Mock::new(Stub::Once(Box::new(mock)), self.matcher));
+        self.store.stub(
+            self.id,
+            Stub::new(stub::Answer::Once(Box::new(stub)), self.matcher),
+        );
     }
 
     /// Analog of [When.then_unchecked_return] where the value does
@@ -136,7 +138,7 @@ impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> Once<'q, R,
         self.then_unchecked(move |_: I| value)
     }
 
-    /// Analog of [When.then_unchecked] where the mock may consume
+    /// Analog of [When.then_unchecked] where the stub may consume
     /// captured variables.
     ///
     /// [When.then_unchecked]: struct.When.html#method.then
@@ -169,8 +171,10 @@ impl<'q, R, I, O, M: matcher::InvocationMatcher<I> + Send + 'static> Once<'q, R,
     /// # Safety
     /// See [When.then_unchecked's safety].
     ///
-    pub unsafe fn then_unchecked(self, mock: impl FnOnce(I) -> O + Send) {
-        self.store
-            .mock_unchecked(self.id, Mock::new(Stub::Once(Box::new(mock)), self.matcher));
+    pub unsafe fn then_unchecked(self, stub: impl FnOnce(I) -> O + Send) {
+        self.store.stub_unchecked(
+            self.id,
+            Stub::new(stub::Answer::Once(Box::new(stub)), self.matcher),
+        );
     }
 }

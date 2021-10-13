@@ -16,8 +16,8 @@
 //! * [`#[create]`](create): transforms a struct into a mockable equivalent
 //! * [`#[methods]`](methods): transforms the methods in an `impl` block into
 //! their mockable equivalents
-//! * [`when!`]: initializes a method stub by returning a [`When`]. Passing optional argument matchers restricts which arguments will invoke the mock.
-//! * [`When`]: lets you stub a mocked method's return value or implementation
+//! * [`when!`]: initializes a method stub by returning a [`When`]. Passing optional argument matchers restricts which arguments will invoke the stub.
+//! * [`When`]: lets you stub a method's return value or implementation
 //!
 //! # Getting Started
 //!
@@ -69,8 +69,8 @@
 //!
 //!   let headers = Headers { authorization: "Bearer foobar".to_string() };
 //!
-//!   // use `faux::when!` to mock the behavior of your methods
-//!   // you can specify arguments to match against when the mock is invoked
+//!   // use `faux::when!` to stub the behavior of your methods
+//!   // you can specify arguments to match against when the stub is invoked
 //!   faux::when!(
 //!       // arguments are converted into argument matchers
 //!       // the default argument matcher performs an equality check
@@ -79,13 +79,13 @@
 //!       // but that the second one must equal `headers`
 //!       mock.post(_, headers.clone())
 //!   )
-//!   // mock the return value
+//!   // stub the return value
 //!   .then_return("{}".to_string());
 //!
 //!   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
 //!   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
 //!
-//!   // if you want to mock all calls to a method, you can omit argument matchers
+//!   // if you want to stub all calls to a method, you can omit argument matchers
 //!   faux::when!(mock.post).then_return("OK".to_string());
 //!   let other_headers = Headers { authorization: "other-token".to_string() };
 //!   assert_eq!(mock.post("other/path", &other_headers), "OK");
@@ -105,11 +105,11 @@
 //! #  }
 //! ```
 //!
-//! ## Mocking the same method multiple times
+//! ## Stubbing the same method multiple times
 //!
-//! A single method can be mocked multiple times. When doing so,
-//! `faux` checks every mock for the method in a last-in-first-out
-//! fashion until it finds a mock whose argument matchers match the
+//! A single method can be stubbed multiple times. When doing so,
+//! `faux` checks every stub for the method in a last-in-first-out
+//! fashion until it finds a stub whose argument matchers match the
 //! invocation arguments.
 //!
 //! ```
@@ -132,13 +132,13 @@
 //!   let headers = Headers { authorization: "Bearer foobar".to_string() };
 //!   let other_headers = Headers { authorization: "other-token".to_string() };
 //!
-//!   // catch-all mock to return "OK"
+//!   // catch-all stub to return "OK"
 //!   faux::when!(mock.post).then_return("OK".to_string());
-//!   // mock for specific headers to return "{}"
+//!   // stub for specific headers to return "{}"
 //!   faux::when!(mock.post(_, headers.clone())).then_return("{}".to_string());
 //!
-//!   assert_eq!(mock.post("some/path", &headers), "{}"); // matches specific mock
-//!   assert_eq!(mock.post("some/path", &other_headers), "OK"); // matches catch-all mock
+//!   assert_eq!(mock.post("some/path", &headers), "{}"); // matches specific stub
+//!   assert_eq!(mock.post("some/path", &other_headers), "OK"); // matches catch-all stub
 //! }
 //! # fn main() {
 //! #   let mut mock = HttpClient::faux();
@@ -153,7 +153,7 @@
 //! #  }
 //! ```
 //!
-//! ## Mocking implementation
+//! ## Stubbing implementation
 //!
 //! `faux` supports stubbing of not just the return value but also the
 //! implementation of a method. This is done using `then()`.
@@ -190,11 +190,11 @@
 //! #  }
 //! ```
 //!
-//! ## Mocking with non-static data
+//! ## Stubbing with non-static data
 //!
 //! Let's add a new method to our `HttpClient` that returns borrowed
-//! data. This cannot be mocked using safe code, so `faux` provides
-//! `.then_unchecked()` and `.then_unchecked_return()` to mock such
+//! data. This cannot be stubbed using safe code, so `faux` provides
+//! `.then_unchecked()` and `.then_unchecked_return()` to stub such
 //! methods.
 //!
 //! ```
@@ -215,8 +215,8 @@
 //!   let mut mock = HttpClient::faux();
 //!
 //!   // `then_unchecked()` and `then_unchecked_return()` require unsafe
-//!   // they allow mocking methods that return non-static values (e.g. references)
-//!   // or to mock using non-static closures
+//!   // they allow stubbing methods that return non-static values (e.g. references)
+//!   // or to stub using non-static closures
 //!   let ret = "some-value".to_string();
 //!   unsafe { faux::when!(mock.host).then_unchecked_return(ret.as_str()) }
 //!   assert_eq!(mock.host(), &ret);
@@ -232,7 +232,7 @@
 //!
 //! # Features
 //!
-//! `faux` lets you mock the return value or implementation of:
+//! `faux` lets you stub the return value or implementation of:
 //!
 //! * Async methods
 //! * Trait methods
@@ -244,8 +244,8 @@
 //!
 //! [mocks]: https://martinfowler.com/articles/mocksArentStubs.html
 
-mod mock;
 mod mock_store;
+mod stub;
 
 pub mod matcher;
 pub mod when;
@@ -545,7 +545,7 @@ pub use faux_macros::create;
 ///
 /// # Panics
 ///
-/// ## Non-mocked methods
+/// ## Non-stubbed methods
 ///
 /// ```should_panic
 /// #[faux::create]
@@ -560,7 +560,7 @@ pub use faux_macros::create;
 ///
 /// # fn main() {
 /// let fake = MyStruct::faux();
-/// // fake.get is not mocked
+/// // fake.get is not stubbed
 /// fake.get(); // <~ panics
 /// # }
 /// ```
@@ -700,14 +700,14 @@ pub use faux_macros::create;
 /// [receiver]: https://doc.rust-lang.org/reference/items/associated-items.html#methods
 pub use faux_macros::methods;
 
-/// Creates a [`When`] instance to mock a specific method in a struct.
+/// Creates a [`When`] instance to stub a specific method in a struct.
 ///
 /// Callers may specify argument matchers to limit the arguments for
-/// which the method is mocked. Matchers can only be specified if all
+/// which the method is stubbed. Matchers can only be specified if all
 /// arguments implement [`Debug`](std::fmt::Debug). The debug message
 /// is printed if any of the arguments fail to match.
 ///
-/// The method to mock must be be in an `impl` blocked tagged by
+/// The method to stub must be be in an `impl` blocked tagged by
 /// [`#[methods]`](methods).
 ///
 /// # Examples
@@ -753,7 +753,7 @@ pub use faux_macros::methods;
 /// An argument mismatch would look something like:
 ///
 /// ```term
-/// thread 'main' panicked at 'failed to call mock on 'Foo::some_method':
+/// thread 'main' panicked at 'failed to call stub on 'Foo::some_method':
 /// ✗ Arguments did not match
 ///   Expected: [8, 9]
 ///   Actual:   [1, 1]

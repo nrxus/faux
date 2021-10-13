@@ -1,5 +1,5 @@
 use super::ArgMatcher;
-use std::fmt;
+use std::fmt::{self, Formatter};
 
 struct FromFn<F> {
     message: String,
@@ -18,7 +18,7 @@ where
 }
 
 impl<F> fmt::Display for FromFn<F> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(&self.message)
     }
 }
