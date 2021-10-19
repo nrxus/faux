@@ -134,7 +134,7 @@ impl<'a> Saved<'a> {
 }
 
 impl fmt::Debug for Saved<'_> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.stub {
             SavedAnswer::Exhausted => f.write_str("exhausted stub"),
             SavedAnswer::Once { .. } => f.write_str("once stub"),

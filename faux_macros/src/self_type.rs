@@ -53,7 +53,7 @@ impl Default for SelfType {
 }
 
 impl fmt::Display for SelfType {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         (match self {
             SelfType::Owned => "owned",
             SelfType::Rc => "Rc",

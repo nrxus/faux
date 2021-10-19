@@ -43,7 +43,7 @@ use std::fmt::{self, Formatter};
 /// // displayed as the expectation when any argument fails to match
 /// // when used by an `InvocationMatcher`
 /// impl fmt::Display for HasLength {
-///     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+///     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
 ///         write!(f, "_.len() == {}", self.0)
 ///     }
 /// }

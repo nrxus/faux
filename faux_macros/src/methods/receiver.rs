@@ -212,7 +212,7 @@ impl SelfKind {
 }
 
 impl fmt::Display for SelfKind {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             SelfKind::Owned => write!(f, "Self"),
             SelfKind::Pointer(p) => write!(f, "{}", p),
@@ -221,7 +221,7 @@ impl fmt::Display for SelfKind {
 }
 
 impl fmt::Display for PointerKind {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             PointerKind::Ref => write!(f, "&Self"),
             PointerKind::MutRef => write!(f, "&mut Self"),

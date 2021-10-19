@@ -89,7 +89,7 @@ fn custom_matcher() {
     }
 
     impl fmt::Display for AddsToLessThan20 {
-        fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
             write!(f, "(_.a + _.b) < 20")
         }
     }
