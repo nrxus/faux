@@ -1,6 +1,6 @@
 [package]
 name = "faux"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Andres <andresnrx@gmail.com>"]
 license = "MIT"
 description = "A library to mock structs"
@@ -11,7 +11,7 @@ keywords = ["mock", "mocking", "test", "testing", "faux"]
 readme = "README.md"
 
 [dependencies]
-faux_macros = { path = "faux_macros", version = "0.1.4" }
+faux_macros = { path = "faux_macros", version = "0.1.5" }
 paste = "1.0.4"
 
 [dev-dependencies]

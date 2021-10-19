@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.1.5
+* Be more explicit about stubbing vs mocking
+* Fixed issue where faux was requiring MSRV 1.54.0 because of doctests
+
 ## v0.1.4
 * Make sure `faux` is using the latest version of `faux_macros`
 
