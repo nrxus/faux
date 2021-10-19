@@ -899,6 +899,5 @@ pub use matcher::ArgMatcher;
 // but purposefully not documented
 pub use mock_store::{MaybeFaux, MockStore};
 
-#[doc = include_str!("../README.md")]
-#[cfg(doctest)]
-pub struct ReadmeDoctests;
+#[cfg(doc)]
+mod readme_tests;
