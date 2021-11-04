@@ -31,14 +31,14 @@ pub use once::Once;
 /// [`once`]: When::once
 /// [`times`]: When::times
 /// [`with_args`]: When::with_args
-pub struct When<'q, R, I, O, M: InvocationMatcher<I>> {
+pub struct When<'q, R, I, O, M: InvocationMatcher<I, N>, const N: usize> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,
     times: stub::Times,
     matcher: M,
 }
 
-impl<'q, R, I, O> When<'q, R, I, O, AnyInvocation> {
+impl<'q, R, I, O, const N: usize> When<'q, R, I, O, AnyInvocation, N> {
     #[doc(hidden)]
     pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
         When {
@@ -50,7 +50,9 @@ impl<'q, R, I, O> When<'q, R, I, O, AnyInvocation> {
     }
 }
 
-impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
+impl<'q, R, I, O, M: InvocationMatcher<I, N> + Send + 'static, const N: usize>
+    When<'q, R, I, O, M, N>
+{
     /// Sets the return value of the stubbed method.
     ///
     /// Requires the value to be static. For a more lax but unsafe
@@ -455,7 +457,7 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     ///   mock.single_arg(8);
     /// }
     /// ```
-    pub fn once(self) -> Once<'q, R, I, O, M> {
+    pub fn once(self) -> Once<'q, R, I, O, M, N> {
         Once::new(self.id, self.store, self.matcher)
     }
 
@@ -475,10 +477,10 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     ///
     /// For more complex cases, you may pass a custom
     /// [`InvocationMatcher`](InvocationMatcher).
-    pub fn with_args<N: InvocationMatcher<I> + Send + 'static>(
+    pub fn with_args<M2: InvocationMatcher<I, N> + Send + 'static>(
         self,
-        matcher: N,
-    ) -> When<'q, R, I, O, N> {
+        matcher: M2,
+    ) -> When<'q, R, I, O, M2, N> {
         When {
             matcher,
             times: self.times,

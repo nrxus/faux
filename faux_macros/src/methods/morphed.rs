@@ -194,6 +194,8 @@ impl<'a> Signature<'a> {
                     let faux_ident =
                         syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
 
+                    let num_args = arg_idents.len();
+
                     let mut args =
                         arg_idents
                             .iter()
@@ -219,7 +221,7 @@ impl<'a> Signature<'a> {
                         format!("{}::{}", morphed_ty.to_token_stream(), name);
                     quote! {
                         unsafe {
-                            match q.call_stub(<Self>::#faux_ident, #args) {
+                            match q.call_stub::<_, _, _, #num_args>(<Self>::#faux_ident, #args) {
                                 std::result::Result::Ok(o) => o,
                                 std::result::Result::Err(e) => {
                                     panic!("failed to call stub on '{}':\n{}", #struct_and_method_name, e);
@@ -313,6 +315,9 @@ impl<'a> MethodData<'a> {
             ref receiver,
             ..
         } = self;
+
+        let num_args = arg_types.len();
+
         let receiver_tokens = &receiver.tokens;
 
         let when_ident =
@@ -324,7 +329,7 @@ impl<'a> MethodData<'a> {
         let output = output.unwrap_or(&empty);
 
         let when_method = syn::parse_quote! {
-            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
+            pub fn #when_ident(&mut self) -> faux::When<#receiver_tokens, (#(#arg_types),*), #output, faux::matcher::AnyInvocation, #num_args> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
                         <Self>::#faux_ident,
