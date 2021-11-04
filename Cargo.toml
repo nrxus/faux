@@ -6,7 +6,7 @@ license = "MIT"
 description = "A library to mock structs"
 homepage = "https://github.com/nrxus/faux"
 repository = "https://github.com/nrxus/faux"
-edition = "2018"
+edition = "2021"
 keywords = ["mock", "mocking", "test", "testing", "faux"]
 readme = "README.md"
 
