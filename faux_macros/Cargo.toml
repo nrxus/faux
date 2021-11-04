@@ -2,7 +2,7 @@
 name = "faux_macros"
 version = "0.1.6"
 authors = ["Andres <andresnrx@gmail.com>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 description = "Implementations for #[create], #[methods], when!"
 homepage = "https://github.com/nrxus/faux"
