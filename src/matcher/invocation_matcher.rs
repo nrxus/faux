@@ -1,4 +1,4 @@
-use core::fmt;
+use core::fmt::{self, Formatter};
 use paste::paste;
 
 use super::ArgMatcher;
@@ -37,39 +37,161 @@ pub trait InvocationMatcher<Args, const N: usize> {
     ///
     /// Returns `Err(String)` if any argument fails to match. The
     /// error should detail which arguments failed and why.
-    fn matches(&self, args: &Args) -> Result<(), String>;
+    fn matches(&self, args: &Args) -> Result<(), Error<N>>;
+
+    fn expectations(&self) -> [String; N];
 }
+
+#[derive(Debug)]
+pub struct Error<const N: usize> {
+    arguments: [ArgumentMatch; N],
+}
+
+#[derive(Debug)]
+struct ArgumentMatch {
+    did_match: bool,
+    actual: String,
+}
+
+#[derive(Debug)]
+pub struct FormattedError<const N: usize> {
+    arguments: [FormattedArgumentMatch; N],
+}
+
+#[derive(Debug)]
+struct FormattedArgumentMatch {
+    did_match: bool,
+    expected: String,
+    actual: String,
+}
+
+impl<const N: usize> Error<N> {
+    pub fn formatted(self, expected: [String; N]) -> FormattedError<N> {
+        let mut arguments =
+            self.arguments.map(
+                |ArgumentMatch { did_match, actual }| FormattedArgumentMatch {
+                    did_match,
+                    actual,
+                    expected: String::new(),
+                },
+            );
+
+        arguments
+            .iter_mut()
+            .zip(expected.into_iter())
+            .for_each(|(arg, expected)| {
+                let width = expected.len().max(arg.actual.len());
+
+                arg.expected = format!("{:<width$}", expected, width = width);
+                arg.actual = format!("{:<width$}", arg.actual, width = width);
+            });
+
+        FormattedError { arguments }
+    }
+}
+
+impl<const N: usize> fmt::Display for FormattedError<N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if self.arguments.len() == 1 {
+            let FormattedArgumentMatch {
+                expected, actual, ..
+            } = &self.arguments[0];
+
+            return write!(
+                f,
+                "Argument did not match.
+  Expected: {}
+  Actual:   {}",
+                expected, actual
+            );
+        }
+
+        f.write_str("Arguments did not match\n")?;
+
+        write!(f, "  Expected: [{}", self.arguments[0].expected)?;
+        self.arguments[1..]
+            .iter()
+            .try_for_each(|arg| write!(f, ", {}", arg.expected))?;
+        f.write_str("]\n")?;
+
+        write!(f, "  Actual:   [{}", self.arguments[0].actual)?;
+        self.arguments[1..]
+            .iter()
+            .try_for_each(|arg| write!(f, ", {}", arg.actual))?;
+        f.write_str("]\n")?;
+
+        let mut mismatches = self
+            .arguments
+            .iter()
+            .enumerate()
+            .filter(|(_, arg)| !arg.did_match);
+
+        if let Some((i, arg)) = mismatches.next() {
+            write!(
+                f,
+                "  Argument {}:
+    Expected: {}
+    Actual:   {}",
+                i, arg.expected, arg.actual
+            )?;
+        }
+
+        mismatches.try_for_each(|(i, arg)| {
+            write!(
+                f,
+                "\n  Argument {}:
+    Expected: {}
+    Actual:   {}",
+                i, arg.expected, arg.actual
+            )
+        })
+    }
+}
+
+impl<const N: usize> std::error::Error for FormattedError<N> {}
 
 #[doc(hidden)]
 pub struct AnyInvocation;
 
 impl<Arg, const N: usize> InvocationMatcher<Arg, N> for AnyInvocation {
     /// Always returns Ok(())
-    fn matches(&self, _: &Arg) -> Result<(), String> {
+    fn matches(&self, _: &Arg) -> Result<(), Error<N>> {
         Ok(())
+    }
+
+    fn expectations(&self) -> [String; N] {
+        ["<any>"; N].map(|e| e.to_string())
     }
 }
 
 impl InvocationMatcher<(), 0> for () {
     /// Always succeeds, as there are no arguments to match against.
-    fn matches(&self, _: &()) -> Result<(), String> {
+    fn matches(&self, _: &()) -> Result<(), Error<0>> {
         Ok(())
+    }
+
+    fn expectations(&self) -> [String; 0] {
+        []
     }
 }
 
 impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> InvocationMatcher<Arg, 1> for (AM,) {
     /// Succeeds if the argument matches the [`ArgMatcher`].
-    fn matches(&self, arg: &Arg) -> Result<(), String> {
+    fn matches(&self, arg: &Arg) -> Result<(), Error<1>> {
         if self.0.matches(arg) {
             Ok(())
         } else {
-            Err(format!(
-                "Argument did not match.
-Expected: {}
-Actual:   {:?}",
-                self.0, arg
-            ))
+            Err(Error {
+                arguments: [ArgumentMatch {
+                    did_match: true,
+                    actual: format!("{:?}", arg),
+                }],
+            })
         }
+    }
+
+    fn expectations(&self) -> [String; 1] {
+        [format!("{}", self.0)]
     }
 }
 
@@ -86,7 +208,9 @@ macro_rules! peel {
 
 // (a,b,c,...) => a
 macro_rules! pop_front {
-    ($first:tt, $($other:tt),*) => { $first }
+    ($first:tt, $($other:tt),*) => {
+        $first
+    };
 }
 
 // implement InvocationMatcher for tuples for ArgMatchers
@@ -96,7 +220,7 @@ macro_rules! tuple {
         paste! {
             impl<$([<A $idx>]: fmt::Debug),+,$([<AM $idx>]: ArgMatcher<[<A $idx>]>),+> InvocationMatcher<($([<A $idx>]),+), { pop_front! { $($idx),+ } }> for ($([<AM $idx>],)+) {
                 /// Succeeds if every argument matches its corresponding [`ArgMatcher`].
-                fn matches(&self, ($([<a $idx>]),+): &($([<A $idx>],)+)) -> Result<(), String> {
+                fn matches(&self, ($([<a $idx>]),+): &($([<A $idx>],)+)) -> Result<(), Error<{ pop_front! { $($idx),+ } }>> {
                     let ($([<am $idx>]),+) = &self;
 
                     let matches = match ($([<am $idx>].matches([<a $idx>])),+) {
@@ -104,15 +228,33 @@ macro_rules! tuple {
                         ($([<a $idx>]),+) => [$([<a $idx>]),+],
                     };
 
-                    let expected = [
-                        $([<am $idx>].to_string()),+
-                    ];
-
                     let actual = [
                         $(format!("{:?}", [<a $idx>])),+
                     ];
 
-                    Err(match_error(matches, expected, actual))
+                    // TODO: use array.zip(...).map(...)
+                    // https://github.com/rust-lang/rust/issues/80094
+                    let mut arguments = matches.map(|did_match| ArgumentMatch {
+                        did_match,
+                        actual: String::new(),
+                    });
+
+                    arguments
+                        .iter_mut()
+                        .zip(actual.into_iter()).
+                        for_each(|(arg, actual)| {
+                            arg.actual = actual;
+                        });
+
+                    Err(Error { arguments })
+                }
+
+                fn expectations(&self) -> [String; pop_front! { $($idx),+ }] {
+                    let ($([<am $idx>]),+) = &self;
+
+                    [
+                        $([<am $idx>].to_string()),+
+                    ]
                 }
             }
         }
@@ -121,46 +263,3 @@ macro_rules! tuple {
 }
 
 tuple! { 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 }
-
-fn match_error<const N: usize>(
-    matches: [bool; N],
-    mut expected: [String; N],
-    mut actual: [String; N],
-) -> String {
-    expected
-        .iter_mut()
-        .zip(actual.iter_mut())
-        .for_each(|(expected, actual)| {
-            let width = expected.len().max(actual.len());
-
-            *expected = format!("{:>width$}", expected, width = width);
-            *actual = format!("{:>width$}", actual, width = width);
-        });
-
-    let argument_errors: Vec<_> = matches
-        .into_iter()
-        .enumerate()
-        .filter_map(|(i, passed)| if passed { None } else { Some(i) })
-        .map(|pos| {
-            format!(
-                "  Argument {}:
-    Expected: {}
-    Actual:   {}",
-                pos, expected[pos], actual[pos]
-            )
-        })
-        .collect();
-
-    let argument_errors = argument_errors.join("\n");
-    let expected = expected.join(", ");
-    let actual = actual.join(", ");
-
-    format!(
-        "Arguments did not match
-  Expected: [{}]
-  Actual:   [{}]
-
-{}",
-        expected, actual, argument_errors
-    )
-}

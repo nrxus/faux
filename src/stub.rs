@@ -85,7 +85,7 @@ impl<'a> Saved<'a> {
 
         // TODO: should the error message be different if the stub is also exhausted?
         if let Err(e) = matcher.matches(&input) {
-            return Err((input, e));
+            return Err((input, e.formatted(matcher.expectations()).to_string()));
         }
 
         let just_exhausted = match &mut self.stub {
