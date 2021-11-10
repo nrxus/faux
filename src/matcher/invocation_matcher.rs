@@ -37,12 +37,15 @@ pub trait InvocationMatcher<Args, const N: usize> {
     ///
     /// Returns `Err(String)` if any argument fails to match. The
     /// error should detail which arguments failed and why.
+    #[doc(hidden)]
     fn matches(&self, args: &Args) -> Result<(), Error<N>>;
 
+    #[doc(hidden)]
     fn expectations(&self) -> [String; N];
 }
 
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct Error<const N: usize> {
     arguments: [ArgumentMatch; N],
 }
@@ -54,6 +57,7 @@ struct ArgumentMatch {
 }
 
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct FormattedError<const N: usize> {
     arguments: [FormattedArgumentMatch; N],
 }
