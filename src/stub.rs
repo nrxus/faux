@@ -1,8 +1,8 @@
 use crate::matcher::InvocationMatcher;
 use std::fmt::{self, Formatter};
 
-pub struct Stub<'a, I, O> {
-    matcher: Box<dyn InvocationMatcher<I> + Send>,
+pub struct Stub<'a, I, O, const N: usize> {
+    matcher: Box<dyn InvocationMatcher<I, N> + Send>,
     stub: Answer<'a, I, O>,
 }
 
@@ -15,7 +15,7 @@ pub enum Answer<'a, I, O> {
 }
 
 pub struct Saved<'a> {
-    transmuted_matcher: Box<dyn InvocationMatcher<()> + Send>,
+    transmuted_matcher: Box<dyn InvocationMatcher<(), 0> + Send>,
     stub: SavedAnswer<'a>,
 }
 
@@ -44,10 +44,10 @@ impl Times {
     }
 }
 
-impl<'a, I, O> Stub<'a, I, O> {
+impl<'a, I, O, const N: usize> Stub<'a, I, O, N> {
     pub fn new(
         stub: Answer<'a, I, O>,
-        matcher: impl InvocationMatcher<I> + Send + 'static,
+        matcher: impl InvocationMatcher<I, N> + Send + 'static,
     ) -> Self {
         Stub {
             matcher: Box::new(matcher),
@@ -56,7 +56,7 @@ impl<'a, I, O> Stub<'a, I, O> {
     }
 
     pub unsafe fn unchecked(self) -> Saved<'a> {
-        let transmuted_matcher: Box<dyn InvocationMatcher<()> + Send> =
+        let transmuted_matcher: Box<dyn InvocationMatcher<(), 0> + Send> =
             std::mem::transmute(self.matcher);
         let stub = match self.stub {
             Answer::Once(stub) => SavedAnswer::Once {
@@ -79,13 +79,13 @@ impl<'a> Saved<'a> {
     ///
     /// Only call this method if you know for sure these are the right
     /// input and output from the non-transmuted stubs
-    pub unsafe fn call<I, O>(&mut self, input: I) -> Result<O, (I, String)> {
+    pub unsafe fn call<I, O, const N: usize>(&mut self, input: I) -> Result<O, (I, String)> {
         let matcher = &mut *(&mut self.transmuted_matcher as *mut Box<_>
-            as *mut Box<dyn InvocationMatcher<I>>);
+            as *mut Box<dyn InvocationMatcher<I, N>>);
 
         // TODO: should the error message be different if the stub is also exhausted?
         if let Err(e) = matcher.matches(&input) {
-            return Err((input, e));
+            return Err((input, e.formatted(matcher.expectations()).to_string()));
         }
 
         let just_exhausted = match &mut self.stub {

@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## NEXT
+
+* Future-proof `InvocationMatcher`
+
+### Breaking Change
+* `InvocationMatcher`'s methods are now all marked as `#[doc(hidden)]`
+  and the trait itself is sealed form external implementations such
+  that any changes to it are not considered as further breaking
+  changes. In practice there isn't much need to implement this trait
+  so while this technically a breaking change I do not expect any real
+  breaking chages.
+* Minimum Stable Rust Version bumped to 1.51
+
 ## v0.1.6
 * Support cloning mocks using `#[derive(Clone)]`
   * If a mockable struct is annotated with `#[derive(Clone)]`, cloning

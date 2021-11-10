@@ -57,20 +57,28 @@ impl MockStore {
         }
     }
 
-    pub(crate) fn stub<R, I, O: 'static>(&mut self, id: fn(R, I) -> O, stub: Stub<'static, I, O>) {
-        self.store_stub(id, stub)
-    }
-
-    pub(crate) unsafe fn stub_unchecked<R, I, O>(
+    pub(crate) fn stub<R, I, O: 'static, const N: usize>(
         &mut self,
         id: fn(R, I) -> O,
-        stub: Stub<'_, I, O>,
+        stub: Stub<'static, I, O, N>,
     ) {
-        // pretend the lifetime is static
-        self.store_stub(id, std::mem::transmute(stub))
+        self.store_stub::<_, _, _, N>(id, stub)
     }
 
-    fn store_stub<R, I, O>(&mut self, id: fn(R, I) -> O, stub: Stub<'static, I, O>) {
+    pub(crate) unsafe fn stub_unchecked<R, I, O, const N: usize>(
+        &mut self,
+        id: fn(R, I) -> O,
+        stub: Stub<'_, I, O, N>,
+    ) {
+        // pretend the lifetime is static
+        self.store_stub::<_, _, _, N>(id, std::mem::transmute(stub))
+    }
+
+    fn store_stub<R, I, O, const N: usize>(
+        &mut self,
+        id: fn(R, I) -> O,
+        stub: Stub<'static, I, O, N>,
+    ) {
         let stubs = self
             .stubs
             .lock()
@@ -87,7 +95,11 @@ impl MockStore {
     ///
     /// Do *NOT* call this function directly.
     /// This should only be called by the generated code from #[faux::methods]
-    pub unsafe fn call_stub<R, I, O>(&self, id: fn(R, I) -> O, mut input: I) -> Result<O, String> {
+    pub unsafe fn call_stub<R, I, O, const N: usize>(
+        &self,
+        id: fn(R, I) -> O,
+        mut input: I,
+    ) -> Result<O, String> {
         let locked_store = self.stubs.lock().unwrap();
         let potential_stubs = locked_store
             .get(&(id as usize))
@@ -101,7 +113,7 @@ impl MockStore {
         let mut errors = vec![];
 
         for stub in potential_subs.iter_mut().rev() {
-            match stub.call(input) {
+            match stub.call::<_, _, N>(input) {
                 Err((i, e)) => {
                     errors.push(format!("✗ {}", e));
                     input = i

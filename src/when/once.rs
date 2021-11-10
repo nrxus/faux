@@ -12,13 +12,15 @@ use crate::{
 /// Do *NOT* rely on the signature of `Once`. While changing the
 /// methods of `Once` will be considered a breaking change, changing
 /// the generics within `Once` will not.
-pub struct Once<'q, R, I, O, M: InvocationMatcher<I>> {
+pub struct Once<'q, R, I, O, M: InvocationMatcher<I, N>, const N: usize> {
     id: fn(R, I) -> O,
     store: &'q mut MockStore,
     matcher: M,
 }
 
-impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'q, R, I, O, M> {
+impl<'q, R, I, O, M: InvocationMatcher<I, N> + Send + 'static, const N: usize>
+    Once<'q, R, I, O, M, N>
+{
     #[doc(hidden)]
     pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
         Once { id, store, matcher }
