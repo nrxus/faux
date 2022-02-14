@@ -26,7 +26,7 @@ use std::{
 /// implements_default(faux::MaybeFaux::Real(3));
 /// ```
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum MaybeFaux<T> {
     Real(T),
     Faux(MockStore),
@@ -35,15 +35,6 @@ pub enum MaybeFaux<T> {
 impl<T: Default> Default for MaybeFaux<T> {
     fn default() -> Self {
         MaybeFaux::Real(T::default())
-    }
-}
-
-impl<T: Clone> Clone for MaybeFaux<T> {
-    fn clone(&self) -> Self {
-        match self {
-            MaybeFaux::Real(r) => MaybeFaux::Real(r.clone()),
-            MaybeFaux::Faux(_) => panic!("cannot clone a mock"),
-        }
     }
 }
 
@@ -122,5 +113,14 @@ impl MockStore {
         assert!(!errors.is_empty());
 
         Err(errors.join("\n\n"))
+    }
+}
+
+impl Clone for MockStore {
+    fn clone(&self) -> Self {
+        let stubs = self.stubs.lock().unwrap();
+        Self {
+            stubs: Mutex::new(stubs.clone()),
+        }
     }
 }
