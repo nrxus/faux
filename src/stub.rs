@@ -1,5 +1,8 @@
 use crate::matcher::InvocationMatcher;
-use std::fmt::{self, Formatter};
+use std::{
+    fmt::{self, Formatter},
+    num::NonZeroUsize,
+};
 
 pub struct Stub<'a, I, O, const N: usize> {
     matcher: Box<dyn InvocationMatcher<I, N> + Send>,
@@ -30,16 +33,55 @@ pub enum SavedAnswer<'a> {
     },
 }
 
-#[derive(Debug)]
+impl<'a> SavedAnswer<'a> {
+    unsafe fn call<I, O>(&mut self, input: I) -> Result<O, (I, String)> {
+        unsafe fn call_transmuted_fnmut<'a, I, O>(
+            transmuted_stub: &mut Box<dyn FnMut(()) + Send + 'a>,
+            input: I,
+        ) -> O {
+            let stub = &mut *(transmuted_stub as *mut Box<dyn FnMut(()) + Send>
+                as *mut Box<dyn FnMut(I) -> O + Send>);
+            stub(input)
+        }
+
+        // no need to replace if we can keep decrementing
+        if let SavedAnswer::Many {
+            transmuted_stub,
+            times,
+        } = self
+        {
+            if let Some(decremented) = times.decrement() {
+                *times = decremented;
+                return Ok(call_transmuted_fnmut(transmuted_stub, input));
+            }
+        }
+
+        // otherwise replace it with an exhaust
+        match std::mem::replace(self, SavedAnswer::Exhausted) {
+            SavedAnswer::Exhausted => Err((input, "this stub has been exhausted".to_string())),
+            SavedAnswer::Once { transmuted_stub } => {
+                let stub: Box<dyn FnOnce(I) -> O> = std::mem::transmute(transmuted_stub);
+                Ok(stub(input))
+            }
+            SavedAnswer::Many {
+                mut transmuted_stub,
+                ..
+            } => Ok(call_transmuted_fnmut(&mut transmuted_stub, input)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum Times {
     Always,
-    Times(usize),
+    Times(NonZeroUsize),
 }
 
 impl Times {
-    pub fn decrement(&mut self) {
-        if let Times::Times(times) = self {
-            *times -= 1;
+    pub fn decrement(self) -> Option<Self> {
+        match self {
+            Times::Always => Some(self),
+            Times::Times(n) => NonZeroUsize::new(n.get() - 1).map(Times::Times),
         }
     }
 }
@@ -88,48 +130,7 @@ impl<'a> Saved<'a> {
             return Err((input, e.formatted(matcher.expectations()).to_string()));
         }
 
-        let just_exhausted = match &mut self.stub {
-            SavedAnswer::Once { .. }
-            | SavedAnswer::Many {
-                times: Times::Times(0),
-                ..
-            }
-            | SavedAnswer::Many {
-                times: Times::Times(1),
-                ..
-            } => std::mem::replace(&mut self.stub, SavedAnswer::Exhausted),
-            SavedAnswer::Many {
-                times,
-                transmuted_stub,
-            } => {
-                times.decrement();
-                let stub = &mut *(transmuted_stub as *mut Box<dyn FnMut(()) + Send>
-                    as *mut Box<dyn FnMut(I) -> O + Send>);
-                return Ok(stub(input));
-            }
-            SavedAnswer::Exhausted => {
-                return Err((input, "this stub has been exhausted".to_string()))
-            }
-        };
-
-        match just_exhausted {
-            SavedAnswer::Once { transmuted_stub } => {
-                let stub: Box<dyn FnOnce(I) -> O> = std::mem::transmute(transmuted_stub);
-                Ok(stub(input))
-            }
-            SavedAnswer::Many {
-                times: Times::Times(0),
-                ..
-            } => Err((input, "this stub has been exhausted".to_string())),
-            SavedAnswer::Many {
-                times: Times::Times(1),
-                transmuted_stub,
-            } => {
-                let mut stub: Box<dyn FnMut(I) -> O> = std::mem::transmute(transmuted_stub);
-                Ok(stub(input))
-            }
-            _ => unreachable!(),
-        }
+        self.stub.call(input)
     }
 }
 

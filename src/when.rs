@@ -2,6 +2,8 @@
 
 mod once;
 
+use std::num::NonZeroUsize;
+
 use crate::{
     matcher::{AnyInvocation, InvocationMatcher},
     mock_store::MockStore,
@@ -337,6 +339,9 @@ impl<'q, R, I, O, M: InvocationMatcher<I, N> + Send + 'static, const N: usize>
 
     /// Limits the number of calls for which a mock is active.
     ///
+    /// This number must no be set to `0` as mocking a method zero
+    /// tims is equivalent to not mocking it at all.
+    ///
     /// Calls past the limit will result in a panic.
     ///
     /// # Examples
@@ -370,6 +375,27 @@ impl<'q, R, I, O, M: InvocationMatcher<I, N> + Send + 'static, const N: usize>
     ///
     /// ## Panics
     ///
+    /// Panics if the passed in `times` is 0.
+    ///
+    /// ```rust should_panic
+    /// #[faux::create]
+    /// pub struct Foo {}
+    ///
+    /// #[faux::methods]
+    /// impl Foo {
+    ///     pub fn single_arg(&self, a: u8) -> Vec<i8> {
+    ///       /* implementation code */
+    ///       # panic!()
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///   let mut mock = Foo::faux();
+    ///
+    ///   faux::when!(mock.single_arg).times(0);
+    /// }
+    /// ```
+    ///
     /// Panics if the mock is called more times than specified.
     ///
     /// ```rust should_panic
@@ -399,6 +425,7 @@ impl<'q, R, I, O, M: InvocationMatcher<I, N> + Send + 'static, const N: usize>
     /// }
     /// ```
     pub fn times(mut self, times: usize) -> Self {
+        let times = NonZeroUsize::new(times).expect("faux: `times` cannot be set to `0`");
         self.times = stub::Times::Times(times);
         self
     }
