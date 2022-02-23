@@ -20,7 +20,8 @@ faux = "^0.1"
 ```
 `faux` provides two attributes:
 * `#[create]`: transforms a struct into a mockable equivalent
-* `#[methods]`: transforms the methods in an `impl` block into
+* `#[methods]`: transforms the methods in an `impl` block into their
+  mockable equivalent
 
 Use Rust's `#[cfg_attr(...)]` to gate these attributes to the test
 config only.
@@ -48,7 +49,7 @@ mod client {
         pub name: String
     }
 
-    // #[faux::methods ] makes every public method in the `impl` block mockable
+    // #[faux::methods] makes every public method in the `impl` block mockable
     #[faux::methods]
     impl UserClient {
         pub fn fetch(&self, id: usize) -> User {
