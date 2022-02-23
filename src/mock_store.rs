@@ -44,16 +44,16 @@ impl<T> MaybeFaux<T> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    stubs: Mutex<HashMap<usize, Arc<Mutex<Vec<stub::Saved<'static>>>>>>,
+    stubs: Arc<Mutex<HashMap<usize, Arc<Mutex<Vec<stub::Saved<'static>>>>>>>,
 }
 
 impl MockStore {
     fn new() -> Self {
         MockStore {
-            stubs: Mutex::new(HashMap::new()),
+            stubs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -113,14 +113,5 @@ impl MockStore {
         assert!(!errors.is_empty());
 
         Err(errors.join("\n\n"))
-    }
-}
-
-impl Clone for MockStore {
-    fn clone(&self) -> Self {
-        let stubs = self.stubs.lock().unwrap();
-        Self {
-            stubs: Mutex::new(stubs.clone()),
-        }
     }
 }
