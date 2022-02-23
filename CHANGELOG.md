@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v0.1.6
+* Support cloning mocks using `#[derive(Clone)]`
+  * If a mockable struct is annotated with `#[derive(Clone)]`, cloning
+    a mock instance of that struct will create a new mock instance
+    that shares any existing and future stubs between the two mock
+    instances. If this is not your desired behavior for mock cloning
+    you can still manually implement `Clone` and then use
+    `faux::when!(my_struct.clone()).then(..)` as you would any other
+    method.
+  * [test](/tests/clone.rs)
+
 ## v0.1.5
 * Be more explicit about stubbing vs mocking
 * Fixed issue where faux was requiring MSRV 1.54.0 because of doctests

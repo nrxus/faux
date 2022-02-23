@@ -13,11 +13,15 @@
 //!
 //! At a high level, `faux` is split into:
 //!
-//! * [`#[create]`](create): transforms a struct into a mockable equivalent
-//! * [`#[methods]`](methods): transforms the methods in an `impl` block into
-//! their mockable equivalents
-//! * [`when!`]: initializes a method stub by returning a [`When`]. Passing optional argument matchers restricts which arguments will invoke the stub.
-//! * [`When`]: lets you stub a method's return value or implementation
+//! * [`#[create]`](create): transforms a struct into a mockable
+//! equivalent
+//! * [`#[methods]`](methods): transforms the methods in an `impl`
+//! block into their mockable equivalents
+//! * [`when!`]: initializes a method stub by returning a
+//! [`When`]. Passing optional argument matchers restricts which
+//! arguments will invoke the stub.
+//! * [`When`]: lets you stub a method's return value or
+//! implementation
 //!
 //! # Getting Started
 //!
@@ -239,6 +243,8 @@
 //! * Generic struct methods
 //! * Methods with pointer self types (e.g., `self: Rc<Self>`)
 //! * Methods in external modules
+//! * Support for `Debug`, `Default`, `Clone`, `Send`, and `Sync`
+//! derive/auto traits.
 //!
 //! `faux` also provides easy-to-use argument matchers.
 //!

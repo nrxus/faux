@@ -114,7 +114,28 @@ attributes should be gated to `#[cfg(test)]`.**
 
 `faux` also provides easy-to-use argument matchers.
 
-## Interactions With Other Proc Macros
+## Interaction with `#[derive(...)]` and auto-traits.
+
+`faux` mocks will auto implement `Send` and `Sync` if the real
+instance also implements it. Using `#[derive(...)]` for `Clone`,
+`Debug`, and `Default` will also work as expected. Other derivable
+traits are not supported as they are about data (e.g., `Eq`, or
+`Hash`) but `faux` is about mocking behavior not data. Deriving traits
+that are not part of the standard library is also not currently
+supported. An escape hatch for this is to manually write the `impl`
+for that trait. If you believe there is a derivable trait that `faux`
+should support please file an issue explaining your use case.
+
+`Clone` is a bit of a special case in that it does not duplicate the
+stubs but instead shares them with the cloned instance. If this is not
+the desired behavior for cloning mocks you may instead implement
+`Clone` manually and do normal method stubbing
+(`faux::when!(my_struct.clone()).then_return(/* something */)`). Note
+that for the cases of exhaustable stubs (e.g.,
+`faux::when!(my_struct.foo()).once()`) if either instance calls for
+the stub that will count as exhausting the stub as they are shared.
+
+## Interactions with other proc macros
 
 While `faux` makes no guarantees that it will work with other macro
 libraries, it should "just" work. There are some caveats, however. For
