@@ -6,8 +6,7 @@ use std::num::NonZeroUsize;
 
 use crate::{
     matcher::{AnyInvocation, InvocationMatcher},
-    mock_store::MockStore,
-    stub::{self, Stub},
+    mock_store::{stub, MockStore, Stub},
 };
 pub use once::Once;
 

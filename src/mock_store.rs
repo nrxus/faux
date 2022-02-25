@@ -1,84 +1,25 @@
-use crate::stub::{self, Stub};
+mod mock;
+mod unsafe_mock;
+
+pub mod stub;
+
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
 
-#[doc(hidden)]
-/// ```
-/// fn implements_sync<T: Sync>(_: T) {}
-///
-/// implements_sync(3);
-/// implements_sync(faux::MaybeFaux::Real(3));
-/// ```
-///
-/// ```
-/// fn implements_debug<T: std::fmt::Debug>(_: T) {}
-///
-/// implements_debug(3);
-/// implements_debug(faux::MaybeFaux::Real(3));
-/// ```
-///
-/// ```
-/// fn implements_default<T: Default>(_: T) {}
-///
-/// implements_default(3);
-/// implements_default(faux::MaybeFaux::Real(3));
-/// ```
+pub use stub::Stub;
 
-#[derive(Clone, Debug)]
-pub enum MaybeFaux<T> {
-    Real(T),
-    Faux(MockStore),
-}
-
-impl<T: Default> Default for MaybeFaux<T> {
-    fn default() -> Self {
-        MaybeFaux::Real(T::default())
-    }
-}
-
-impl<T> MaybeFaux<T> {
-    pub fn faux() -> Self {
-        MaybeFaux::Faux(MockStore::new())
-    }
-}
-
-#[derive(Debug, Default)]
-struct MockedMethod {
-    stubs: Vec<stub::Saved<'static>>,
-}
-
-impl MockedMethod {
-    pub fn add_stub<I, O, const N: usize>(&mut self, stub: Stub<'static, I, O, N>) {
-        self.stubs.push(unsafe { stub.unchecked() })
-    }
-
-    pub unsafe fn call<I, O, const N: usize>(&mut self, mut input: I) -> Result<O, Vec<String>> {
-        let mut errors = vec![];
-
-        for stub in self.stubs.iter_mut().rev() {
-            match stub.call::<_, _, N>(input) {
-                Err((i, e)) => {
-                    errors.push(format!("✗ {}", e));
-                    input = i
-                }
-                Ok(o) => return Ok(o),
-            }
-        }
-
-        Err(errors)
-    }
-}
+use self::{mock::Mock, unsafe_mock::UnsafeMock};
 
 #[derive(Clone, Debug, Default)]
 #[doc(hidden)]
 pub struct MockStore {
-    mocks: Arc<Mutex<HashMap<usize, Arc<Mutex<MockedMethod>>>>>,
+    mocks: Arc<Mutex<HashMap<usize, Arc<Mutex<UnsafeMock<'static>>>>>>,
 }
 
 impl MockStore {
-    fn new() -> Self {
+    pub fn new() -> Self {
         MockStore::default()
     }
 
@@ -113,18 +54,20 @@ impl MockStore {
         id: fn(R, I) -> O,
         input: I,
     ) -> Result<O, String> {
-        let locked_store = self.mocks.lock().unwrap();
-        let potential_mocks = locked_store
-            .get(&(id as usize))
-            .cloned() // clone so we can unlock the mock_store immediately
-            .ok_or_else(|| "✗ method was never stubbed".to_string())?;
+        let mock = {
+            let locked_store = self.mocks.lock().unwrap();
+            locked_store
+                .get(&(id as usize))
+                // clone so we can drop locked_store and not block
+                // other call_stubs
+                .cloned()
+                .ok_or_else(|| "✗ method was never stubbed".to_string())
+        }?;
 
-        // drop the lock before calling the stub to avoid deadlocking in the mock
-        std::mem::drop(locked_store);
+        let mut mock = mock.lock().unwrap();
+        let mock: &mut Mock<I, O, N> = mock.as_checked_mut();
 
-        let mut locked_mocks = potential_mocks.lock().unwrap();
-
-        locked_mocks.call::<_, _, N>(input).map_err(|errors| {
+        mock.call(input).map_err(|errors| {
             if errors.is_empty() {
                 "✗ method was never stubbed".to_string()
             } else {
@@ -140,11 +83,23 @@ impl MockStore {
         id: fn(R, I) -> O,
         stub: Stub<'static, I, O, N>,
     ) {
-        let mut locked_store = self.mocks.lock().unwrap();
         // we could clone here to release the store immediately but
         // adding a stub to a mocked method is quick and not dependent
         // on user code so cloning the `Arc<_>` is unnecessary
-        let method = locked_store.entry(id as usize).or_default();
-        method.lock().unwrap().add_stub(stub);
+        let mut locked_store = self.mocks.lock().unwrap();
+
+        use std::collections::hash_map::Entry;
+        match locked_store.entry(id as usize) {
+            Entry::Occupied(o) => {
+                let mut method = o.into_mut().lock().unwrap();
+                let method = unsafe { method.as_checked_mut() };
+                method.add_stub(stub);
+            }
+            Entry::Vacant(v) => {
+                let mut method = Mock::new();
+                method.add_stub(stub);
+                v.insert(Arc::new(Mutex::new(method.into())));
+            }
+        };
     }
 }

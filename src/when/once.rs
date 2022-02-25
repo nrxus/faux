@@ -1,6 +1,6 @@
 use crate::{
     matcher::InvocationMatcher,
-    stub::{self, Stub},
+    mock_store::stub::{self, Stub},
     MockStore,
 };
 

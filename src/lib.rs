@@ -251,7 +251,6 @@
 //! [mocks]: https://martinfowler.com/articles/mocksArentStubs.html
 
 mod mock_store;
-mod stub;
 
 pub mod matcher;
 pub mod when;
@@ -901,9 +900,55 @@ pub use when::When;
 #[doc(inline)]
 pub use matcher::ArgMatcher;
 
-// exported so generated code can call for it
-// but purposefully not documented
-pub use mock_store::{MaybeFaux, MockStore};
+use mock_store::MockStore;
+
+#[doc(hidden)]
+/// What all mockable structs get transformed into.
+///
+/// Either a real instance or a mock store to store/retrieve all the
+/// mocks.
+///
+/// Exposed so generated code can use it for it but purposefully not
+/// documented. Its definition is an implementation detail and thus
+/// not meant to be relied upon.
+///
+/// ```
+/// fn implements_sync<T: Sync>(_: T) {}
+///
+/// implements_sync(3);
+/// implements_sync(faux::MaybeFaux::Real(3));
+/// ```
+///
+/// ```
+/// fn implements_debug<T: std::fmt::Debug>(_: T) {}
+///
+/// implements_debug(3);
+/// implements_debug(faux::MaybeFaux::Real(3));
+/// ```
+///
+/// ```
+/// fn implements_default<T: Default>(_: T) {}
+///
+/// implements_default(3);
+/// implements_default(faux::MaybeFaux::Real(3));
+/// ```
+#[derive(Clone, Debug)]
+pub enum MaybeFaux<T> {
+    Real(T),
+    Faux(MockStore),
+}
+
+impl<T: Default> Default for MaybeFaux<T> {
+    fn default() -> Self {
+        MaybeFaux::Real(T::default())
+    }
+}
+
+impl<T> MaybeFaux<T> {
+    pub fn faux() -> Self {
+        MaybeFaux::Faux(MockStore::new())
+    }
+}
 
 #[cfg(doc)]
 mod readme_tests;
