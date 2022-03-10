@@ -1,7 +1,7 @@
 use crate::{
     matcher::InvocationMatcher,
     mock_store::stub::{self, Stub},
-    MockStore,
+    SharedMockStore,
 };
 
 /// Similar to [When](struct.When), but only stubs once.
@@ -14,7 +14,7 @@ use crate::{
 /// the generics within `Once` will not.
 pub struct Once<'q, R, I, O, M: InvocationMatcher<I, N>, const N: usize> {
     id: fn(R, I) -> O,
-    store: &'q mut MockStore,
+    store: &'q mut SharedMockStore,
     matcher: M,
 }
 
@@ -22,7 +22,7 @@ impl<'q, R, I, O, M: InvocationMatcher<I, N> + Send + 'static, const N: usize>
     Once<'q, R, I, O, M, N>
 {
     #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
+    pub fn new(id: fn(R, I) -> O, store: &'q mut SharedMockStore, matcher: M) -> Self {
         Once { id, store, matcher }
     }
 

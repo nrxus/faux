@@ -16,6 +16,23 @@ pub struct UnsafeMock<'a> {
 }
 
 impl<'a> UnsafeMock<'a> {
+    /// Returns a reference to the mock with its types re-added.
+    ///
+    /// # Safety
+    ///
+    /// This method is *extremely* unsafe. This is only safe if you
+    /// know precisely what the input (I), output, (O) and number of
+    /// arguments (N) were of the original `Mock` this came from.
+    pub unsafe fn as_typed<I, O, const N: usize>(&self) -> &Mock<'a, I, O, N> {
+        // Might be safer to only transmute only the matcher and stub
+        // of each mock instead of the entire object. This works
+        // though, and I don't see any reason why it wouldn't but if
+        // we start seeing seg-faults this is a potential thing to
+        // change.
+        let mock = &self.unsafe_mock;
+        std::mem::transmute(mock)
+    }
+
     /// Returns a mutable reference to the mock with its types
     /// re-added.
     ///
@@ -24,7 +41,7 @@ impl<'a> UnsafeMock<'a> {
     /// This method is *extremely* unsafe. This is only safe if you
     /// know precisely what the input (I), output, (O) and number of
     /// arguments (N) were of the original `Mock` this came from.
-    pub unsafe fn as_checked_mut<I, O, const N: usize>(&mut self) -> &mut Mock<'a, I, O, N> {
+    pub unsafe fn as_typed_mut<I, O, const N: usize>(&mut self) -> &mut Mock<'a, I, O, N> {
         // Might be safer to only transmute only the matcher and stub
         // of each mock instead of the entire object. This works
         // though, and I don't see any reason why it wouldn't but if

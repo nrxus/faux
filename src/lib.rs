@@ -900,7 +900,7 @@ pub use when::When;
 #[doc(inline)]
 pub use matcher::ArgMatcher;
 
-use mock_store::MockStore;
+use mock_store::SharedMockStore;
 
 #[doc(hidden)]
 /// What all mockable structs get transformed into.
@@ -935,7 +935,7 @@ use mock_store::MockStore;
 #[derive(Clone, Debug)]
 pub enum MaybeFaux<T> {
     Real(T),
-    Faux(MockStore),
+    Faux(SharedMockStore),
 }
 
 impl<T: Default> Default for MaybeFaux<T> {
@@ -946,7 +946,7 @@ impl<T: Default> Default for MaybeFaux<T> {
 
 impl<T> MaybeFaux<T> {
     pub fn faux() -> Self {
-        MaybeFaux::Faux(MockStore::new())
+        MaybeFaux::Faux(SharedMockStore::new())
     }
 }
 

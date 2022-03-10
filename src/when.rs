@@ -6,7 +6,7 @@ use std::num::NonZeroUsize;
 
 use crate::{
     matcher::{AnyInvocation, InvocationMatcher},
-    mock_store::{stub, MockStore, Stub},
+    mock_store::{stub, SharedMockStore, Stub},
 };
 pub use once::Once;
 
@@ -34,14 +34,14 @@ pub use once::Once;
 /// [`with_args`]: When::with_args
 pub struct When<'q, R, I, O, M: InvocationMatcher<I, N>, const N: usize> {
     id: fn(R, I) -> O,
-    store: &'q mut MockStore,
+    store: &'q mut SharedMockStore,
     times: stub::Times,
     matcher: M,
 }
 
 impl<'q, R, I, O, const N: usize> When<'q, R, I, O, AnyInvocation, N> {
     #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
+    pub fn new(id: fn(R, I) -> O, store: &'q mut SharedMockStore) -> Self {
         When {
             id,
             store,
