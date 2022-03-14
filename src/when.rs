@@ -2,12 +2,16 @@
 
 mod once;
 
+use std::num::NonZeroUsize;
+
 use crate::{
     matcher::{AnyInvocation, InvocationMatcher},
-    mock_store::MockStore,
-    stub::{self, Stub},
+    mock::{self, stub},
+    Faux,
 };
+
 pub use once::Once;
+use stub::Stub;
 
 /// Provides methods to stub the implementation or return value of the
 /// stubbed method.
@@ -31,26 +35,28 @@ pub use once::Once;
 /// [`once`]: When::once
 /// [`times`]: When::times
 /// [`with_args`]: When::with_args
-pub struct When<'q, R, I, O, M: InvocationMatcher<I>> {
+pub struct When<'m, R, I, O, M: InvocationMatcher<I>> {
     id: fn(R, I) -> O,
-    store: &'q mut MockStore,
-    times: stub::Times,
+    store: &'m mut mock::Store,
+    times: Option<mock::stub::Times>,
     matcher: M,
 }
 
-impl<'q, R, I, O> When<'q, R, I, O, AnyInvocation> {
+impl<'m, R, I, O> When<'m, R, I, O, AnyInvocation> {
     #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore) -> Self {
+    pub fn new(id: fn(R, I) -> O, faux: &'m mut Faux) -> Self {
+        let store = faux.unique_store().expect("faux: failed to get unique handle to mock. Adding stubs to a mock instance may only be done prior to cloning the mock.");
+
         When {
             id,
             store,
             matcher: AnyInvocation,
-            times: stub::Times::Always,
+            times: Some(mock::stub::Times::Always),
         }
     }
 }
 
-impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M> {
+impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'m, R, I, O, M> {
     /// Sets the return value of the stubbed method.
     ///
     /// Requires the value to be static. For a more lax but unsafe
@@ -158,16 +164,7 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     where
         O: 'static,
     {
-        self.store.stub(
-            self.id,
-            Stub::new(
-                stub::Answer::Many {
-                    times: self.times,
-                    stub: Box::new(stub),
-                },
-                self.matcher,
-            ),
-        );
+        self.add_stub(Box::new(stub));
     }
 
     /// Analog of [`then_return`] that allows stubbing non-static
@@ -320,17 +317,10 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     /// ```
     ///
     /// [`then`]: When::then
-    pub unsafe fn then_unchecked(self, mock: impl FnMut(I) -> O + Send) {
-        self.store.stub_unchecked(
-            self.id,
-            Stub::new(
-                stub::Answer::Many {
-                    times: self.times,
-                    stub: Box::new(mock),
-                },
-                self.matcher,
-            ),
-        );
+    pub unsafe fn then_unchecked(self, stub: impl FnMut(I) -> O + Send) {
+        let stub: Box<dyn FnMut(I) -> O + Send> = Box::new(stub);
+        // pretend the lifetime is 'static
+        self.add_stub(std::mem::transmute(stub));
     }
 
     /// Limits the number of calls for which a mock is active.
@@ -397,7 +387,7 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     /// }
     /// ```
     pub fn times(mut self, times: usize) -> Self {
-        self.times = stub::Times::Times(times);
+        self.times = NonZeroUsize::new(times).map(stub::Times::Times);
         self
     }
 
@@ -455,7 +445,7 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     ///   mock.single_arg(8);
     /// }
     /// ```
-    pub fn once(self) -> Once<'q, R, I, O, M> {
+    pub fn once(self) -> Once<'m, R, I, O, M> {
         Once::new(self.id, self.store, self.matcher)
     }
 
@@ -478,12 +468,23 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'q, R, I, O, M>
     pub fn with_args<N: InvocationMatcher<I> + Send + 'static>(
         self,
         matcher: N,
-    ) -> When<'q, R, I, O, N> {
+    ) -> When<'m, R, I, O, N> {
         When {
             matcher,
-            times: self.times,
             id: self.id,
             store: self.store,
+            times: self.times,
         }
+    }
+
+    fn add_stub(self, stub: Box<dyn FnMut(I) -> O + Send + 'static>) {
+        let answer = match self.times {
+            None => stub::Answer::Exhausted,
+            Some(times) => stub::Answer::Many { times, stub },
+        };
+
+        self.store
+            .get_or_create(self.id)
+            .add_stub(Stub::new(answer, self.matcher));
     }
 }

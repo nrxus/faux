@@ -250,9 +250,6 @@
 //!
 //! [mocks]: https://martinfowler.com/articles/mocksArentStubs.html
 
-mod mock_store;
-mod stub;
-
 pub mod matcher;
 pub mod when;
 
@@ -901,9 +898,106 @@ pub use when::When;
 #[doc(inline)]
 pub use matcher::ArgMatcher;
 
-// exported so generated code can call for it
-// but purposefully not documented
-pub use mock_store::{MaybeFaux, MockStore};
+mod mock;
+
+use std::sync::Arc;
+
+/// What all mockable structs get transformed into.
+///
+/// Either a real instance or a mock store to store/retrieve all the
+/// mocks.
+///
+/// Exposed so generated code can use it for it but purposefully not
+/// documented. Its definition is an implementation detail and thus
+/// not meant to be relied upon.
+///
+/// ```
+/// fn implements_sync<T: Sync>(_: T) {}
+///
+/// implements_sync(3);
+/// implements_sync(faux::MaybeFaux::Real(3));
+/// ```
+///
+/// ```
+/// fn implements_debug<T: std::fmt::Debug>(_: T) {}
+///
+/// implements_debug(3);
+/// implements_debug(faux::MaybeFaux::Real(3));
+/// ```
+///
+/// ```
+/// fn implements_default<T: Default>(_: T) {}
+///
+/// implements_default(3);
+/// implements_default(faux::MaybeFaux::Real(3));
+/// ```
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub enum MaybeFaux<T> {
+    Real(T),
+    Faux(Faux),
+}
+
+impl<T: Default> Default for MaybeFaux<T> {
+    fn default() -> Self {
+        MaybeFaux::Real(T::default())
+    }
+}
+
+impl<T> MaybeFaux<T> {
+    pub fn faux() -> Self {
+        MaybeFaux::Faux(Faux::default())
+    }
+}
+
+/// The internal representation of a mock object
+///
+/// Exposed so generated code can use it but purposefully not
+/// documented. Its mere existence is an implementation detail and not
+/// meant to be relied upon.
+#[doc(hidden)]
+#[derive(Clone, Debug, Default)]
+pub struct Faux {
+    store: Arc<mock::Store>,
+}
+
+impl Faux {
+    /// Return a mutable reference to its internal mock store
+    ///
+    /// Returns `None` if the store is being shared by multiple mock
+    /// instances. This occurs when cloning a mock instance.
+    pub(crate) fn unique_store(&mut self) -> Option<&mut mock::Store> {
+        Arc::get_mut(&mut self.store)
+    }
+
+    #[doc(hidden)]
+    /// Attempt to call a stub for a given function and input.
+    ///
+    /// Stubs are attempted in the reverse order of how they were
+    /// inserted. Namely, the last inserted stub will be attempted
+    /// first. The first stub for whom the input passes its invocation
+    /// matcher will be activated and its output returned. If one
+    /// cannot be found an error is returned.
+    ///
+    /// # Safety
+    ///
+    /// Do *NOT* call this function directly.
+    /// This should only be called by the generated code from #[faux::methods]
+    pub unsafe fn call_stub<R, I, O>(&self, id: fn(R, I) -> O, input: I) -> Result<O, String> {
+        let mock = self
+            .store
+            .get(id)
+            .ok_or_else(|| "✗ method was never stubbed".to_owned())?;
+
+        mock.call(input).map_err(|errors| {
+            if errors.is_empty() {
+                "✗ method was never stubbed".to_owned()
+            } else {
+                errors.join("\n\n")
+            }
+        })
+    }
+}
 
 #[cfg(doc)]
 mod readme_tests;

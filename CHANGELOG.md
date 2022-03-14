@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## NEXT
+
+### Minor Breaking Change
+* Panics when adding mocks to a cloned mock.
+  * The goal (apart from optimizations) is to reduce magical
+    action-at-a-distance problems caused by having two mock instances
+    add new stubs that affect each other. The goal behind allowing
+    cloning in the previous release was so that the code under test
+    can call for clone without the test needing to be aware of those
+    implementation details, not for the test itself to be able to clone.
+
 ## v0.1.6
 * Support cloning mocks using `#[derive(Clone)]`
   * If a mockable struct is annotated with `#[derive(Clone)]`, cloning

@@ -27,7 +27,18 @@ fn can_clone_real() {
 #[test]
 fn can_clone_mock() {
     let mut mock = Foo::faux();
-    let cloned = mock.clone();
     faux::when!(mock.get()).then_return(4);
+
+    let cloned = mock.clone();
     assert_eq!(cloned.get(), 4);
+    assert_eq!(mock.get(), 4);
+}
+
+#[test]
+#[should_panic]
+fn panics_when_mocking_clone() {
+    let mock = Foo::faux();
+    let mut cloned = mock.clone();
+
+    faux::when!(cloned.get()).then_return(4);
 }

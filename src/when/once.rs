@@ -1,7 +1,6 @@
 use crate::{
     matcher::InvocationMatcher,
-    stub::{self, Stub},
-    MockStore,
+    mock::{self, stub, Stub},
 };
 
 /// Similar to [When](struct.When), but only stubs once.
@@ -12,15 +11,15 @@ use crate::{
 /// Do *NOT* rely on the signature of `Once`. While changing the
 /// methods of `Once` will be considered a breaking change, changing
 /// the generics within `Once` will not.
-pub struct Once<'q, R, I, O, M: InvocationMatcher<I>> {
+pub struct Once<'m, R, I, O, M: InvocationMatcher<I>> {
     id: fn(R, I) -> O,
-    store: &'q mut MockStore,
+    store: &'m mut mock::Store,
     matcher: M,
 }
 
-impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'q, R, I, O, M> {
+impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'m, R, I, O, M> {
     #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, store: &'q mut MockStore, matcher: M) -> Self {
+    pub fn new(id: fn(R, I) -> O, store: &'m mut mock::Store, matcher: M) -> Self {
         Once { id, store, matcher }
     }
 
@@ -92,10 +91,7 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'q, R, I, O, M>
     where
         O: 'static,
     {
-        self.store.stub(
-            self.id,
-            Stub::new(stub::Answer::Once(Box::new(stub)), self.matcher),
-        );
+        self.add_stub(Box::new(stub))
     }
 
     /// Analog of [When.then_unchecked_return] where the value does
@@ -172,9 +168,14 @@ impl<'q, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'q, R, I, O, M>
     /// See [When.then_unchecked's safety].
     ///
     pub unsafe fn then_unchecked(self, stub: impl FnOnce(I) -> O + Send) {
-        self.store.stub_unchecked(
-            self.id,
-            Stub::new(stub::Answer::Once(Box::new(stub)), self.matcher),
-        );
+        let stub: Box<dyn FnOnce(I) -> O + Send> = Box::new(stub);
+        // pretend the lifetime is 'static
+        self.add_stub(std::mem::transmute(stub));
+    }
+
+    fn add_stub(self, stub: Box<dyn FnOnce(I) -> O + Send + 'static>) {
+        self.store
+            .get_or_create(self.id)
+            .add_stub(Stub::new(stub::Answer::Once(stub), self.matcher));
     }
 }
