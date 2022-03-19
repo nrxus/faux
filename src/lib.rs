@@ -900,6 +900,8 @@ pub use matcher::ArgMatcher;
 
 mod mock;
 
+use core::fmt;
+use std::fmt::Formatter;
 use std::sync::Arc;
 
 /// What all mockable structs get transformed into.
@@ -945,8 +947,8 @@ impl<T: Default> Default for MaybeFaux<T> {
 }
 
 impl<T> MaybeFaux<T> {
-    pub fn faux() -> Self {
-        MaybeFaux::Faux(Faux::default())
+    pub fn faux(name: &'static str) -> Self {
+        MaybeFaux::Faux(Faux::new(name))
     }
 }
 
@@ -956,17 +958,23 @@ impl<T> MaybeFaux<T> {
 /// documented. Its mere existence is an implementation detail and not
 /// meant to be relied upon.
 #[doc(hidden)]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Faux {
-    store: Arc<mock::Store>,
+    store: Arc<mock::Store<'static>>,
 }
 
 impl Faux {
+    pub fn new(name: &'static str) -> Self {
+        Faux {
+            store: Arc::new(mock::Store::new(name)),
+        }
+    }
+
     /// Return a mutable reference to its internal mock store
     ///
     /// Returns `None` if the store is being shared by multiple mock
     /// instances. This occurs when cloning a mock instance.
-    pub(crate) fn unique_store(&mut self) -> Option<&mut mock::Store> {
+    pub(crate) fn unique_store(&mut self) -> Option<&mut mock::Store<'static>> {
         Arc::get_mut(&mut self.store)
     }
 
@@ -983,19 +991,52 @@ impl Faux {
     ///
     /// Do *NOT* call this function directly.
     /// This should only be called by the generated code from #[faux::methods]
-    pub unsafe fn call_stub<R, I, O>(&self, id: fn(R, I) -> O, input: I) -> Result<O, String> {
-        let mock = self
-            .store
-            .get(id)
-            .ok_or_else(|| "✗ method was never stubbed".to_owned())?;
-
-        mock.call(input).map_err(|errors| {
-            if errors.is_empty() {
-                "✗ method was never stubbed".to_owned()
-            } else {
-                errors.join("\n\n")
-            }
+    pub unsafe fn call_stub<R, I, O>(
+        &self,
+        id: fn(R, I) -> O,
+        fn_name: &'static str,
+        input: I,
+    ) -> Result<O, InvocationError> {
+        let mock = self.store.get(id, fn_name)?;
+        mock.call(input).map_err(|stub_error| InvocationError {
+            fn_name: mock.name(),
+            struct_name: self.store.struct_name,
+            stub_error,
         })
+    }
+}
+
+pub struct InvocationError {
+    struct_name: &'static str,
+    fn_name: &'static str,
+    stub_error: mock::InvocationError,
+}
+
+impl fmt::Display for InvocationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match &self.stub_error {
+            mock::InvocationError::NeverStubbed => write!(
+                f,
+                "`{}::{}` was called but never stubbed",
+                self.struct_name, self.fn_name
+            ),
+            mock::InvocationError::Stub(errors) => {
+                writeln!(
+                    f,
+                    "`{}::{}` had no suitable stubs. Existing stubs failed because:",
+                    self.struct_name, self.fn_name
+                )?;
+                let mut errors = errors.iter();
+                if let Some(e) = errors.next() {
+                    f.write_str("✗ ")?;
+                    fmt::Display::fmt(e, f)?;
+                }
+                errors.try_for_each(|e| {
+                    f.write_str("\n\n✗ ")?;
+                    fmt::Display::fmt(e, f)
+                })
+            }
+        }
     }
 }
 

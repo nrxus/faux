@@ -52,13 +52,14 @@ impl From<Mockable> for proc_macro::TokenStream {
         let Mockable { real, morphed } = mockable;
         let (impl_generics, ty_generics, where_clause) = real.generics.split_for_impl();
         let name = &morphed.ident;
+        let name_str = name.to_string();
 
         proc_macro::TokenStream::from(quote! {
             #morphed
 
             impl #impl_generics #name #ty_generics #where_clause {
                 pub fn faux() -> Self {
-                    Self(faux::MaybeFaux::faux())
+                    Self(faux::MaybeFaux::faux(#name_str))
                 }
             }
 

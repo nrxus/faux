@@ -36,22 +36,28 @@ use stub::Stub;
 /// [`times`]: When::times
 /// [`with_args`]: When::with_args
 pub struct When<'m, R, I, O, M: InvocationMatcher<I>> {
+    // Set at creation and immutable. Could be replaced with just `&'m
+    // mut Mock<'static, I,O>` but that makes `When` no longer be
+    // contravariat on `I` which makes some valid code not compile.
     id: fn(R, I) -> O,
-    store: &'m mut mock::Store,
-    times: Option<mock::stub::Times>,
+    name: &'static str,
+    store: &'m mut mock::Store<'static>,
+    // defaulted at creation but mutable
+    times: Option<stub::Times>,
     matcher: M,
 }
 
 impl<'m, R, I, O> When<'m, R, I, O, AnyInvocation> {
     #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, faux: &'m mut Faux) -> Self {
+    pub fn new(id: fn(R, I) -> O, name: &'static str, faux: &'m mut Faux) -> Self {
         let store = faux.unique_store().expect("faux: failed to get unique handle to mock. Adding stubs to a mock instance may only be done prior to cloning the mock.");
 
         When {
             id,
+            name,
             store,
             matcher: AnyInvocation,
-            times: Some(mock::stub::Times::Always),
+            times: Some(stub::Times::Always),
         }
     }
 }
@@ -446,7 +452,7 @@ impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'m, R, I, O, M>
     /// }
     /// ```
     pub fn once(self) -> Once<'m, R, I, O, M> {
-        Once::new(self.id, self.store, self.matcher)
+        Once::new(self.id, self.name, self.store, self.matcher)
     }
 
     /// Specifies a matcher for the invocation.
@@ -472,6 +478,7 @@ impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'m, R, I, O, M>
         When {
             matcher,
             id: self.id,
+            name: self.name,
             store: self.store,
             times: self.times,
         }
@@ -484,7 +491,7 @@ impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'m, R, I, O, M>
         };
 
         self.store
-            .get_or_create(self.id)
+            .get_or_create(self.id, self.name)
             .add_stub(Stub::new(answer, self.matcher));
     }
 }

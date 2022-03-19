@@ -25,6 +25,23 @@ pub enum Times {
     Times(NonZeroUsize),
 }
 
+#[derive(Debug)]
+pub enum Error {
+    Exhausted,
+    NotMatched(String),
+}
+
+impl std::error::Error for Error {}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Exhausted => f.write_str("stub was exhausted"),
+            Error::NotMatched(error) => f.write_str(error),
+        }
+    }
+}
+
 impl Times {
     pub fn decrement(self) -> Option<Self> {
         match self {
@@ -45,10 +62,10 @@ impl<'a, I, O> Stub<'a, I, O> {
         }
     }
 
-    pub fn call(&mut self, input: I) -> Result<O, (I, String)> {
+    pub fn call(&mut self, input: I) -> Result<O, (I, Error)> {
         // TODO: should the error message be different if the stub is also exhausted?
         if let Err(e) = self.matcher.matches(&input) {
-            return Err((input, e));
+            return Err((input, Error::NotMatched(e)));
         }
 
         self.answer.call(input)
@@ -56,7 +73,7 @@ impl<'a, I, O> Stub<'a, I, O> {
 }
 
 impl<'a, I, O> Answer<'a, I, O> {
-    fn call(&mut self, input: I) -> Result<O, (I, String)> {
+    fn call(&mut self, input: I) -> Result<O, (I, Error)> {
         // no need to replace if we can keep decrementing
         if let Answer::Many { stub, times } = self {
             if let Some(decremented) = times.decrement() {
@@ -67,7 +84,7 @@ impl<'a, I, O> Answer<'a, I, O> {
 
         // otherwise replace it with an exhaust
         match std::mem::replace(self, Answer::Exhausted) {
-            Answer::Exhausted => Err((input, "this stub has been exhausted".to_string())),
+            Answer::Exhausted => Err((input, Error::Exhausted)),
             Answer::Once(stub) => Ok(stub(input)),
             Answer::Many { mut stub, .. } => Ok(stub(input)),
         }
@@ -79,11 +96,14 @@ impl<'a, I, O> fmt::Debug for Stub<'a, I, O> {
         f.debug_struct("Stub")
             // TODO: Add debug information for InvocationMatcher
             // .field("matcher", &self.matcher)
-            .field("answer", match &self.answer {
-                Answer::Exhausted => &"Exhausted",
-                Answer::Once(_) => &"Once",
-                Answer::Many { .. } => &"Many",
-            })
+            .field(
+                "answer",
+                match &self.answer {
+                    Answer::Exhausted => &"Exhausted",
+                    Answer::Once(_) => &"Once",
+                    Answer::Many { .. } => &"Many",
+                },
+            )
             .finish()
     }
 }

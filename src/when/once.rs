@@ -13,14 +13,25 @@ use crate::{
 /// the generics within `Once` will not.
 pub struct Once<'m, R, I, O, M: InvocationMatcher<I>> {
     id: fn(R, I) -> O,
-    store: &'m mut mock::Store,
+    name: &'static str,
+    store: &'m mut mock::Store<'static>,
     matcher: M,
 }
 
 impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'m, R, I, O, M> {
     #[doc(hidden)]
-    pub fn new(id: fn(R, I) -> O, store: &'m mut mock::Store, matcher: M) -> Self {
-        Once { id, store, matcher }
+    pub fn new(
+        id: fn(R, I) -> O,
+        name: &'static str,
+        store: &'m mut mock::Store<'static>,
+        matcher: M,
+    ) -> Self {
+        Once {
+            id,
+            name,
+            store,
+            matcher,
+        }
     }
 
     /// Analog of [When.then_return] where the value does not need to
@@ -175,7 +186,7 @@ impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'m, R, I, O, M>
 
     fn add_stub(self, stub: Box<dyn FnOnce(I) -> O + Send + 'static>) {
         self.store
-            .get_or_create(self.id)
+            .get_or_create(self.id, self.name)
             .add_stub(Stub::new(stub::Answer::Once(stub), self.matcher));
     }
 }

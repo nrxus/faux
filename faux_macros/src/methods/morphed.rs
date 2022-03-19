@@ -215,15 +215,13 @@ impl<'a> Signature<'a> {
                         quote! { (#(#args,)*) }
                     };
 
-                    let struct_and_method_name =
-                        format!("{}::{}", morphed_ty.to_token_stream(), name);
+                    let fn_name = name.to_string();
+
                     quote! {
                         unsafe {
-                            match q.call_stub(<Self>::#faux_ident, #args) {
+                            match q.call_stub(<Self>::#faux_ident, #fn_name, #args) {
                                 std::result::Result::Ok(o) => o,
-                                std::result::Result::Err(e) => {
-                                    panic!("failed to call stub on '{}':\n{}", #struct_and_method_name, e);
-                                }
+                                std::result::Result::Err(e) => panic!("{}", e),
                             }
                         }
                     }
@@ -322,12 +320,14 @@ impl<'a> MethodData<'a> {
 
         let empty = syn::parse_quote! { () };
         let output = output.unwrap_or(&empty);
+        let name_str = name.to_string();
 
         let when_method = syn::parse_quote! {
             pub fn #when_ident<'m>(&'m mut self) -> faux::When<'m, #receiver_tokens, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(faux) => faux::When::new(
                         <Self>::#faux_ident,
+                        #name_str,
                         faux
                     ),
                     faux::MaybeFaux::Real(_) => panic!("not allowed to stub a real instance!"),

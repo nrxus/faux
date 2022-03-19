@@ -24,7 +24,7 @@ impl<'stub> Unchecked<'stub> {
     /// This method is *extremely* unsafe. This is only safe if you
     /// know precisely what the input (I), output (O) were of the
     /// original [`Mock`] this came from.
-    pub unsafe fn as_typed<I, O>(&self) -> &Mock<I, O> {
+    pub unsafe fn as_typed<I, O>(&self) -> &Mock<'stub, I, O> {
         // Might be safer to only transmute only the matcher and stub
         // of each mock instead of the entire object. This works
         // though, and I don't see any reason why it wouldn't but if
@@ -42,7 +42,7 @@ impl<'stub> Unchecked<'stub> {
     /// This method is *extremely* unsafe. This is only safe if you
     /// know precisely what the input (I), output (O) were of the
     /// original [`Mock`] this came from.
-    pub unsafe fn as_typed_mut<I, O>(&mut self) -> &mut Mock<I, O> {
+    pub unsafe fn as_typed_mut<I, O>(&mut self) -> &mut Mock<'stub, I, O> {
         // Might be safer to only transmute only the matcher and stub
         // of each mock instead of the entire object. This works
         // though, and I don't see any reason why it wouldn't but if
