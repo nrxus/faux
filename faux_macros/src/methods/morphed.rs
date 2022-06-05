@@ -168,7 +168,10 @@ impl<'a> Signature<'a> {
 
         let real_self_arg = if self.method_data.is_some() {
             // need to pass the real Self arg to the real method
-            Some(syn::Ident::new("r", proc_macro2::Span::call_site()))
+            Some(syn::Ident::new(
+                "_maybe_faux_real",
+                proc_macro2::Span::call_site(),
+            ))
         } else {
             None
         };
@@ -219,7 +222,7 @@ impl<'a> Signature<'a> {
 
                     quote! {
                         unsafe {
-                            match q.call_stub(<Self>::#faux_ident, #fn_name, #args) {
+                            match _maybe_faux_faux.call_stub(<Self>::#faux_ident, #fn_name, #args) {
                                 std::result::Result::Ok(o) => o,
                                 std::result::Result::Err(e) => panic!("{}", e),
                             }
@@ -325,10 +328,10 @@ impl<'a> MethodData<'a> {
         let when_method = syn::parse_quote! {
             pub fn #when_ident<'m>(&'m mut self) -> faux::When<'m, #receiver_tokens, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
                 match &mut self.0 {
-                    faux::MaybeFaux::Faux(faux) => faux::When::new(
+                    faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
                         <Self>::#faux_ident,
                         #name_str,
-                        faux
+                        _maybe_faux_faux
                     ),
                     faux::MaybeFaux::Real(_) => panic!("not allowed to stub a real instance!"),
                 }

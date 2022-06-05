@@ -97,25 +97,25 @@ impl Receiver {
             | (SelfKind::Pointer(PointerKind::MutRef), SelfType::Owned)
             | (SelfKind::Pointer(PointerKind::Box), SelfType::Box) => proxy_real,
             (SelfKind::Pointer(PointerKind::Ref), _) => quote! {
-                let r = &*r;
+                let _maybe_faux_real = &*_maybe_faux_real;
                 #proxy_real
             },
             (SelfKind::Pointer(PointerKind::MutRef), SelfType::Box) => quote! {
-                let r = &mut *r;
+                let _maybe_faux_real = &mut *_maybe_faux_real;
                 #proxy_real
             },
             (SelfKind::Owned, SelfType::Box) => quote! {
-                let r = *r;
+                let _maybe_faux_real = *_maybe_faux_real;
                 #proxy_real
             },
             (SelfKind::Pointer(PointerKind::Box), SelfType::Owned) => quote! {
-                let r = std::boxed::Box::new(r);
+                let _maybe_faux_real = std::boxed::Box::new(_maybe_faux_real);
                 #proxy_real
             },
             (SelfKind::Pointer(PointerKind::Rc), SelfType::Rc)
             | (SelfKind::Pointer(PointerKind::Arc), SelfType::Arc) => {
                 quote! {
-                    let r = r.clone();
+                    let _maybe_faux_real = _maybe_faux_real.clone();
                     #proxy_real
                 }
             }
@@ -136,8 +136,8 @@ impl Receiver {
                         Err(_) => panic!(#panic_msg),
                     };
 
-                    if let Self(faux::MaybeFaux::Real(r)) = owned {
-                        let r = #new_path(r);
+                    if let Self(faux::MaybeFaux::Real(_maybe_faux_real)) = owned {
+                        let _maybe_faux_real = #new_path(_maybe_faux_real);
                         #proxy_real
                     } else {
                         unreachable!()
@@ -146,11 +146,11 @@ impl Receiver {
             }
             (SelfKind::Pointer(PointerKind::Pin(pointer)), SelfType::Owned) => match **pointer {
                 PointerKind::Ref | PointerKind::MutRef => quote! {
-                    let r = unsafe { std::pin::Pin::new_unchecked(r) };
+                    let _maybe_faux_real = unsafe { std::pin::Pin::new_unchecked(_maybe_faux_real) };
                     #proxy_real
                 },
                 PointerKind::Box => quote! {
-                    let r = unsafe { std::pin::Pin::new_unchecked(std::boxed::Box::new(r)) };
+                    let _maybe_faux_real = unsafe { std::pin::Pin::new_unchecked(std::boxed::Box::new(_maybe_faux_real)) };
                     #proxy_real
                 },
                 PointerKind::Rc | PointerKind::Arc => {
@@ -162,7 +162,7 @@ impl Receiver {
                     let new_path = self_of_receiver.new_path().unwrap();
 
                     quote! {
-                        let r = unsafe { std::pin::Pin::new_unchecked(#new_path(r)) };
+                        let _maybe_faux_real = unsafe { std::pin::Pin::new_unchecked(#new_path(_maybe_faux_real)) };
                         #proxy_real
                     }
                 }
@@ -175,8 +175,8 @@ impl Receiver {
 
         Ok(syn::parse_quote! {
             match #get_self {
-                Self(faux::MaybeFaux::Real(r)) => { #proxy_real },
-                Self(faux::MaybeFaux::Faux(q)) => { #call_stub },
+                Self(faux::MaybeFaux::Real(_maybe_faux_real)) => { #proxy_real },
+                Self(faux::MaybeFaux::Faux(_maybe_faux_faux)) => { #call_stub },
             }
         })
     }
