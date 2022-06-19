@@ -13,7 +13,7 @@ impl Spanned for SpanMarker {
 
 pub struct Signature<'a> {
     name: &'a syn::Ident,
-    arg_idents: Vec<syn::Ident>,
+    args: Vec<&'a syn::Pat>,
     is_async: bool,
     output: Option<&'a syn::Type>,
     method_data: Option<MethodData<'a>>,
@@ -92,60 +92,51 @@ impl<'a> ToTokens for WhenArg<'a> {
 
 impl<'a> Signature<'a> {
     pub fn morph(
-        signature: &'a mut syn::Signature,
+        signature: &'a syn::Signature,
         trait_path: Option<&'a syn::Path>,
         vis: &syn::Visibility,
     ) -> Signature<'a> {
-        let is_async = signature.asyncness.is_some();
-        let name = &signature.ident;
         let receiver = Receiver::from_signature(signature);
 
-        let len = signature.inputs.len();
         let output = match &signature.output {
             syn::ReturnType::Default => None,
             syn::ReturnType::Type(_, ty) => Some(ty.as_ref()),
         };
 
-        let mut method_data = receiver.map(|receiver| MethodData {
-            receiver,
-            is_private: trait_path.is_none() && *vis == syn::Visibility::Inherited,
-            arg_types: Vec::with_capacity(len - 1),
+        let method_data = receiver.map(|receiver| {
+            let arg_types = signature
+                .inputs
+                .iter()
+                .skip(1)
+                .map(|a| match a {
+                    syn::FnArg::Typed(arg) => WhenArg(&*arg.ty),
+                    syn::FnArg::Receiver(_) => {
+                        unreachable!("this is a weird bug in faux if you reached this")
+                    }
+                })
+                .collect();
+
+            MethodData {
+                receiver,
+                arg_types,
+                is_private: trait_path.is_none() && *vis == syn::Visibility::Inherited,
+            }
         });
 
-        let mut arg_idents =
-            Vec::with_capacity(signature.inputs.len() - method_data.is_some() as usize);
-
-        signature
-            .inputs
-            .iter_mut()
-            .skip(method_data.is_some() as usize) // if it's a method; skip first arg
-            .map(|a| match a {
-                syn::FnArg::Typed(arg) => arg,
-                syn::FnArg::Receiver(_) => {
-                    unreachable!("this is a weird bug in faux if you reached this")
-                }
-            })
-            .enumerate()
-            .for_each(|(i, arg)| {
-                // normalize all names.
-                let ident = syn::Ident::new(&format!("_x{}", i), proc_macro2::Span::call_site());
-                arg.pat = Box::new(syn::Pat::Ident(syn::PatIdent {
-                    attrs: vec![],
-                    by_ref: None,
-                    mutability: None,
-                    subpat: None,
-                    ident: ident.clone(),
-                }));
-                arg_idents.push(ident);
-                if let Some(m) = &mut method_data {
-                    m.arg_types.push(WhenArg(&*arg.ty));
-                }
-            });
-
         Signature {
-            is_async,
-            name,
-            arg_idents,
+            name: &signature.ident,
+            args: signature
+                .inputs
+                .iter()
+                .skip(method_data.is_some() as usize)
+                .map(|a| match a {
+                    syn::FnArg::Typed(arg) => &*arg.pat,
+                    syn::FnArg::Receiver(_) => {
+                        unreachable!("this is a weird bug in faux if you reached this")
+                    }
+                })
+                .collect(),
+            is_async: signature.asyncness.is_some(),
             output,
             method_data,
             trait_path,
@@ -158,24 +149,27 @@ impl<'a> Signature<'a> {
         real_ty: &syn::TypePath,
         morphed_ty: &syn::TypePath,
     ) -> darling::Result<syn::Block> {
-        let name = self.name;
-        let arg_idents = &self.arg_idents;
+        let name = &self.name;
+        let args = &self.args;
 
         let proxy = match self.trait_path {
             None => quote! { <#real_ty>::#name },
             Some(path) => quote! { <#real_ty as #path>::#name },
         };
 
-        let real_self_arg = if self.method_data.is_some() {
+        let real_self_arg = self.method_data.as_ref().map(|_| {
             // need to pass the real Self arg to the real method
-            Some(syn::Ident::new(
-                "_maybe_faux_real",
-                proc_macro2::Span::call_site(),
-            ))
-        } else {
-            None
-        };
-        let proxy_args = real_self_arg.iter().chain(arg_idents);
+            syn::Pat::Ident(syn::PatIdent {
+                attrs: vec![],
+                by_ref: None,
+                mutability: None,
+                ident: syn::Ident::new("_maybe_faux_real", proc_macro2::Span::call_site()),
+                subpat: None,
+            })
+        });
+        let real_self_arg = real_self_arg.as_ref();
+
+        let proxy_args = real_self_arg.iter().chain(args);
         let mut proxy_real = quote! { #proxy(#(#proxy_args),*) };
         if self.is_async {
             proxy_real.extend(quote! { .await })
@@ -198,8 +192,7 @@ impl<'a> Signature<'a> {
                         syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
 
                     let mut args =
-                        arg_idents
-                            .iter()
+                        args.iter()
                             .zip(method_data.arg_types.iter())
                             .map(|(ident, ty)| {
                                 if has_impl_trait(ty.0) {
@@ -211,7 +204,7 @@ impl<'a> Signature<'a> {
                                 }
                             });
 
-                    let args = if arg_idents.len() == 1 {
+                    let args = if args.len() == 1 {
                         let arg = args.next().unwrap();
                         quote! { #arg }
                     } else {
@@ -246,7 +239,7 @@ impl<'a> Signature<'a> {
         self.method_data
             .as_ref()
             .filter(|m| !m.is_private)
-            .map(|m| m.create_when(self.output, self.name))
+            .map(|m| m.create_when(self.output, &self.name))
     }
 
     fn wrap_self(

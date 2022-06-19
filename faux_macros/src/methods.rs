@@ -61,8 +61,9 @@ impl Mockable {
 
         let mut when_methods = vec![];
         for func in &mut methods {
+            normalize_idents(&mut func.sig);
             let signature = Signature::morph(
-                &mut func.sig,
+                &func.sig,
                 real.trait_.as_ref().map(|(_, path, _)| path),
                 &func.vis,
             );
@@ -251,4 +252,35 @@ fn publicize_methods(impl_block: &mut syn::ItemImpl) {
         })
         .filter(|method| method.vis == syn::Visibility::Inherited)
         .for_each(|method| method.vis = syn::parse_quote! { pub(super) });
+}
+
+fn normalize_idents(signature: &mut syn::Signature) {
+    signature
+        .inputs
+        .iter_mut()
+        .filter_map(|a| match a {
+            syn::FnArg::Receiver(_) => None,
+            syn::FnArg::Typed(arg) => Some(arg.pat.as_mut()),
+        })
+        .enumerate()
+        .for_each(|(i, arg_pat)| match arg_pat {
+            syn::Pat::Ident(pat_ident) => {
+                pat_ident.attrs = vec![];
+                pat_ident.by_ref = None;
+                pat_ident.mutability = None;
+                pat_ident.subpat = None;
+            }
+            non_ident => {
+                *non_ident = syn::Pat::Ident(syn::PatIdent {
+                    attrs: vec![],
+                    by_ref: None,
+                    mutability: None,
+                    subpat: None,
+                    ident: syn::Ident::new(
+                        &format!("_faux_arg_{i}"),
+                        proc_macro2::Span::call_site(),
+                    ),
+                })
+            }
+        });
 }
