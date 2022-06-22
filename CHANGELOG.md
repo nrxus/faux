@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## NEXT
+## v0.1.7
+
+* Don't change the parameter names in mocked methods if their pattern
+  is just an identifier. This is useful so that the rust-analyzer
+  overlay hints still show the actual parameter names.
 
 ### Minor Breaking Change
 * Panics when adding mocks to a cloned mock.
