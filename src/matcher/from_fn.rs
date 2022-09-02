@@ -128,13 +128,13 @@ macro_rules! from_fn {
 ///     .with_args((faux::pattern!(|_: &i32| true),)).then_return(5);
 #[macro_export]
 macro_rules! pattern {
-    ($( $pattern:pat )|+ $( if $guard: expr )? $(,)?) => (
+    ($(|)? $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => (
         faux::matcher::from_fn(
             move |arg| matches!(arg, $($pattern)|+ $(if $guard)?),
             stringify!($($pattern)|+ $(if $guard)?),
         )
     );
-    ($ty:ty => $( $pattern:pat )|+ $( if $guard: expr )? $(,)?) => (
+    ($(|)? $ty:ty => $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => (
         faux::matcher::from_fn(
             move |arg: &$ty| matches!(arg, $($pattern)|+ $(if $guard)?),
             stringify!($($pattern)|+ $(if $guard)?),
