@@ -8,6 +8,7 @@ description = "Implementations for #[create], #[methods], when!"
 homepage = "https://github.com/nrxus/faux"
 repository = "https://github.com/nrxus/faux"
 keywords = ["mock", "mocking", "test", "testing", "faux"]
+rust-version = "1.56"
 
 [dependencies]
 syn = { version = "1.0.58", features = ["full", "extra-traits"] }

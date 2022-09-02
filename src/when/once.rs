@@ -186,7 +186,7 @@ impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'m, R, I, O, M>
 
     fn add_stub(self, stub: Box<dyn FnOnce(I) -> O + Send + 'static>) {
         self.store
-            .get_or_create(self.id, self.name)
+            .get_mut(self.id, self.name)
             .add_stub(Stub::new(stub::Answer::Once(stub), self.matcher));
     }
 }

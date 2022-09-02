@@ -22,7 +22,7 @@ impl<'stub> Store<'stub> {
     ///
     /// If the given function has not yet been mocked, an empty mock
     /// is created for the function.
-    pub fn get_or_create<R, I, O>(
+    pub fn get_mut<R, I, O>(
         &mut self,
         id: fn(R, I) -> O,
         fn_name: &'static str,

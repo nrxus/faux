@@ -491,7 +491,7 @@ impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'m, R, I, O, M>
         };
 
         self.store
-            .get_or_create(self.id, self.name)
+            .get_mut(self.id, self.name)
             .add_stub(Stub::new(answer, self.matcher));
     }
 }
