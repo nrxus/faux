@@ -239,7 +239,7 @@ impl<'a> Signature<'a> {
         self.method_data
             .as_ref()
             .filter(|m| !m.is_private)
-            .map(|m| m.create_when(self.output, &self.name))
+            .map(|m| m.create_when(self.output, self.name))
     }
 
     fn wrap_self(

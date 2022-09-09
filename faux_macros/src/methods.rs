@@ -5,6 +5,7 @@ use crate::{create, self_type::SelfType};
 use darling::FromMeta;
 use morphed::Signature;
 use quote::quote;
+use syn::PathArguments;
 
 #[derive(Default, FromMeta)]
 #[darling(default)]
@@ -131,21 +132,23 @@ impl From<Mockable> for proc_macro::TokenStream {
             real,
             morphed,
             whens,
-            real_ty,
+            mut real_ty,
             morphed_ty,
         } = mockable;
 
         // create an identifier for the mod containing the real implementation
         // this is necessary until we are allowed to introduce type aliases within impl blocks
         let mod_ident = {
+            let uuid = uuid::Uuid::new_v4();
             let ident = &real_ty.path.segments.last().unwrap().ident;
             syn::Ident::new(
                 &match &real.trait_ {
-                    None => format!("_faux_real_impl_{}", ident),
+                    None => format!("_faux_real_impl_{}_{}", ident, uuid.to_simple()),
                     Some((_, trait_, _)) => format!(
-                        "_faux_real_impl_{}_{}",
+                        "_faux_real_impl_{}_{}_{}",
                         ident,
-                        trait_.segments.last().unwrap().ident
+                        trait_.segments.last().unwrap().ident,
+                        uuid.to_simple()
                     ),
                 },
                 proc_macro2::Span::call_site(),
@@ -164,6 +167,8 @@ impl From<Mockable> for proc_macro::TokenStream {
         let alias = {
             let mut path_to_ty = morphed_ty.path.segments;
             let path_to_real_from_alias_mod = {
+                // let mut real_ty = real_ty.clone();
+                real_ty.path.segments.last_mut().unwrap().arguments = PathArguments::None;
                 let first_path = &real_ty.path.segments.first().unwrap().ident;
                 if *first_path == syn::Ident::new("crate", first_path.span()) {
                     // if it is an absolute position then no need to "super" up to find it
@@ -186,11 +191,12 @@ impl From<Mockable> for proc_macro::TokenStream {
                     quote! { pub(#(#supers)::*) }
                 };
                 let pathless_type = path_to_ty.pop().unwrap();
+                let ident = &pathless_type.value().ident;
                 quote! {
                     //do not warn for things like Foo<i32> = RealFoo<i32>
                     #[allow(non_camel_case_types)]
                     #[allow(clippy::builtin_type_shadow)]
-                    #pub_supers type #pathless_type = #path_to_real_from_alias_mod;
+                    #pub_supers use #path_to_real_from_alias_mod as #ident;
                 }
             };
 

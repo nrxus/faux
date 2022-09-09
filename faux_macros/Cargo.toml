@@ -1,6 +1,6 @@
 [package]
 name = "faux_macros"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["Andres <andresnrx@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -15,6 +15,7 @@ syn = { version = "1.0.58", features = ["full", "extra-traits"] }
 quote = "1.0.8"
 proc-macro2 = "1.0.24"
 darling = "0.14"
+uuid = { version = "0.8.2", features = ["v4"] }
 
 [dev-dependencies]
 faux = { path = "../" }

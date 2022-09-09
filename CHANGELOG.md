@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v0.1.8
+* Fix issue where a type with `::` could not be used as a generic
+  argument in an `impl` signature.
+* Support multiple `impl` blocks for the same struct in the same
+  module
+  * This relies on the uniqueness of a uuid v4 which is technically
+    not guaranteed to be unique but pretty darn likely to be.
+
+### Minor Breaking Change
+* Bump MSRV to 1.56
+
 ## v0.1.7
 
 * Don't change the parameter names in mocked methods if their pattern

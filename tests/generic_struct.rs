@@ -28,6 +28,13 @@ impl<'a, T: std::fmt::Debug, R> Generic<'a, T, R> {
     }
 }
 
+#[faux::methods]
+impl<'a, R> Generic<'a, i32, R> {
+    pub fn get_i32(&self) -> i32 {
+        self.a
+    }
+}
+
 #[test]
 fn real() {
     let hello = "hello".to_string();
@@ -35,6 +42,7 @@ fn real() {
     assert_eq!(real.get(), &20);
     assert_eq!(real.get_ref(), &10);
     assert_eq!(real.life_ref(), &hello);
+    assert_eq!(real.get_i32(), 10);
 }
 
 #[test]
@@ -49,4 +57,8 @@ fn mocked() {
 
     unsafe { faux::when!(fake.life_ref).then_unchecked(|_| &2) }
     assert_eq!(fake.life_ref(), &2);
+
+    let mut int_fake: Generic<i32, u32> = Generic::faux();
+    faux::when!(int_fake.get_i32()).then_return(4);
+    assert_eq!(int_fake.get_i32(), 4);
 }
