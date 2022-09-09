@@ -204,8 +204,7 @@ up to date transformations of your code, use <code>cargo-expand</code></em></p>
 <p><code>faux</code> uses attributes to transform your structs into mockable
 versions of themselves at compile time.</p>
 <p>The rest of the section focuses on code that looks like this:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct NetworkClient {
     /* data here */
@@ -231,8 +230,7 @@ provide a way to inject fake implementations of its methods.</p>
 <h3 id="creating-mockable-structs"><a class="header" href="#creating-mockable-structs">Creating mockable structs</a></h3>
 <p><code>faux</code> provides the attribute macro <code>#[faux::create]</code> to transform a
 struct definition into a mockable version of itself.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">extern crate faux;
 </span>#[faux::create]
@@ -258,8 +256,7 @@ following steps:</p>
 <li>Replace the cloned definition's fields with an <code>enum</code> of two
 variants, the fake and the real version</li>
 </ol>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// same name so no one can tell the difference
 pub struct NetworkClient(MaybeNetworkClient);
@@ -462,8 +459,7 @@ for the user to provide arbitrary code to be run during tests.</p>
 the same struct, each with their own mocked methods. This means that
 the mocked information belongs to the mocked instance. This changes
 our definition of our mockable <code>NetworkClient</code> from:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct NetworkClient(MaybeNetworkClient);
 
@@ -476,8 +472,7 @@ pub struct RealNetworkClient { /* some data */ }
 <span class="boring">}
 </span></code></pre></pre>
 <p>to:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct NetworkClient(MaybeNetworkClient);
 
@@ -561,8 +556,7 @@ instance of the <code>NetworkClient</code> from nothing.</p>
 </span><span class="boring">fn main() {}
 </span></code></pre></pre>
 <p>We are now just missing one key piece: saving mocks.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">pub struct NetworkClient(MaybeNetworkClient);
 </span><span class="boring">enum MaybeNetworkClient {
