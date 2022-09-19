@@ -1,6 +1,6 @@
 [package]
 name = "faux"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["Andres <andresnrx@gmail.com>"]
 license = "MIT"
 description = "A library to mock structs"
