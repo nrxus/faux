@@ -1,5 +1,9 @@
 #![allow(clippy::redundant_clone)]
 
+use std::{rc::Rc, sync::Arc};
+
+type Result<T> = std::result::Result<T, ()>;
+
 #[faux::create]
 #[derive(Debug)]
 pub struct Foo {
@@ -25,6 +29,31 @@ impl Foo {
 
     pub fn create_similar(&self) -> Self {
         Foo { a: self.a + 1 }
+    }
+
+    pub fn new_boxed() -> Box<Self> {
+        Box::new(Foo { a: 0 })
+    }
+
+    pub fn new_rc() -> Rc<Self> {
+        Rc::new(Foo { a: 1 })
+    }
+
+    pub fn new_arc() -> Arc<Self> {
+        Arc::new(Foo { a: 2 })
+    }
+
+    pub fn new_result() -> std::result::Result<Self, Box<dyn std::error::Error>> {
+        Ok(Foo { a: 3 })
+    }
+
+    pub fn new_option() -> Option<Self> {
+        Some(Foo { a: 2 })
+    }
+
+    #[allow(clippy::result_unit_err)]
+    pub fn new_aliased_result() -> Result<Self> {
+        Ok(Foo { a: 0 })
     }
 }
 

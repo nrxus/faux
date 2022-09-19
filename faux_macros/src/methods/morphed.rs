@@ -1,7 +1,7 @@
 use crate::{methods::receiver::Receiver, self_type::SelfType};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::spanned::Spanned;
+use syn::{spanned::Spanned, PathArguments};
 
 struct SpanMarker(proc_macro2::Span);
 
@@ -252,47 +252,87 @@ impl<'a> Signature<'a> {
             ty == morphed_ty || (ty.qself.is_none() && ty.path.is_ident("Self"))
         };
 
-        let self_generic = |args: &syn::PathArguments| match args {
-            syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
-                args,
-                ..
-            }) if args.len() == 1 => match args.first().unwrap() {
-                syn::GenericArgument::Type(syn::Type::Path(ty)) => is_self(ty),
-                _ => false,
-            },
-            _ => false,
+        let output = self.output.filter(|o| {
+            let output = o.to_token_stream().to_string();
+            if output.contains("Self") {
+                return true;
+            };
+            let morphed_ty = morphed_ty.to_token_stream().to_string();
+            output.contains(&morphed_ty)
+        });
+
+        let output = match output {
+            Some(o) => o,
+            None => return Ok(None),
         };
 
-        Ok(if let Some(syn::Type::Path(output)) = self.output {
-            let last_segment = &output.path.segments.last().unwrap();
-            match SelfType::from_path(output) {
-                SelfType::Owned if is_self(output) => Some(match real_self {
-                    SelfType::Owned => quote! { Self(faux::MaybeFaux::Real(#block)) },
-                    generic => {
-                        let new_path = generic
-                            .new_path()
-                            .expect("Generic self should have new() function");
-                        quote! { Self(faux::MaybeFaux::Real(#new_path(#block))) }
-                    }
-                }),
-                generic if self_generic(&last_segment.arguments) => {
-                    if generic == real_self {
-                        let new_path = real_self
-                            .new_path()
-                            .expect("return type should not be Self");
-                        Some(quote! { #new_path(Self(faux::MaybeFaux::Real(#block))) })
-                    } else {
-                        return Err(darling::Error::custom(wrong_self_type_error(
-                            generic, real_self,
-                        ))
-                        .with_span(&output));
-                    }
+        let output = match output {
+            syn::Type::Path(output) => output,
+            output => return Err(unhandled_self_return(&output)),
+        };
+
+        let wrapped = if is_self(output) {
+            match real_self {
+                SelfType::Owned => quote! { Self(faux::MaybeFaux::Real(#block)) },
+                generic => {
+                    let new_path = generic
+                        .new_path()
+                        .expect("Generic self should have new() function");
+                    quote! { Self(faux::MaybeFaux::Real(#new_path(#block))) }
                 }
-                _ => None,
             }
         } else {
-            None
-        })
+            let unpathed_output = output.path.segments.last().unwrap();
+            let generics = match &unpathed_output.arguments {
+                syn::PathArguments::AngleBracketed(args) => args,
+                g => return Err(unhandled_self_return(&g)),
+            };
+            let first_arg = generics
+                .args
+                .first()
+                .expect("faux bug: no generic arguments but expected at least one");
+            let first_arg = match first_arg {
+                syn::GenericArgument::Type(syn::Type::Path(ty)) => ty,
+                _ => return Err(unhandled_self_return(&generics)),
+            };
+
+            if !is_self(first_arg) {
+                return Err(unhandled_self_return(&generics));
+            }
+
+            let output_ident = &unpathed_output.ident;
+            match real_self {
+                SelfType::Rc if output_ident == "Rc" => {
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(#block))) }
+                }
+                SelfType::Arc if output_ident == "Arc" => {
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(#block))) }
+                }
+                SelfType::Box if output_ident == "Box" => {
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(#block))) }
+                }
+                SelfType::Owned if output_ident == "Result" || output_ident == "Option" => {
+                    quote! { { #block }.map(faux::MaybeFaux::Real).map(Self) }
+                }
+                SelfType::Owned if output_ident == "Box" => {
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(*#block))) }
+                }
+                SelfType::Owned if output_ident == "Rc" || output_ident == "Arc" => {
+                    let ungenerified = {
+                        // clone so we don't modify the original output
+                        let mut output = output.clone();
+                        output.path.segments.last_mut().unwrap().arguments = PathArguments::None;
+                        output
+                    };
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(
+                        #ungenerified::try_unwrap(#block).ok().expect("faux: failed to grab value from reference counter because it was not unique.")
+                    ))) }
+                }
+                _ => return Err(unhandled_self_return(&output)),
+            }
+        };
+
+        Ok(Some(wrapped))
     }
 }
 
@@ -344,10 +384,6 @@ impl<'a> MethodData<'a> {
     }
 }
 
-fn wrong_self_type_error(expected: SelfType, received: SelfType) -> impl std::fmt::Display {
-    format!(
-        "faux cannot create {expected} from a self type of {received}. Consider specifying a different self_type in the faux attributes, or moving this method to a non-faux impl block",
-        expected = expected,
-        received = received
-    )
+fn unhandled_self_return(spanned: impl Spanned) -> darling::Error {
+    darling::Error::custom("faux: the return type refers to the mocked struct in a way that faux cannot handle. Split this function into an `impl` block not marked by #[faux::methods]. If you believe this is a mistake or it's a case that should be handled by faux please file an issue").with_span(&spanned)
 }

@@ -634,8 +634,6 @@ pub use faux_macros::create;
 ///
 /// # Known Limitations
 ///
-/// * [#13]: Within a module, for a single struct, only a single inherent `impl`
-/// and a single trait `impl` per trait may exist.
 /// * [#14]: Methods cannot have arguments of the same type as their struct.
 /// * [#18]: Generic methods and `impl` return types are not supported.
 ///
@@ -647,49 +645,54 @@ pub use faux_macros::create;
 ///
 /// ## Returning mockable struct
 ///
-/// Returning the mockable struct wrapped as a generic of another type
-/// (e.g., `Option<Self>`) is not currently supported. The exception
-/// to this is returning an instance wrapped by the
-/// [self_type](#self_type).
+/// When referring to the mockable struct in the signature (either by
+/// name or by `Self`) only special cases are allowed. In particular,
+/// it is only allowed in the return position of the signature for the
+/// follow cases:
 ///
-/// ```compile_fail
-/// #[faux::create]
-/// pub struct MyStruct {}
+/// * Returning the struct itself (e.g., `fn new() -> Self`)
 ///
-/// #[faux::methods]
-/// impl MyStruct {
-///     pub fn try_to_new() -> Result<Self, String> {
-///         Ok(MyStruct {})
-///     }
+/// * Returning the struct wrapped directly in: `Rc`, `Arc`, `Box`,
+/// `Result`, or `Option`. For `Result`, referring to the struct is
+/// only allowed if it's the `Ok` variant of the result. (e.g., `fn
+/// load() -> Result<Self, Error>`)
+///
+/// Any other kind of return type that refers to the mocked struct is
+/// not supported by `faux`. Please file an issue if you have a use
+/// case that you believe should be common enough for `faux` to handle
+/// automatically.
+///
+/// A workaround is to place the functions in an untagged `impl` block
+/// and have them call methods inside the tagged `impl`.
+///
+/// ```
+/// pub enum Either<X, Y> {
+///     Left(X),
+///     Right(Y),
 /// }
 ///
-/// # fn main() {}
-/// ```
-///
-/// A workaround is to place these functions in an untagged `impl`
-/// block and have them call methods inside the tagged `impl`.
-///
-/// ```
 /// #[faux::create]
-/// pub struct MyStruct {}
+/// pub struct MyStruct {
+///     x: i32
+/// }
 ///
 /// #[faux::methods]
 /// impl MyStruct {
 ///     fn new() -> Self {
-///         MyStruct {}
+///         MyStruct { x: 4 }
 ///     }
 /// }
 ///
 /// // do not tag this one
 /// impl MyStruct {
-///     pub fn try_to_new() -> Result<Self, String> {
-///         Ok(MyStruct::new())
+///     pub fn make_either() -> Either<Self, String> {
+///         Either::Left(MyStruct::new())
 ///     }
 /// }
 ///
 /// # fn main() {
-/// let x = MyStruct::try_to_new();
-/// assert!(x.is_ok());
+/// let x = MyStruct::make_either();
+/// assert!(matches!(x, Either::Left(MyStruct { .. })));
 /// # }
 /// ```
 ///
@@ -697,8 +700,8 @@ pub use faux_macros::create;
 ///
 /// `#[methods]` can be added to blocks of the form `impl
 /// path::to::Type` as long as the path does not contain the `super`
-/// or `crate` keywords. If it does, use the [`path`](#path) argument to
-/// explicitly specify the path.
+/// or `crate` keywords. If it does, use the [`path`](#path) argument
+/// to explicitly specify the path.
 ///
 /// [receiver]: https://doc.rust-lang.org/reference/items/associated-items.html#methods
 pub use faux_macros::methods;

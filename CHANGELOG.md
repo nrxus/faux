@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## NEXT
+* Allow `#[faux::methods]` to wrap functions that return the mocked
+  struct wrapped in `Rc`, `Arc`, `Box`, `Result`, or `Option`.
+  * [test](/tests/return_self_method.rs)
+
 ## v0.1.8
 * Fix issue where a type with `::` could not be used as a generic
   argument in an `impl` signature.
