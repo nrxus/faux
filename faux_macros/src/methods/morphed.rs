@@ -109,7 +109,7 @@ impl<'a> Signature<'a> {
                 .iter()
                 .skip(1)
                 .map(|a| match a {
-                    syn::FnArg::Typed(arg) => WhenArg(&*arg.ty),
+                    syn::FnArg::Typed(arg) => WhenArg(&arg.ty),
                     syn::FnArg::Receiver(_) => {
                         unreachable!("this is a weird bug in faux if you reached this")
                     }
@@ -268,7 +268,7 @@ impl<'a> Signature<'a> {
 
         let output = match output {
             syn::Type::Path(output) => output,
-            output => return Err(unhandled_self_return(&output)),
+            output => return Err(unhandled_self_return(output)),
         };
 
         let wrapped = if is_self(output) {
@@ -285,7 +285,7 @@ impl<'a> Signature<'a> {
             let unpathed_output = output.path.segments.last().unwrap();
             let generics = match &unpathed_output.arguments {
                 syn::PathArguments::AngleBracketed(args) => args,
-                g => return Err(unhandled_self_return(&g)),
+                g => return Err(unhandled_self_return(g)),
             };
             let first_arg = generics
                 .args
@@ -293,11 +293,11 @@ impl<'a> Signature<'a> {
                 .expect("faux bug: no generic arguments but expected at least one");
             let first_arg = match first_arg {
                 syn::GenericArgument::Type(syn::Type::Path(ty)) => ty,
-                _ => return Err(unhandled_self_return(&generics)),
+                _ => return Err(unhandled_self_return(generics)),
             };
 
             if !is_self(first_arg) {
-                return Err(unhandled_self_return(&generics));
+                return Err(unhandled_self_return(generics));
             }
 
             let output_ident = &unpathed_output.ident;
@@ -328,7 +328,7 @@ impl<'a> Signature<'a> {
                         #ungenerified::try_unwrap(#block).ok().expect("faux: failed to grab value from reference counter because it was not unique.")
                     ))) }
                 }
-                _ => return Err(unhandled_self_return(&output)),
+                _ => return Err(unhandled_self_return(output)),
             }
         };
 
@@ -342,9 +342,9 @@ impl<'a> MethodData<'a> {
         output: Option<&syn::Type>,
         name: &syn::Ident,
     ) -> Vec<syn::ImplItemMethod> {
-        let &MethodData {
-            ref arg_types,
-            ref receiver,
+        let MethodData {
+            arg_types,
+            receiver,
             ..
         } = self;
         let receiver_tokens = &receiver.tokens;
