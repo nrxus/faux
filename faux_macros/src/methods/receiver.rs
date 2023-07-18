@@ -1,47 +1,38 @@
 use crate::self_type::SelfType;
-use proc_macro2::{Span, TokenStream};
-use quote::quote;
+
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens};
+
 use std::{
     boxed::Box,
     fmt::{self, Formatter},
 };
-use syn::spanned::Spanned;
 
 pub struct Receiver {
-    span: Span,
     pub kind: SelfKind,
-    pub tokens: TokenStream,
+    pub ty: Box<syn::Type>,
 }
 
 impl Receiver {
     pub fn from_signature(signature: &syn::Signature) -> Option<Self> {
         match signature.inputs.first()? {
-            syn::FnArg::Typed(arg) => match &*arg.pat {
-                syn::Pat::Ident(pat_ident) if pat_ident.ident == "self" => {
-                    let arg_ty = &*arg.ty;
-                    Some(Receiver {
-                        kind: SelfKind::from_type(arg_ty),
-                        span: arg_ty.span(),
-                        tokens: quote! { #arg_ty },
-                    })
-                }
-                _ => None,
-            },
             syn::FnArg::Receiver(receiver) => {
-                let (kind, tokens) = match (&receiver.reference, &receiver.mutability) {
-                    (None, _) => (SelfKind::Owned, quote! { Self }),
-                    (Some(_), None) => (SelfKind::Pointer(PointerKind::Ref), quote! { &Self }),
-                    (Some(_), Some(_)) => {
-                        (SelfKind::Pointer(PointerKind::MutRef), quote! { &mut Self })
+                let kind = if receiver.colon_token.is_some() {
+                    SelfKind::from_type(receiver.ty.as_ref())
+                } else {
+                    match (&receiver.reference, &receiver.mutability) {
+                        (None, _) => SelfKind::Owned,
+                        (Some(_), None) => SelfKind::Pointer(PointerKind::Ref),
+                        (Some(_), Some(_)) => SelfKind::Pointer(PointerKind::MutRef),
                     }
                 };
 
                 Some(Receiver {
                     kind,
-                    tokens,
-                    span: receiver.span(),
+                    ty: receiver.ty.clone(),
                 })
             }
+            _ => None,
         }
     }
 
@@ -233,9 +224,9 @@ impl fmt::Display for PointerKind {
     }
 }
 
-impl Spanned for Receiver {
-    fn span(&self) -> Span {
-        self.span
+impl ToTokens for Receiver {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ty.to_tokens(tokens)
     }
 }
 

@@ -56,7 +56,7 @@ impl Mockable {
         let mut morphed = real.clone();
 
         let mut methods = morphed.items.iter_mut().filter_map(|item| match item {
-            syn::ImplItem::Method(m) => Some(m),
+            syn::ImplItem::Fn(m) => Some(m),
             _ => None,
         });
 
@@ -70,7 +70,7 @@ impl Mockable {
             );
             func.block = signature.create_body(args.self_type, &real_ty, &morphed_ty)?;
             if let Some(methods) = signature.create_when() {
-                when_methods.extend(methods.into_iter().map(syn::ImplItem::Method));
+                when_methods.extend(methods.into_iter().map(syn::ImplItem::Fn));
             }
         }
 
@@ -143,12 +143,12 @@ impl From<Mockable> for proc_macro::TokenStream {
             let ident = &real_ty.path.segments.last().unwrap().ident;
             syn::Ident::new(
                 &match &real.trait_ {
-                    None => format!("_faux_real_impl_{}_{}", ident, uuid.to_simple()),
+                    None => format!("_faux_real_impl_{}_{}", ident, uuid.simple()),
                     Some((_, trait_, _)) => format!(
                         "_faux_real_impl_{}_{}_{}",
                         ident,
                         trait_.segments.last().unwrap().ident,
-                        uuid.to_simple()
+                        uuid.simple()
                     ),
                 },
                 proc_macro2::Span::call_site(),
@@ -253,7 +253,7 @@ fn publicize_methods(impl_block: &mut syn::ItemImpl) {
         .items
         .iter_mut()
         .filter_map(|item| match item {
-            syn::ImplItem::Method(m) => Some(m),
+            syn::ImplItem::Fn(m) => Some(m),
             _ => None,
         })
         .filter(|method| method.vis == syn::Visibility::Inherited)

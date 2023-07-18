@@ -4,7 +4,7 @@ mod create;
 mod methods;
 mod self_type;
 
-use darling::FromMeta;
+use darling::{export::NestedMeta, FromMeta};
 use proc_macro::TokenStream;
 use quote::quote;
 
@@ -12,12 +12,12 @@ use quote::quote;
 pub fn create(args: TokenStream, original: TokenStream) -> TokenStream {
     let original = syn::parse_macro_input!(original as syn::ItemStruct);
 
-    let args = syn::parse_macro_input!(args as syn::AttributeArgs);
-    let args = match create::Args::from_list(&args) {
+    let args = match NestedMeta::parse_meta_list(args.into())
+        .map_err(darling::Error::from)
+        .and_then(|v| create::Args::from_list(&v))
+    {
         Ok(v) => v,
-        Err(e) => {
-            return e.write_errors().into();
-        }
+        Err(e) => return e.write_errors().into(),
     };
 
     let mockable = create::Mockable::new(original, args);
@@ -29,12 +29,12 @@ pub fn create(args: TokenStream, original: TokenStream) -> TokenStream {
 pub fn methods(args: TokenStream, original: TokenStream) -> TokenStream {
     let original = syn::parse_macro_input!(original as syn::ItemImpl);
 
-    let args = syn::parse_macro_input!(args as syn::AttributeArgs);
-    let args = match methods::Args::from_list(&args) {
+    let args = match NestedMeta::parse_meta_list(args.into())
+        .map_err(darling::Error::from)
+        .and_then(|v| methods::Args::from_list(&v))
+    {
         Ok(v) => v,
-        Err(e) => {
-            return e.write_errors().into();
-        }
+        Err(e) => return e.write_errors().into(),
     };
 
     match methods::Mockable::new(original, args) {
@@ -87,7 +87,7 @@ fn ref_matcher_maybe(
     matcher: impl FnOnce() -> darling::Result<proc_macro2::TokenStream>,
 ) -> darling::Result<proc_macro2::TokenStream> {
     match left {
-        syn::Expr::Verbatim(t) if t.to_string() == "_" => matcher(),
+        syn::Expr::Infer(_) => matcher(),
         syn::Expr::Unary(syn::ExprUnary {
             op: syn::UnOp::Deref(_),
             expr,
@@ -102,7 +102,7 @@ fn ref_matcher_maybe(
 
 fn expr_to_matcher(expr: syn::Expr) -> darling::Result<proc_macro2::TokenStream> {
     match &expr {
-        syn::Expr::Verbatim(t) if t.to_string() == "_" => Ok(quote! { faux::matcher::any() }),
+        syn::Expr::Infer(_) => Ok(quote! { faux::matcher::any() }),
         syn::Expr::Assign(syn::ExprAssign { left, right, .. }) => {
             ref_matcher_maybe(&expr, left, || Ok(right.to_token_stream()))
         }

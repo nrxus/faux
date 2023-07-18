@@ -3,14 +3,6 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{spanned::Spanned, PathArguments};
 
-struct SpanMarker(proc_macro2::Span);
-
-impl Spanned for SpanMarker {
-    fn span(&self) -> proc_macro2::Span {
-        self.0
-    }
-}
-
 pub struct Signature<'a> {
     name: &'a syn::Ident,
     args: Vec<&'a syn::Pat>,
@@ -230,12 +222,12 @@ impl<'a> Signature<'a> {
         };
 
         Ok(syn::Block {
-            stmts: vec![syn::Stmt::Expr(ret)],
+            stmts: vec![syn::Stmt::Expr(ret, None)],
             brace_token: Default::default(),
         })
     }
 
-    pub fn create_when(&self) -> Option<Vec<syn::ImplItemMethod>> {
+    pub fn create_when(&self) -> Option<Vec<syn::ImplItemFn>> {
         self.method_data
             .as_ref()
             .filter(|m| !m.is_private)
@@ -341,13 +333,13 @@ impl<'a> MethodData<'a> {
         &self,
         output: Option<&syn::Type>,
         name: &syn::Ident,
-    ) -> Vec<syn::ImplItemMethod> {
+    ) -> Vec<syn::ImplItemFn> {
         let MethodData {
             arg_types,
             receiver,
             ..
         } = self;
-        let receiver_tokens = &receiver.tokens;
+        let receiver_ty = &receiver.ty;
 
         let when_ident =
             syn::Ident::new(&format!("_when_{}", name), proc_macro2::Span::call_site());
@@ -359,7 +351,7 @@ impl<'a> MethodData<'a> {
         let name_str = name.to_string();
 
         let when_method = syn::parse_quote! {
-            pub fn #when_ident<'m>(&'m mut self) -> faux::When<'m, #receiver_tokens, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
+            pub fn #when_ident<'m>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
                         <Self>::#faux_ident,
@@ -375,7 +367,7 @@ impl<'a> MethodData<'a> {
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             #[allow(clippy::boxed_local)]
-            pub fn #faux_ident(self: #receiver_tokens, _: (#(#arg_types),*)) -> #output {
+            pub fn #faux_ident(self: #receiver_ty, _: (#(#arg_types),*)) -> #output {
                 panic!(#panic_message)
             }
         };
