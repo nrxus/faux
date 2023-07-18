@@ -4,6 +4,7 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>Exporting Mocks Across Crates - faux</title>
+
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,6 +27,7 @@
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+
     </head>
     <body>
         <!-- Provide site root to javascript -->
@@ -84,7 +86,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar" class="menu-bar">
+                                <div id="menu-bar" class="menu-bar">
                     <div id="menu-bar-sticky-container">
                         <div class="left-buttons">
                             <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -125,6 +127,7 @@
                         </ul>
                     </div>
                 </div>
+
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script type="text/javascript">
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
@@ -216,8 +219,7 @@ mod tests {
 </span><span class="boring">    faux::when!(renderer.render).then(|_| Ok(()));
 </span><span class="boring">    let subject = Texture {};
 </span><span class="boring">    subject.render(&amp;mut renderer).expect(&quot;failed to render the texture&quot;)
-</span><span class="boring">}
-</span></code></pre></pre>
+</span><span class="boring">}</span></code></pre></pre>
 <h2 id="faux-as-a-feature"><a class="header" href="#faux-as-a-feature"><code>faux</code> as a feature</a></h2>
 <p>For the mocks to be exported, they need to be built even outside of
 tests. However, we do not want to pollute the production builds of our
@@ -266,16 +268,13 @@ impl Renderer {
 
 <span class="boring">pub struct RenderError;
 </span><span class="boring">pub struct Texture;
-</span><span class="boring">fn main() {}
-</span></code></pre></pre>
+</span><span class="boring">fn main() {}</span></code></pre></pre>
 <p>The key thing to remember here is replacing:</p>
 <pre><pre class="playground"><code class="language-rust">#[cfg_attr(test, ...)]
-<span class="boring">fn main()
-</span></code></pre></pre>
+<span class="boring">fn main()</span></code></pre></pre>
 <p>with</p>
 <pre><pre class="playground"><code class="language-rust">#[cfg_attr(any(test, feature = &quot;faux&quot;), ...)]
-<span class="boring">fn main()
-</span></code></pre></pre>
+<span class="boring">fn main()</span></code></pre></pre>
 <p>This tells Rust to use the <code>faux</code> attributes (<code>create</code> and <code>methods</code>)
 for either <code>test</code> or the <code>faux</code> feature flag. You can learn more about
 the <code>any</code> attribute in the <a href="https://doc.rust-lang.org/reference/conditional-compilation.html">Rust Reference</a>.</p>
@@ -335,8 +334,7 @@ impl World {
         Ok(())
     }
 }
-<span class="boring">fn main() {}
-</span></code></pre></pre>
+<span class="boring">fn main() {}</span></code></pre></pre>
 <p>We would like to write tests for our <code>World::render</code> method, but since
 rendering is an expensive opration, this is hard to do without
 mocks. Thankfully, <code>testable-renderer</code> is set up to expose its mocks,
@@ -389,8 +387,7 @@ mod tests {
     }
 }
 
-<span class="boring">fn main() {}
-</span></code></pre></pre>
+<span class="boring">fn main() {}</span></code></pre></pre>
 <h2 id="recap"><a class="header" href="#recap">Recap</a></h2>
 <p>The library that wants to export its mocks needs to:</p>
 <ul>
@@ -426,9 +423,11 @@ mocks and <code>world-renderer</code> is the application that uses these mocks.<
                             <a rel="prev" href="../guide/getting-started.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
+
                             <a rel="next" href="../blog/introducing-faux.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
+
                         <div style="clear: both"></div>
                     </nav>
                 </div>
@@ -438,6 +437,7 @@ mocks and <code>world-renderer</code> is the application that uses these mocks.<
                     <a href="../guide/getting-started.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
+
                     <a href="../blog/introducing-faux.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
@@ -445,14 +445,21 @@ mocks and <code>world-renderer</code> is the application that uses these mocks.<
 
         </div>
 
+
+
         
+
+
         <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+
         <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
         <script src="../book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
+
+
     </body>
 </html>

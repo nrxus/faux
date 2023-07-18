@@ -4,6 +4,7 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>Getting Started - faux</title>
+
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,6 +27,7 @@
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+
     </head>
     <body>
         <!-- Provide site root to javascript -->
@@ -84,7 +86,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar" class="menu-bar">
+                                <div id="menu-bar" class="menu-bar">
                     <div id="menu-bar-sticky-container">
                         <div class="left-buttons">
                             <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -125,6 +127,7 @@
                         </ul>
                     </div>
                 </div>
+
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script type="text/javascript">
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
@@ -158,8 +161,7 @@ pub struct MyStructToMock { /* fields */ }
 
 #[cfg_attr(test, faux::methods)]
 impl MyStructToMock { /* methods to mock */ }
-<span class="boring">fn main() {}
-</span></code></pre></pre>
+<span class="boring">fn main() {}</span></code></pre></pre>
 <h3 id="example"><a class="header" href="#example">Example</a></h3>
 <p>Let's say you are writing a restaurant reservation system. One of the
 core structs in this system is a <code>RestaurantClient</code> which sends HTTP
@@ -194,8 +196,7 @@ impl RestaurantClient {
 </span><span class="boring">pub struct Reservation { /* snip */ }
 </span><span class="boring">pub struct Availability { /* snip */ }
 </span><span class="boring">pub struct Error { /* snip */ }
-</span><span class="boring">fn main() {}
-</span></code></pre></pre>
+</span><span class="boring">fn main() {}</span></code></pre></pre>
 <p>This type is not interesting to unit-test in itself as it is very
 declarative. Aside from the fact that it doesn't have any real logic
 to unit-test, calling these methods will send actual HTTP requests to
@@ -252,8 +253,7 @@ impl Concierge {
 </span><span class="boring">    pub struct Error { /* snip */ }
 </span><span class="boring">    pub type Result&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
 </span><span class="boring">}
-</span><span class="boring">fn main() {}
-</span></code></pre></pre>
+</span><span class="boring">fn main() {}</span></code></pre></pre>
 <p>Unlike <code>ReservationClient</code>, the <code>Concierge</code> does hold a key piece of
 domain logic: how to choose between the available times. This logic is
 worth unit tests as it is vital to our service and we want to make
@@ -297,8 +297,7 @@ impl RestaurantClient {
 </span><span class="boring">pub struct Reservation { /* snip */ }
 </span><span class="boring">pub struct Availability { /* snip */ }
 </span><span class="boring">pub struct Error { /* snip */ }
-</span><span class="boring">fn main() {}
-</span></code></pre></pre>
+</span><span class="boring">fn main() {}</span></code></pre></pre>
 <p>Using these two attributes allows/signals <code>faux</code> to hook into the
 struct and its methods at compile time to create mockable versions of
 them that can be used in your tests. Note that there are zero changes
@@ -436,8 +435,7 @@ mod tests {
 
         assert!(matches!(error, Error::NoReservations));
     }
-}
-</code></pre></pre>
+}</code></pre></pre>
 <p>You have now successfully added tests for <code>Concierge</code> that use a mock
 instance of the <code>RestaurantClient</code>. Note that neither the
 implementation of <code>Concierge</code> nor <code>RestaurantClient</code> had to change in
@@ -474,9 +472,11 @@ See the [when docs] for more information.</p>
                             <a rel="prev" href="../motivation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
+
                             <a rel="next" href="../guide/exporting-mocks.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
+
                         <div style="clear: both"></div>
                     </nav>
                 </div>
@@ -486,6 +486,7 @@ See the [when docs] for more information.</p>
                     <a href="../motivation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
+
                     <a href="../guide/exporting-mocks.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
@@ -493,14 +494,21 @@ See the [when docs] for more information.</p>
 
         </div>
 
+
+
         
+
+
         <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+
         <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
         <script src="../book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
+
+
     </body>
 </html>

@@ -4,6 +4,7 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>an inside look - faux</title>
+
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,6 +27,7 @@
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+
     </head>
     <body>
         <!-- Provide site root to javascript -->
@@ -84,7 +86,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar" class="menu-bar">
+                                <div id="menu-bar" class="menu-bar">
                     <div id="menu-bar-sticky-container">
                         <div class="left-buttons">
                             <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -125,6 +127,7 @@
                         </ul>
                     </div>
                 </div>
+
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script type="text/javascript">
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
@@ -195,8 +198,7 @@ fn service_does_the_right_thing() {
 </span><span class="boring">   let subject = Service { client };
 </span><span class="boring">   let id = subject.do_stuff();
 </span><span class="boring">   assert_eq!(id, 10);
-</span><span class="boring">}
-</span></code></pre></pre>
+</span><span class="boring">}</span></code></pre></pre>
 <h2 id="how-does-it-work"><a class="header" href="#how-does-it-work">How does it work?</a></h2>
 <p><em><strong>DISCLAIMER:</strong> this is a simplified version of how <code>faux</code> works as
 of February 2020, which may change in future versions. To see the most
@@ -222,8 +224,7 @@ impl NetworkClient {
 <span class="boring">        5
 </span>    }
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p><code>faux</code>, or any other mocking framework, needs to do two things to the
 code snippet above: create a fake version of <code>NetworkClient</code>, and
 provide a way to inject fake implementations of its methods.</p>
@@ -237,8 +238,7 @@ struct definition into a mockable version of itself.</p>
 pub struct NetworkClient {
     /* data here */
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>From <code>faux</code>'s perspective, a mockable version of a struct:</p>
 <ul>
 <li>Is indistinguishable from the original struct, from a user's
@@ -279,8 +279,7 @@ impl NetworkClient {
         NetworkClient(MaybeNetworkClient::Fake)
     }
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>The code snippet above is a simplified version of the transformation
 <code>#[faux::create]</code> performs on <code>NetworkClient</code>. The mock requirements
 are satisfied:</p>
@@ -329,8 +328,7 @@ impl NetworkClient {
 </span>    }
 }
 <span class="boring">
-</span><span class="boring">fn main() {}
-</span></code></pre></pre>
+</span><span class="boring">fn main() {}</span></code></pre></pre>
 <p>From <code>faux</code>'s perspective, a mockable version of a method:</p>
 <ul>
 <li>Is indistinguishable from the original method, from a user's
@@ -398,8 +396,7 @@ mod real_impl_of_NetworkClient {
     }
 }
 <span class="boring">
-</span><span class="boring">fn main() {}
-</span></code></pre></pre>
+</span><span class="boring">fn main() {}</span></code></pre></pre>
 <p>The code snippet above is a simplified version of the transformation
 <code>#[faux::method]</code> performs on the <code>impl</code> block. This is a bit more
 complicated than making a mockable struct and involves the following
@@ -469,8 +466,7 @@ enum MaybeNetworkClient {
 }
 
 pub struct RealNetworkClient { /* some data */ }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>to:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -501,8 +497,7 @@ impl Mock {
 <span class="boring">        panic!()
 </span>    }
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>We have added a <code>MockStore</code> to the <code>Fake</code> variant of the
 <code>MaybeNetworkClient</code> enum. This allows us to store and retrieve mocks
 when we have a fake instance of <code>NetworkClient</code>.  We derive <code>Default</code>
@@ -553,8 +548,7 @@ instance of the <code>NetworkClient</code> from nothing.</p>
 </span><span class="boring">    }
 </span><span class="boring">}
 </span><span class="boring">
-</span><span class="boring">fn main() {}
-</span></code></pre></pre>
+</span><span class="boring">fn main() {}</span></code></pre></pre>
 <p>We are now just missing one key piece: saving mocks.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -597,8 +591,7 @@ impl MockStore {
         /* somehow save the mock with the given name */
     }
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>The <code>When</code> struct above provides a method to that saves the given mock
 inside the <code>MockStore</code>. We have also added a method to <code>NetworkClient</code>
 that returns an instance of <code>When</code> with information about the <code>fetch</code>
@@ -677,8 +670,7 @@ assert_eq!(fetched, 3);
 </span><span class="boring">    pub fn fetch(&amp;self, a: u32) -&gt; i32 {
 </span><span class="boring">        5
 </span><span class="boring">    }
-</span><span class="boring">}
-</span></code></pre></pre>
+</span><span class="boring">}</span></code></pre></pre>
 <p>You may have noticed that we largely omitted the implementation of
 <code>MockStore</code> and <code>Mock</code>. The implementations of these are pretty hairy,
 and thus out of scope for this blog post. However, feel free to read
@@ -702,9 +694,11 @@ update the blog.</p>
                             <a rel="prev" href="../blog/introducing-faux.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
+
                             <a rel="next" href="../blog/landing-v-0-1.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
+
                         <div style="clear: both"></div>
                     </nav>
                 </div>
@@ -714,6 +708,7 @@ update the blog.</p>
                     <a href="../blog/introducing-faux.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
+
                     <a href="../blog/landing-v-0-1.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
@@ -721,14 +716,21 @@ update the blog.</p>
 
         </div>
 
+
+
         
+
+
         <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+
         <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
         <script src="../book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
+
+
     </body>
 </html>

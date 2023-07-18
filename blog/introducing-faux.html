@@ -4,6 +4,7 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>introducing faux - faux</title>
+
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,6 +27,7 @@
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+
     </head>
     <body>
         <!-- Provide site root to javascript -->
@@ -84,7 +86,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar" class="menu-bar">
+                                <div id="menu-bar" class="menu-bar">
                     <div id="menu-bar-sticky-container">
                         <div class="left-buttons">
                             <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -125,6 +127,7 @@
                         </ul>
                     </div>
                 </div>
+
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script type="text/javascript">
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
@@ -212,8 +215,7 @@ fn service_does_the_right_thing() {
 </span><span class="boring">   let subject = Service { client };
 </span><span class="boring">   let id = subject.do_stuff();
 </span><span class="boring">   assert_eq!(id, 10);
-</span><span class="boring">}
-</span></code></pre></pre>
+</span><span class="boring">}</span></code></pre></pre>
 <p>By adding <code>faux</code> attributes, we have succesfully mocked
 <code>NetworkClient::fetch_id_matching</code> to instead call a closure specified
 in the test code and always return 10. Unlike the real method, the
@@ -251,8 +253,7 @@ impl Service {
         self.client.fetch_id_matching(3)
     }
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>In the code snippet above, we want to test <code>Service</code> to make sure it
 does the right thing. However, we want to avoid the expensive work
 done in <code>fetch_id_matching</code>, since making a network call in our test
@@ -340,8 +341,7 @@ fn service_does_the_right_thing() {
 </span><span class="boring">    let subject = Service { client };
 </span><span class="boring">    let id = subject.do_stuff();
 </span><span class="boring">    assert_eq!(id, 10);
-</span><span class="boring">}
-</span></code></pre></pre>
+</span><span class="boring">}</span></code></pre></pre>
 <p>Unfortunately, we have now changed our <em>production</em> code to
 accommodate our <em>tests</em>, not because this is a better design but
 because of testing requirements. Tests should <em>guide</em> the design of
@@ -382,9 +382,11 @@ framework, which was a huge inspiration behind the creation of <code>faux</code>
                             <a rel="prev" href="../guide/exporting-mocks.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
+
                             <a rel="next" href="../blog/an-inside-look.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
+
                         <div style="clear: both"></div>
                     </nav>
                 </div>
@@ -394,6 +396,7 @@ framework, which was a huge inspiration behind the creation of <code>faux</code>
                     <a href="../guide/exporting-mocks.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
+
                     <a href="../blog/an-inside-look.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
@@ -401,14 +404,21 @@ framework, which was a huge inspiration behind the creation of <code>faux</code>
 
         </div>
 
+
+
         
+
+
         <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+
         <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
         <script src="../book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
+
+
     </body>
 </html>
