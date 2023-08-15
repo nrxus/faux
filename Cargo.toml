@@ -1,6 +1,6 @@
 [package]
 name = "faux"
-version = "0.1.9"
+version = "0.1.10"
 authors = ["Andres <andresnrx@gmail.com>"]
 license = "MIT"
 description = "A library to mock structs"
@@ -12,7 +12,7 @@ readme = "README.md"
 rust-version = "1.58"
 
 [dependencies]
-faux_macros = { path = "faux_macros", version = "0.1.8" }
+faux_macros = { path = "faux_macros", version = "0.1.10" }
 paste = "1.0.4"
 
 [dev-dependencies]

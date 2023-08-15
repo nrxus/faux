@@ -1,6 +1,17 @@
 # CHANGELOG
 
-## NEXT
+## v0.1.10
+* Fix issue where methods that returned a type with a name that
+  contains the name of the mocked struct would fail to compile.
+  * [test](/tests/return_self_method.rs)
+* Properly mark MSRV as v1.58.
+  * This was accidentally bumped in a previous release. A test for
+  MSRV has been added to CI to prevent this happening in the future by
+  accident. Note that `faux` considers MSRV bumps as non-breaking but
+  we still try to keep it to a minimum and only to older rust
+  versions.
+
+## v0.1.9
 * Allow `#[faux::methods]` to wrap functions that return the mocked
   struct wrapped in `Rc`, `Arc`, `Box`, `Result`, or `Option`.
   * [test](/tests/return_self_method.rs)
