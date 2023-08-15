@@ -104,7 +104,7 @@ macro_rules! from_fn {
 /// assert!(!is_alphabet.matches(&' '));
 ///
 /// // or the type can be explicit
-/// let exists_more_than_two = pattern!(Option<_> => Some(x) if *x > 2);
+/// let exists_more_than_two = pattern!(Option::<_> => Some(x) if *x > 2);
 /// assert!(exists_more_than_two.matches(&Some(4)));
 /// assert!(!exists_more_than_two.matches(&Some(1)));
 ///

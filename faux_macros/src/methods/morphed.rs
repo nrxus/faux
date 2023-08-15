@@ -1,7 +1,7 @@
 use crate::{methods::receiver::Receiver, self_type::SelfType};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{spanned::Spanned, PathArguments};
+use syn::{spanned::Spanned, PathArguments, Type, TypePath};
 
 pub struct Signature<'a> {
     name: &'a syn::Ident,
@@ -240,22 +240,17 @@ impl<'a> Signature<'a> {
         real_self: SelfType,
         block: &TokenStream,
     ) -> darling::Result<Option<TokenStream>> {
+        // TODO: use let-else once we bump MSRV to 1.65.0
+        let output = match self.output {
+            Some(output) => output,
+            None => return Ok(None),
+        };
+        if !contains_self(output, morphed_ty) {
+            return Ok(None);
+        }
+
         let is_self = |ty: &syn::TypePath| {
             ty == morphed_ty || (ty.qself.is_none() && ty.path.is_ident("Self"))
-        };
-
-        let output = self.output.filter(|o| {
-            let output = o.to_token_stream().to_string();
-            if output.contains("Self") {
-                return true;
-            };
-            let morphed_ty = morphed_ty.to_token_stream().to_string();
-            output.contains(&morphed_ty)
-        });
-
-        let output = match output {
-            Some(o) => o,
-            None => return Ok(None),
         };
 
         let output = match output {
@@ -378,4 +373,96 @@ impl<'a> MethodData<'a> {
 
 fn unhandled_self_return(spanned: impl Spanned) -> darling::Error {
     darling::Error::custom("faux: the return type refers to the mocked struct in a way that faux cannot handle. Split this function into an `impl` block not marked by #[faux::methods]. If you believe this is a mistake or it's a case that should be handled by faux please file an issue").with_span(&spanned)
+}
+
+fn contains_self(ty: &Type, path: &TypePath) -> bool {
+    match ty {
+        // end recursion
+        Type::Path(p) => {
+            p == path
+                || (p.qself.is_none() && p.path.is_ident("Self"))
+                || path_args_contains_self(&p.path, path)
+        }
+        // recurse to inner type
+        Type::Array(arr) => contains_self(&arr.elem, path),
+        Type::Group(g) => contains_self(&g.elem, path),
+        Type::Paren(t) => contains_self(&t.elem, path),
+        Type::Ptr(p) => contains_self(&p.elem, path),
+        Type::Reference(p) => contains_self(&p.elem, path),
+        Type::Slice(s) => contains_self(&s.elem, path),
+        // check deeper
+        Type::BareFn(barefn) => {
+            return_contains_self(&barefn.output, path)
+                || barefn.inputs.iter().any(|i| contains_self(&i.ty, path))
+        }
+        Type::ImplTrait(it) => bounds_contains_self(it.bounds.iter(), path),
+        Type::TraitObject(t) => bounds_contains_self(t.bounds.iter(), path),
+        Type::Tuple(t) => t.elems.iter().any(|t| contains_self(t, path)),
+        Type::Infer(_) | Type::Macro(_) | Type::Never(_) => false,
+        other => {
+            let other = other.to_token_stream().to_string();
+            other.contains("Self") || other.contains(&path.to_token_stream().to_string())
+        }
+    }
+}
+
+fn ang_generic_contains_self(args: &syn::AngleBracketedGenericArguments, path: &TypePath) -> bool {
+    args.args.iter().any(|a| match a {
+        syn::GenericArgument::Lifetime(_)
+        | syn::GenericArgument::Const(_)
+        | syn::GenericArgument::AssocConst(_)
+        | syn::GenericArgument::Constraint(_) => false,
+        syn::GenericArgument::Type(ty) => contains_self(ty, path),
+        syn::GenericArgument::AssocType(assoc) => {
+            if contains_self(&assoc.ty, path) {
+                return true;
+            }
+            // TODO: use let-else once we bump MSRV to 1.65.0
+            let args = match &assoc.generics {
+                Some(args) => args,
+                None => return false,
+            };
+            ang_generic_contains_self(args, path)
+        }
+        other => {
+            let other = other.to_token_stream().to_string();
+            other.contains("Self") || other.contains(&path.to_token_stream().to_string())
+        }
+    })
+}
+
+fn return_contains_self(ret: &syn::ReturnType, path: &TypePath) -> bool {
+    match &ret {
+        syn::ReturnType::Default => false,
+        syn::ReturnType::Type(_, ty) => contains_self(&ty, path),
+    }
+}
+
+fn bounds_contains_self<'b>(
+    mut bounds: impl Iterator<Item = &'b syn::TypeParamBound>,
+    path: &TypePath,
+) -> bool {
+    bounds.any(|b| match b {
+        syn::TypeParamBound::Trait(t) => path_args_contains_self(&t.path, path),
+        syn::TypeParamBound::Lifetime(_) => false,
+        syn::TypeParamBound::Verbatim(ts) => {
+            let ts = ts.to_token_stream().to_string();
+            ts.contains("Self") || ts.contains(&path.to_token_stream().to_string())
+        }
+        other => {
+            let other = other.to_token_stream().to_string();
+            other.contains("Self") || other.contains(&path.to_token_stream().to_string())
+        }
+    })
+}
+
+fn path_args_contains_self(path: &syn::Path, self_path: &syn::TypePath) -> bool {
+    match &path.segments.last().unwrap().arguments {
+        PathArguments::None => false,
+        PathArguments::AngleBracketed(args) => ang_generic_contains_self(args, self_path),
+        PathArguments::Parenthesized(args) => {
+            return_contains_self(&args.output, self_path)
+                || args.inputs.iter().any(|i| contains_self(&i, self_path))
+        }
+    }
 }

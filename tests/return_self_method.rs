@@ -10,6 +10,8 @@ pub struct Foo {
     a: i32,
 }
 
+pub struct FooError {}
+
 #[faux::methods]
 impl Clone for Foo {
     fn clone(&self) -> Self {
@@ -49,6 +51,10 @@ impl Foo {
 
     pub fn new_option() -> Option<Self> {
         Some(Foo { a: 2 })
+    }
+
+    pub fn similar_name() -> FooError {
+        FooError {}
     }
 
     #[allow(clippy::result_unit_err)]
