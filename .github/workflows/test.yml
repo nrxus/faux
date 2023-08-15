@@ -6,16 +6,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - name: Install latest nightly
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: nightly
-        override: true
-    - name: build
-      run: cargo build --verbose
-    - name: test
-      run: cargo test --verbose
-    - name: test --release
-      run: cargo test --release --verbose
+    - uses: actions/checkout@v3
+    # LATEST STABLE
+    - uses: dtolnay/rust-toolchain@stable
+    - name: build stable
+      run: cargo +stable build --verbose
+    - name: test stable
+      run: cargo +stable test --verbose
+    - name: test stable --release
+      run: cargo +stable test --release --verbose
+    # MSRV
+    - uses: dtolnay/rust-toolchain@1.58.1
+    - name: build MSRV
+      run: cargo +1.58.1 build --verbose
+    - name: test MSRV
+      run: cargo +1.58.1 test --verbose
+    - name: test MSRV --release
+      run: cargo +1.58.1 test --release --verbose
