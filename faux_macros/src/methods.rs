@@ -1,5 +1,5 @@
-mod morphed;
-mod receiver;
+pub mod morphed;
+pub mod receiver;
 
 use crate::{create, self_type::SelfType};
 use darling::FromMeta;
@@ -67,9 +67,9 @@ impl Mockable {
                 &func.sig,
                 real.trait_.as_ref().map(|(_, path, _)| path),
                 &func.vis,
-            );
-            func.block = signature.create_body(args.self_type, &real_ty, &morphed_ty)?;
-            if let Some(methods) = signature.create_when() {
+            )?;
+            func.block = signature.create_body(args.self_type, Some((&real_ty, &morphed_ty)))?;
+            if let Some(methods) = signature.create_when(false) {
                 when_methods.extend(methods.into_iter().map(syn::ImplItem::Fn));
             }
         }

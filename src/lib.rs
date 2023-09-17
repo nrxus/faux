@@ -706,6 +706,8 @@ pub use faux_macros::create;
 /// [receiver]: https://doc.rust-lang.org/reference/items/associated-items.html#methods
 pub use faux_macros::methods;
 
+pub use faux_macros::faux;
+
 /// Creates a [`When`] instance to stub a specific method in a struct.
 ///
 /// Callers may specify argument matchers to limit the arguments for

@@ -3,6 +3,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{spanned::Spanned, PathArguments, Type, TypePath};
 
+#[derive(Debug)]
 pub struct Signature<'a> {
     name: &'a syn::Ident,
     args: Vec<&'a syn::Pat>,
@@ -12,6 +13,7 @@ pub struct Signature<'a> {
     trait_path: Option<&'a syn::Path>,
 }
 
+#[derive(Debug)]
 pub struct MethodData<'a> {
     receiver: Receiver,
     arg_types: Vec<WhenArg<'a>>,
@@ -87,8 +89,8 @@ impl<'a> Signature<'a> {
         signature: &'a syn::Signature,
         trait_path: Option<&'a syn::Path>,
         vis: &syn::Visibility,
-    ) -> Signature<'a> {
-        let receiver = Receiver::from_signature(signature);
+    ) -> darling::Result<Signature<'a>> {
+        let receiver = Receiver::from_signature(signature)?;
 
         let output = match &signature.output {
             syn::ReturnType::Default => None,
@@ -115,7 +117,7 @@ impl<'a> Signature<'a> {
             }
         });
 
-        Signature {
+        Ok(Signature {
             name: &signature.ident,
             args: signature
                 .inputs
@@ -132,53 +134,64 @@ impl<'a> Signature<'a> {
             output,
             method_data,
             trait_path,
-        }
+        })
     }
 
     pub fn create_body(
         &self,
         real_self: SelfType,
-        real_ty: &syn::TypePath,
-        morphed_ty: &syn::TypePath,
+        // Option<real_ty, morphed_ty>
+        struct_tys: Option<(&syn::TypePath, &syn::TypePath)>,
     ) -> darling::Result<syn::Block> {
         let name = &self.name;
         let args = &self.args;
 
-        let proxy = match self.trait_path {
-            None => quote! { <#real_ty>::#name },
-            Some(path) => quote! { <#real_ty as #path>::#name },
-        };
+        let proxy_real = struct_tys
+            .map(|(real_ty, morphed_ty)| -> darling::Result<TokenStream> {
+                let proxy = match self.trait_path {
+                    None => quote! { <#real_ty>::#name },
+                    Some(path) => quote! { <#real_ty as #path>::#name },
+                };
 
-        let real_self_arg = self.method_data.as_ref().map(|_| {
-            // need to pass the real Self arg to the real method
-            syn::Pat::Ident(syn::PatIdent {
-                attrs: vec![],
-                by_ref: None,
-                mutability: None,
-                ident: syn::Ident::new("_maybe_faux_real", proc_macro2::Span::call_site()),
-                subpat: None,
+                let real_self_arg = self.method_data.as_ref().map(|_| {
+                    // need to pass the real Self arg to the real method
+                    syn::Pat::Ident(syn::PatIdent {
+                        attrs: vec![],
+                        by_ref: None,
+                        mutability: None,
+                        ident: syn::Ident::new("_maybe_faux_real", proc_macro2::Span::call_site()),
+                        subpat: None,
+                    })
+                });
+                let real_self_arg = real_self_arg.as_ref();
+                let proxy_args = real_self_arg.iter().chain(args);
+                let mut proxy_real = quote! { #proxy(#(#proxy_args),*) };
+                if self.is_async {
+                    proxy_real.extend(quote! { .await })
+                }
+                if let Some(wrapped_self) = self.wrap_self(morphed_ty, real_self, &proxy_real)? {
+                    proxy_real = wrapped_self;
+                }
+
+                Ok(proxy_real)
             })
-        });
-        let real_self_arg = real_self_arg.as_ref();
-
-        let proxy_args = real_self_arg.iter().chain(args);
-        let mut proxy_real = quote! { #proxy(#(#proxy_args),*) };
-        if self.is_async {
-            proxy_real.extend(quote! { .await })
-        }
-        if let Some(wrapped_self) = self.wrap_self(morphed_ty, real_self, &proxy_real)? {
-            proxy_real = wrapped_self;
-        }
+            .transpose()?;
 
         let ret = match &self.method_data {
             // not stubbable
             // proxy to real associated function
-            None => syn::parse2(proxy_real).unwrap(),
+            None => match proxy_real {
+                Some(proxy_real) => syn::parse2(proxy_real),
+                None => syn::parse2(quote! {
+                    panic!("faux: mocking static trait methods is not supported")
+                }),
+            }
+            .expect("failed to create proxy real"),
             // else we can either proxy for real instances
             // or call the mock store for faux instances
             Some(method_data) => {
                 let call_stub = if method_data.is_private {
-                    quote! { panic!("faux error: private methods are not stubbable; and therefore not directly callable in a mock") }
+                    syn::parse_quote! { panic!("faux error: private methods are not stubbable; and therefore not directly callable in a mock") }
                 } else {
                     let faux_ident =
                         syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
@@ -227,11 +240,11 @@ impl<'a> Signature<'a> {
         })
     }
 
-    pub fn create_when(&self) -> Option<Vec<syn::ImplItemFn>> {
+    pub fn create_when(&self, is_trait: bool) -> Option<Vec<syn::ImplItemFn>> {
         self.method_data
             .as_ref()
             .filter(|m| !m.is_private)
-            .map(|m| m.create_when(self.output, self.name))
+            .map(|m| m.create_when(self.output, self.name, is_trait))
     }
 
     fn wrap_self(
@@ -328,6 +341,7 @@ impl<'a> MethodData<'a> {
         &self,
         output: Option<&syn::Type>,
         name: &syn::Ident,
+        is_trait: bool,
     ) -> Vec<syn::ImplItemFn> {
         let MethodData {
             arg_types,
@@ -345,16 +359,25 @@ impl<'a> MethodData<'a> {
         let output = output.unwrap_or(&empty);
         let name_str = name.to_string();
 
-        let when_method = syn::parse_quote! {
-            pub fn #when_ident<'m>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
+        let call_when =
+            quote! { faux::When::new(<Self>::#faux_ident, #name_str, _maybe_faux_faux) };
+        let body = if is_trait {
+            quote! {
+                let _maybe_faux_faux = &mut self.0;
+                #call_when
+            }
+        } else {
+            quote! {
                 match &mut self.0 {
-                    faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
-                        <Self>::#faux_ident,
-                        #name_str,
-                        _maybe_faux_faux
-                    ),
+                    faux::MaybeFaux::Faux(_maybe_faux_faux) => #call_when,
                     faux::MaybeFaux::Real(_) => panic!("not allowed to stub a real instance!"),
                 }
+            }
+        };
+
+        let when_method = syn::parse_quote! {
+            pub fn #when_ident<'m>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
+                #body
             }
         };
 

@@ -5,8 +5,89 @@ mod methods;
 mod self_type;
 
 use darling::{export::NestedMeta, FromMeta};
+use methods::morphed::Signature;
 use proc_macro::TokenStream;
 use quote::quote;
+
+#[proc_macro_attribute]
+pub fn faux(_args: TokenStream, original: TokenStream) -> TokenStream {
+    let item = syn::parse_macro_input!(original as syn::Item);
+    match item {
+        syn::Item::Impl(_) => todo!(),
+        syn::Item::Struct(_) => todo!(),
+        syn::Item::Trait(trait_) => {
+            let trait_ident = &trait_.ident;
+            let struct_ident = syn::Ident::new(&format!("{trait_ident}_Faux"), trait_.span());
+            let (impl_generics, ty_generics, where_clause) = trait_.generics.split_for_impl();
+            let methods = trait_.items.iter().filter_map(|item| match item {
+                syn::TraitItem::Fn(m) => Some(m),
+                _ => None,
+            });
+
+            let mut new_methods = vec![];
+            let mut when_methods = vec![];
+
+            for func in methods {
+                let signature = match Signature::morph(
+                    &func.sig,
+                    None,
+                    &syn::Visibility::Public(Default::default()),
+                ) {
+                    Ok(s) => s,
+                    Err(e) => return e.write_errors().into(),
+                };
+
+                let block = match signature.create_body(SelfType::Owned, None) {
+                    Ok(block) => block,
+                    Err(e) => return e.write_errors().into(),
+                };
+                if let Some(methods) = signature.create_when(true) {
+                    when_methods.extend(methods.into_iter().map(syn::ImplItem::Fn))
+                }
+
+                new_methods.push(syn::ImplItemFn {
+                    attrs: vec![],
+                    vis: syn::Visibility::Inherited,
+                    defaultness: None,
+                    sig: func.sig.clone(),
+                    block,
+                });
+            }
+
+            let extra = quote! {
+                #[allow(non_camel_case_types)]
+                pub struct #struct_ident(::faux::Faux);
+
+                impl #impl_generics dyn #trait_ident #ty_generics #where_clause {
+                    pub fn faux() -> #struct_ident {
+                        #struct_ident(::faux::Faux::new(stringify!(trait_ident)))
+                    }
+                }
+
+                #[allow(unused_variables)]
+                impl #impl_generics #trait_ident #ty_generics for #struct_ident #where_clause {
+                    #(#new_methods) *
+                }
+
+                impl #struct_ident {
+                    #(#when_methods) *
+                }
+            };
+
+            quote! {
+                #trait_
+
+                #extra
+            }
+            .into()
+        }
+        x => {
+            return syn::Error::new_spanned(x, "Unsupported item wrapped by #[faux]")
+                .into_compile_error()
+                .into()
+        }
+    }
+}
 
 #[proc_macro_attribute]
 pub fn create(args: TokenStream, original: TokenStream) -> TokenStream {
@@ -80,6 +161,8 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 use quote::ToTokens;
+use self_type::SelfType;
+use syn::spanned::Spanned;
 
 fn ref_matcher_maybe(
     expr: &syn::Expr,
