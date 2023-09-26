@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## NEXT
+* Support generic types + lifetimes in methods.
+  * Generic methods cannot be mocked "generically"; meaning that a
+    separate mock must be provided for each *type* that the function
+    is generic over. In most cases this means that the generic types
+    must be explicitely stated and thus must be
+    nameable. Unfortunately, this means that functions that are
+    generic over a closure cannot be mocked in this form. Support for
+    this is currently only done by using the `impl` argument syntax.
+  * [test](/tests/generic_methods.rs)
+
 ## v0.1.10
 * Fix issue where methods that returned a type with a name that
   contains the name of the mocked struct would fail to compile.

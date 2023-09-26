@@ -40,6 +40,14 @@
 //! ## Simple
 //!
 //! ```
+//! # pub trait Serialize {}
+//! # pub trait Deserialize {}
+//! # #[derive(Debug, Clone, PartialEq)]
+//! # pub struct MyData { id: String }
+//! # #[derive(Clone, Debug, PartialEq)]
+//! # pub struct MyResponse { name: String }
+//! # impl Serialize for MyData {}
+//! # impl Deserialize for MyResponse {}
 //! // restrict faux to tests by using `#[cfg_attr(test, ...)]`
 //! // faux::create makes a struct mockable and generates an
 //! // associated `faux()` function
@@ -59,7 +67,12 @@
 //! #[cfg_attr(test, faux::methods)]
 //! # #[faux::methods]
 //! impl HttpClient {
-//!     pub fn post(&self, path: &str, headers: &Headers) -> String {
+//!     pub fn get(&self, path: &str, headers: &Headers) -> String {
+//!         /* makes network calls that we'd rather not do in unit tests */
+//!         # unreachable!()
+//!     }
+//!
+//!     pub fn post<B: Serialize, T: Deserialize>(&self, path: &str, body: &B) -> T {
 //!         /* makes network calls that we'd rather not do in unit tests */
 //!         # unreachable!()
 //!     }
@@ -68,6 +81,8 @@
 //! #[cfg(test)]
 //! #[test]
 //! fn test() {
+//! # }
+//! # fn main() {
 //!   // use the generated `faux()` function to create a mock instance
 //!   let mut mock = HttpClient::faux();
 //!
@@ -81,32 +96,27 @@
 //!       // use `_` to create a universal argument matcher
 //!       // the argument matchers below specify to ignore the first argument
 //!       // but that the second one must equal `headers`
-//!       mock.post(_, headers.clone())
+//!       mock.get(_, headers.clone())
 //!   )
 //!   // stub the return value
 //!   .then_return("{}".to_string());
 //!
-//!   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
-//!   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
+//!   assert_eq!(mock.get("any/path/does/not/mater", &headers), "{}");
+//!   assert_eq!(mock.get("as/i/said/does/not/matter", &headers), "{}");
 //!
 //!   // if you want to stub all calls to a method, you can omit argument matchers
-//!   faux::when!(mock.post).then_return("OK".to_string());
+//!   faux::when!(mock.get).then_return("OK".to_string());
 //!   let other_headers = Headers { authorization: "other-token".to_string() };
-//!   assert_eq!(mock.post("other/path", &other_headers), "OK");
+//!   assert_eq!(mock.get("other/path", &other_headers), "OK");
+//!
+//!   // `faux` allows mocking generic methods but will
+//!   // generally require them to be explicitely named
+//!   let data = MyData { id: "my-id".to_owned() };
+//!   let expected_respone = MyResponse { name: "my name".to_owned() };
+//!   faux::when!(mock.post::<MyData, _>(_, data.clone())).then_return(expected_respone.clone());
+//!   assert_eq!(mock.post::<_, MyResponse>("/some/post/path", &data), expected_respone);
 //! }
-//! #
-//! # fn main() {
-//! #   let mut mock = HttpClient::faux();
-//! #   let headers = Headers { authorization: "Bearer foobar".to_string() };
-//! #
-//! #   faux::when!(mock.post(_, headers.clone())).then_return("{}".to_string());
-//! #   assert_eq!(mock.post("any/path/does/not/mater", &headers), "{}");
-//! #   assert_eq!(mock.post("as/i/said/does/not/matter", &headers), "{}");
-//! #
-//! #   faux::when!(mock.post).then_return("OK".to_string());
-//! #   let other_headers = Headers { authorization: "other-token".to_string() };
-//! #   assert_eq!(mock.post("other/path", &other_headers), "OK");
-//! #  }
+
 //! ```
 //!
 //! ## Stubbing the same method multiple times
@@ -241,6 +251,7 @@
 //! * Async methods
 //! * Trait methods
 //! * Generic struct methods
+//! * Generics methods
 //! * Methods with pointer self types (e.g., `self: Rc<Self>`)
 //! * Methods in external modules
 //! * Support for `Debug`, `Default`, `Clone`, `Send`, and `Sync`
@@ -635,9 +646,8 @@ pub use faux_macros::create;
 /// # Known Limitations
 ///
 /// * [#14]: Methods cannot have arguments of the same type as their struct.
-/// * [#18]: Generic methods and `impl` return types are not supported.
+/// * [#18]: `impl` return types are not supported.
 ///
-/// [#13]: https://github.com/nrxus/faux/issues/13
 /// [#14]: https://github.com/nrxus/faux/issues/14
 /// [#18]: https://github.com/nrxus/faux/issues/18
 ///
@@ -772,6 +782,47 @@ pub use faux_macros::methods;
 ///     Actual:   1
 /// ```
 ///
+/// # Generic methods
+///
+/// Generic methods are mocked by specifying the generic arguments as
+/// part of the `when!` expression. There is currently no way to
+/// generically mock a method for all possible types, each type must
+/// be mocked independently.
+///
+/// ## Examples
+///
+/// ```
+/// # #[faux::create]
+/// # pub struct Foo;
+/// #[faux::methods]
+/// impl Foo {
+///     pub fn gen_method<T>(&self, t: T) -> i32 {
+///         /* snip */
+/// #        panic!()
+///     }
+/// }
+///
+/// # fn main() {
+/// # let mut my_struct = Foo::faux();
+///
+/// // the following line would not compile; we have to tell it
+/// // what the generic argument needs to be for this mock
+/// // faux::when!(my_struct.gen_method).then_return(4);
+///
+/// // the following line would not compile;
+/// // it is not a valid expression by Rust rules
+/// // faux::when!(my_struct.gen_method::<i32>).then_return(4);
+///
+/// // a valid expression so we can tell it that any i32 will return 4
+/// faux::when!(my_struct.gen_method::<i32>(_)).then_return(4);
+/// // different types are different mocks: any string will return 2
+/// faux::when!(my_struct.gen_method::<&str>(_)).then_return(2);
+///
+/// assert_eq!(my_struct.gen_method(-1), 4);
+/// assert_eq!(my_struct.gen_method("hello"), 2);
+/// # }
+/// ```
+///
 /// # Argument Matchers
 ///
 /// Argument matchers are specified by passing them to `when!`:
@@ -808,7 +859,7 @@ pub use faux_macros::methods;
 /// # }
 /// ```
 ///
-/// ### Matcher syntax
+/// ## Matcher syntax
 ///
 /// To make argument matching easy to use, `when!` provides some
 /// syntactic sugar that converts given arguments to the appropiate

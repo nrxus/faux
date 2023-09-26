@@ -1,7 +1,7 @@
 use crate::{methods::receiver::Receiver, self_type::SelfType};
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{spanned::Spanned, PathArguments, Type, TypePath};
+use syn::{punctuated::Punctuated, spanned::Spanned, PathArguments, Type, TypePath};
 
 pub struct Signature<'a> {
     name: &'a syn::Ident,
@@ -16,6 +16,7 @@ pub struct MethodData<'a> {
     receiver: Receiver,
     arg_types: Vec<WhenArg<'a>>,
     is_private: bool,
+    generics: &'a syn::Generics,
 }
 
 #[derive(Debug)]
@@ -111,6 +112,7 @@ impl<'a> Signature<'a> {
             MethodData {
                 receiver,
                 arg_types,
+                generics: &signature.generics,
                 is_private: trait_path.is_none() && *vis == syn::Visibility::Inherited,
             }
         });
@@ -332,6 +334,7 @@ impl<'a> MethodData<'a> {
         let MethodData {
             arg_types,
             receiver,
+            generics,
             ..
         } = self;
         let receiver_ty = &receiver.ty;
@@ -344,9 +347,19 @@ impl<'a> MethodData<'a> {
         let empty = syn::parse_quote! { () };
         let output = output.unwrap_or(&empty);
         let name_str = name.to_string();
+        let mut when_generics = (*generics).clone();
+        let faux_lifetime = syn::GenericParam::Lifetime(syn::LifetimeParam {
+            attrs: vec![],
+            lifetime: syn::Lifetime::new("'_faux_mock_lifetime", Span::call_site()),
+            colon_token: None,
+            bounds: Punctuated::new(),
+        });
+        when_generics.params.push(faux_lifetime.clone());
+        let (when_impl_generics, _, when_where_clause) = when_generics.split_for_impl();
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let when_method = syn::parse_quote! {
-            pub fn #when_ident<'m>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
+            pub fn #when_ident #when_impl_generics(&#faux_lifetime mut self) -> faux::When<#faux_lifetime, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #when_where_clause {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
                         <Self>::#faux_ident,
@@ -362,7 +375,7 @@ impl<'a> MethodData<'a> {
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             #[allow(clippy::boxed_local)]
-            pub fn #faux_ident(self: #receiver_ty, _: (#(#arg_types),*)) -> #output {
+            pub fn #faux_ident #impl_generics(self: #receiver_ty, _: (#(#arg_types),*)) -> #output #where_clause {
                 panic!(#panic_message)
             }
         };

@@ -14,21 +14,73 @@ impl Foo {
     pub fn bar(&self, _: &impl MyTrait) -> u8 {
         todo!()
     }
+
+    pub fn gen_params<F: ?Sized>(&self, _: &F) -> String {
+        todo!()
+    }
+
+    pub fn gen_lifes<'a, 'b: 'a>(&self, _: &'b i32) -> &'a i32 {
+        todo!()
+    }
+
+    pub fn gen_output<T>(&self) -> T {
+        todo!()
+    }
 }
 
 #[test]
-fn generic() {
+fn impl_generic() {
     let mut foo = Foo::faux();
     faux::when!(foo.foo).then(|add_one| add_one(2) + 5);
     assert_eq!(foo.foo(|i| i + 1), 8);
 }
 
 #[test]
-fn generic_reference() {
+fn impl_generic_reference() {
     struct MyStruct {}
     impl MyTrait for MyStruct {}
 
     let mut foo = Foo::faux();
     faux::when!(foo.bar).then_return(3);
     assert_eq!(foo.bar(&MyStruct {}), 3);
+}
+
+#[test]
+fn generic_methods() {
+    let mut foo = Foo::faux();
+
+    faux::when!(foo.gen_params::<i32>(_)).then_return("any int".to_owned());
+    faux::when!(foo.gen_params::<i32>(4)).then_return("exactly 4".to_owned());
+    faux::when!(foo.gen_params::<str>("hello")).then_return("exactly hello".to_owned());
+    assert_eq!(foo.gen_params(&2), "any int");
+    assert_eq!(foo.gen_params(&3), "any int");
+    assert_eq!(foo.gen_params(&4), "exactly 4");
+    assert_eq!(foo.gen_params("hello"), "exactly hello");
+}
+
+#[test]
+#[should_panic]
+fn generic_methods_wrong_type() {
+    let mut foo = Foo::faux();
+
+    faux::when!(foo.gen_params::<i32>(_)).then_return("xyz".to_owned());
+    foo.gen_params("some string");
+}
+
+#[test]
+fn generic_lifetimes() {
+    let mut foo = Foo::faux();
+
+    faux::when!(foo.gen_lifes).then_return(&5);
+    faux::when!(foo.gen_lifes(&2)).then(|x| x);
+    assert_eq!(foo.gen_lifes(&2), &2);
+    assert_eq!(foo.gen_lifes(&3), &5);
+    assert_eq!(foo.gen_lifes(&4), &5);
+}
+
+#[test]
+fn generic_output() {
+    let mut foo = Foo::faux();
+    faux::when!(foo.gen_output).then_return(32_i32);
+    assert_eq!(foo.gen_output::<i32>(), 32);
 }
