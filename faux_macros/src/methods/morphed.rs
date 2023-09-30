@@ -205,16 +205,7 @@ impl<'a> Signature<'a> {
                         quote! { (#(#args,)*) }
                     };
 
-                    let fn_name = name.to_string();
-
-                    quote! {
-                        unsafe {
-                            match _maybe_faux_faux.call_stub(<Self>::#faux_ident, #fn_name, #args) {
-                                std::result::Result::Ok(o) => o,
-                                std::result::Result::Err(e) => panic!("{}", e),
-                            }
-                        }
-                    }
+                    quote! { self.#faux_ident(#args) }
                 };
 
                 method_data
@@ -371,12 +362,11 @@ impl<'a> MethodData<'a> {
             }
         };
 
-        let panic_message = format!("do not call this ({})", name);
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             #[allow(clippy::boxed_local)]
-            pub fn #faux_ident #impl_generics(self: #receiver_ty, _: (#(#arg_types),*)) -> #output #where_clause {
-                panic!(#panic_message)
+            pub fn #faux_ident #impl_generics(self: #receiver_ty, input: (#(#arg_types),*)) -> #output #where_clause {
+                unsafe { self.0.call_stub(<Self>::#faux_ident, stringify!(#name), input) }
             }
         };
 

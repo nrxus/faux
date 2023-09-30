@@ -165,9 +165,12 @@ impl Receiver {
         };
 
         Ok(syn::parse_quote! {
-            match #get_self {
-                Self(faux::MaybeFaux::Real(_maybe_faux_real)) => { #proxy_real },
-                Self(faux::MaybeFaux::Faux(_maybe_faux_faux)) => { #call_stub },
+            match &self.0 {
+                faux::MaybeFaux::Faux(_) => { #call_stub },
+                _ => match #get_self {
+                    Self(faux::MaybeFaux::Real(_maybe_faux_real)) => { #proxy_real },
+                    Self(faux::MaybeFaux::Faux(_)) => unreachable!(),
+                }
             }
         })
     }

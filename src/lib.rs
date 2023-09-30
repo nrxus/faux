@@ -1004,6 +1004,23 @@ impl<T> MaybeFaux<T> {
     pub fn faux(name: &'static str) -> Self {
         MaybeFaux::Faux(Faux::new(name))
     }
+
+    pub unsafe fn call_stub<R, I, O>(
+        &self,
+        id: fn(R, I) -> O,
+        fn_name: &'static str,
+        input: I,
+    ) -> O {
+        let output = match self {
+            MaybeFaux::Real(_) => panic!("calling stub on real instance"),
+            MaybeFaux::Faux(f) => f.call_stub(id, fn_name, input),
+        };
+
+        match output {
+            Ok(o) => o,
+            Err(e) => panic!("{e}"),
+        }
+    }
 }
 
 /// The internal representation of a mock object
