@@ -1,84 +1,80 @@
-use crate::{methods::receiver::Receiver, self_type::SelfType};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, spanned::Spanned, PathArguments, Type, TypePath};
+use syn::{punctuated::Punctuated, spanned::Spanned, PathArguments};
+
+use crate::{
+    methods::{when_arg::WhenArg, when_output::WhenOutput},
+    self_type::SelfType,
+};
+
+use super::receiver::SelfKind;
 
 pub struct Signature<'a> {
     name: &'a syn::Ident,
     args: Vec<&'a syn::Pat>,
     is_async: bool,
     output: Option<&'a syn::Type>,
-    method_data: Option<MethodData<'a>>,
+    method_data: Option<MethodData>,
     trait_path: Option<&'a syn::Path>,
 }
 
-pub struct MethodData<'a> {
-    receiver: Receiver,
-    arg_types: Vec<WhenArg<'a>>,
-    is_private: bool,
-    generics: &'a syn::Generics,
+pub struct MethodData {
+    self_kind: SelfKind,
+    mock_data: Option<MockData>,
 }
 
-#[derive(Debug)]
-pub struct WhenArg<'a>(&'a syn::Type);
-
-pub fn has_impl_trait(ty: &syn::Type) -> bool {
-    match ty {
-        syn::Type::ImplTrait(_) => true,
-        syn::Type::Reference(reference) => has_impl_trait(reference.elem.as_ref()),
-        _ => false,
-    }
+pub struct MockData {
+    self_ty: Box<syn::Type>,
+    arg_types: Vec<WhenArg>,
+    generics: syn::Generics,
+    output: WhenOutput,
 }
 
-pub fn replace_impl_trait(ty: &syn::Type) -> Option<syn::Type> {
-    match ty {
-        syn::Type::ImplTrait(ty) => {
-            let mut bounds = ty.bounds.clone();
+impl MockData {
+    pub fn new(mut self_ty: Box<syn::Type>, signature: &syn::Signature) -> Self {
+        let imp_lt = implicit_ref_lifetime(&mut self_ty);
 
-            if bounds
-                .iter()
-                .all(|b| !matches!(b, syn::TypeParamBound::Lifetime(_)))
-            {
-                bounds.push(syn::TypeParamBound::Lifetime(syn::Lifetime::new(
-                    "'_",
-                    proc_macro2::Span::call_site(),
-                )));
-            }
-
-            let ty = syn::Type::Paren(syn::TypeParen {
-                paren_token: syn::token::Paren(proc_macro2::Span::call_site()),
-                elem: Box::new(syn::Type::TraitObject(syn::TypeTraitObject {
-                    bounds,
-                    dyn_token: Some(syn::Token![dyn](proc_macro2::Span::call_site())),
-                })),
-            });
-
-            Some(ty)
-        }
-        syn::Type::Reference(syn::TypeReference {
-            and_token,
-            lifetime,
-            mutability,
-            elem,
-        }) => replace_impl_trait(elem).map(|ty| {
-            syn::Type::Reference(syn::TypeReference {
-                elem: Box::new(ty),
-                lifetime: lifetime.clone(),
-                mutability: *mutability,
-                and_token: *and_token,
+        let mut arg_types: Vec<_> = signature
+            .inputs
+            .iter()
+            .skip(1)
+            .enumerate()
+            .map(|(i, a)| match a {
+                syn::FnArg::Typed(arg) => WhenArg::new((arg.ty.as_ref()).clone(), i),
+                syn::FnArg::Receiver(_) => {
+                    unreachable!("faux: this is a weird bug if you reached this")
+                }
             })
-        }),
-        _ => None,
-    }
-}
+            .collect();
 
-impl<'a> ToTokens for WhenArg<'a> {
-    fn to_tokens(&self, token_stream: &mut proc_macro2::TokenStream) {
-        match replace_impl_trait(self.0) {
-            None => self.0.to_tokens(token_stream),
-            Some(impl_ty) => {
-                token_stream.extend(quote! { std::boxed::Box<#impl_ty> });
+        let mut generics = signature.generics.clone();
+        let imp_lt = imp_lt.or_else(|| {
+            let mut possible_lifetimes = arg_types
+                .iter_mut()
+                .filter_map(|t| implicit_ref_lifetime(&mut t.ty));
+            let first = possible_lifetimes.next()?;
+            if possible_lifetimes.next().is_some() {
+                None
+            } else {
+                Some(first)
             }
+        });
+
+        if let Some((imp_lt, true)) = &imp_lt {
+            generics
+                .params
+                .push(syn::GenericParam::Lifetime(syn::LifetimeParam::new(
+                    imp_lt.clone(),
+                )));
+        }
+
+        let output = WhenOutput::new(signature.output.clone(), imp_lt.as_ref().map(|(l, _)| l));
+
+        MockData {
+            self_ty,
+            arg_types,
+            output,
+            generics,
         }
     }
 }
@@ -89,31 +85,28 @@ impl<'a> Signature<'a> {
         trait_path: Option<&'a syn::Path>,
         vis: &syn::Visibility,
     ) -> Signature<'a> {
-        let receiver = Receiver::from_signature(signature);
-
         let output = match &signature.output {
             syn::ReturnType::Default => None,
             syn::ReturnType::Type(_, ty) => Some(ty.as_ref()),
         };
 
+        let receiver = signature.inputs.first().and_then(|i| match i {
+            syn::FnArg::Receiver(r) => Some(r),
+            syn::FnArg::Typed(_) => None,
+        });
+
         let method_data = receiver.map(|receiver| {
-            let arg_types = signature
-                .inputs
-                .iter()
-                .skip(1)
-                .map(|a| match a {
-                    syn::FnArg::Typed(arg) => WhenArg(&arg.ty),
-                    syn::FnArg::Receiver(_) => {
-                        unreachable!("this is a weird bug in faux if you reached this")
-                    }
-                })
-                .collect();
+            let self_kind = SelfKind::new(receiver);
+            let is_private = trait_path.is_none() && *vis == syn::Visibility::Inherited;
+            let mock_data = if is_private {
+                None
+            } else {
+                Some(MockData::new(receiver.ty.clone(), signature))
+            };
 
             MethodData {
-                receiver,
-                arg_types,
-                generics: &signature.generics,
-                is_private: trait_path.is_none() && *vis == syn::Visibility::Inherited,
+                self_kind,
+                mock_data,
             }
         });
 
@@ -173,43 +166,51 @@ impl<'a> Signature<'a> {
         }
 
         let ret = match &self.method_data {
-            // not stubbable
-            // proxy to real associated function
+            // not a method - proxy to real as-is
             None => syn::parse2(proxy_real).unwrap(),
             // else we can either proxy for real instances
             // or call the mock store for faux instances
             Some(method_data) => {
-                let call_stub = if method_data.is_private {
-                    quote! { panic!("faux error: private methods are not stubbable; and therefore not directly callable in a mock") }
-                } else {
-                    let faux_ident =
-                        syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
+                let call_stub = match &method_data.mock_data {
+                    None => {
+                        quote! { panic!("faux error: private methods are not stubbable; and therefore not directly callable in a mock") }
+                    }
+                    Some(mock_data) => {
+                        if mock_data.output.dynamized {
+                            proxy_real = quote! { std::boxed::Box::new(#proxy_real) };
+                        }
 
-                    let mut args =
-                        args.iter()
-                            .zip(method_data.arg_types.iter())
-                            .map(|(ident, ty)| {
-                                if has_impl_trait(ty.0) {
-                                    quote! {
-                                        std::boxed::Box::new(#ident)
+                        let faux_ident = syn::Ident::new(
+                            &format!("_faux_{}", name),
+                            proc_macro2::Span::call_site(),
+                        );
+
+                        let mut args =
+                            args.iter()
+                                .zip(mock_data.arg_types.iter())
+                                .map(|(ident, when_arg)| {
+                                    if when_arg.dynamized {
+                                        quote! {
+                                            std::boxed::Box::new(#ident)
+                                        }
+                                    } else {
+                                        quote! { #ident }
                                     }
-                                } else {
-                                    quote! { #ident }
-                                }
-                            });
+                                });
 
-                    let args = if args.len() == 1 {
-                        let arg = args.next().unwrap();
-                        quote! { #arg }
-                    } else {
-                        quote! { (#(#args,)*) }
-                    };
+                        let args = if args.len() == 1 {
+                            let arg = args.next().unwrap();
+                            quote! { #arg }
+                        } else {
+                            quote! { (#(#args,)*) }
+                        };
 
-                    quote! { self.#faux_ident(#args) }
+                        quote! { self.#faux_ident(#args) }
+                    }
                 };
 
                 method_data
-                    .receiver
+                    .self_kind
                     .method_body(real_self, proxy_real, call_stub)?
             }
         };
@@ -223,8 +224,8 @@ impl<'a> Signature<'a> {
     pub fn create_when(&self) -> Option<Vec<syn::ImplItemFn>> {
         self.method_data
             .as_ref()
-            .filter(|m| !m.is_private)
-            .map(|m| m.create_when(self.output, self.name))
+            .and_then(|m| m.mock_data.as_ref())
+            .map(|m| m.create_when(self.name))
     }
 
     fn wrap_self(
@@ -316,41 +317,48 @@ impl<'a> Signature<'a> {
     }
 }
 
-impl<'a> MethodData<'a> {
-    pub fn create_when(
-        &self,
-        output: Option<&syn::Type>,
-        name: &syn::Ident,
-    ) -> Vec<syn::ImplItemFn> {
-        let MethodData {
+impl MockData {
+    pub fn create_when(&self, name: &syn::Ident) -> Vec<syn::ImplItemFn> {
+        let MockData {
             arg_types,
-            receiver,
+            self_ty,
             generics,
+            output,
             ..
         } = self;
-        let receiver_ty = &receiver.ty;
 
         let when_ident =
             syn::Ident::new(&format!("_when_{}", name), proc_macro2::Span::call_site());
         let faux_ident =
             syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
+        let extra_when_lts = arg_types
+            .iter()
+            .flat_map(|a| &a.lifetimes)
+            .map(|lt| syn::GenericParam::Lifetime(syn::LifetimeParam::new(lt.clone())));
 
-        let empty = syn::parse_quote! { () };
-        let output = output.unwrap_or(&empty);
         let name_str = name.to_string();
-        let mut when_generics = (*generics).clone();
+        let mut generics = (*generics).clone();
+        generics.params.extend(extra_when_lts);
+        generics.params.extend(
+            output
+                .lifetimes
+                .iter()
+                .map(|lt| syn::GenericParam::Lifetime(syn::LifetimeParam::new(lt.clone()))),
+        );
         let faux_lifetime = syn::GenericParam::Lifetime(syn::LifetimeParam {
             attrs: vec![],
             lifetime: syn::Lifetime::new("'_faux_mock_lifetime", Span::call_site()),
             colon_token: None,
             bounds: Punctuated::new(),
         });
+
+        let mut when_generics = generics.clone();
         when_generics.params.push(faux_lifetime.clone());
         let (when_impl_generics, _, when_where_clause) = when_generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let when_method = syn::parse_quote! {
-            pub fn #when_ident #when_impl_generics(&#faux_lifetime mut self) -> faux::When<#faux_lifetime, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #when_where_clause {
+            pub fn #when_ident #when_impl_generics(&#faux_lifetime mut self) -> faux::When<#faux_lifetime, #self_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #when_where_clause {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
                         <Self>::#faux_ident,
@@ -365,7 +373,7 @@ impl<'a> MethodData<'a> {
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             #[allow(clippy::boxed_local)]
-            pub fn #faux_ident #impl_generics(self: #receiver_ty, input: (#(#arg_types),*)) -> #output #where_clause {
+            pub fn #faux_ident #impl_generics(self: #self_ty, input: (#(#arg_types),*)) -> #output #where_clause {
                 unsafe { self.0.call_stub(<Self>::#faux_ident, stringify!(#name), input) }
             }
         };
@@ -378,30 +386,30 @@ fn unhandled_self_return(spanned: impl Spanned) -> darling::Error {
     darling::Error::custom("faux: the return type refers to the mocked struct in a way that faux cannot handle. Split this function into an `impl` block not marked by #[faux::methods]. If you believe this is a mistake or it's a case that should be handled by faux please file an issue").with_span(&spanned)
 }
 
-fn contains_self(ty: &Type, path: &TypePath) -> bool {
+fn contains_self(ty: &syn::Type, path: &syn::TypePath) -> bool {
     match ty {
         // end recursion
-        Type::Path(p) => {
+        syn::Type::Path(p) => {
             p == path
                 || (p.qself.is_none() && p.path.is_ident("Self"))
                 || path_args_contains_self(&p.path, path)
         }
         // recurse to inner type
-        Type::Array(arr) => contains_self(&arr.elem, path),
-        Type::Group(g) => contains_self(&g.elem, path),
-        Type::Paren(t) => contains_self(&t.elem, path),
-        Type::Ptr(p) => contains_self(&p.elem, path),
-        Type::Reference(p) => contains_self(&p.elem, path),
-        Type::Slice(s) => contains_self(&s.elem, path),
+        syn::Type::Array(arr) => contains_self(&arr.elem, path),
+        syn::Type::Group(g) => contains_self(&g.elem, path),
+        syn::Type::Paren(t) => contains_self(&t.elem, path),
+        syn::Type::Ptr(p) => contains_self(&p.elem, path),
+        syn::Type::Reference(p) => contains_self(&p.elem, path),
+        syn::Type::Slice(s) => contains_self(&s.elem, path),
         // check deeper
-        Type::BareFn(barefn) => {
+        syn::Type::BareFn(barefn) => {
             return_contains_self(&barefn.output, path)
                 || barefn.inputs.iter().any(|i| contains_self(&i.ty, path))
         }
-        Type::ImplTrait(it) => bounds_contains_self(it.bounds.iter(), path),
-        Type::TraitObject(t) => bounds_contains_self(t.bounds.iter(), path),
-        Type::Tuple(t) => t.elems.iter().any(|t| contains_self(t, path)),
-        Type::Infer(_) | Type::Macro(_) | Type::Never(_) => false,
+        syn::Type::ImplTrait(it) => bounds_contains_self(it.bounds.iter(), path),
+        syn::Type::TraitObject(t) => bounds_contains_self(t.bounds.iter(), path),
+        syn::Type::Tuple(t) => t.elems.iter().any(|t| contains_self(t, path)),
+        syn::Type::Infer(_) | syn::Type::Macro(_) | syn::Type::Never(_) => false,
         other => {
             let other = other.to_token_stream().to_string();
             other.contains("Self") || other.contains(&path.to_token_stream().to_string())
@@ -409,7 +417,10 @@ fn contains_self(ty: &Type, path: &TypePath) -> bool {
     }
 }
 
-fn ang_generic_contains_self(args: &syn::AngleBracketedGenericArguments, path: &TypePath) -> bool {
+fn ang_generic_contains_self(
+    args: &syn::AngleBracketedGenericArguments,
+    path: &syn::TypePath,
+) -> bool {
     args.args.iter().any(|a| match a {
         syn::GenericArgument::Lifetime(_)
         | syn::GenericArgument::Const(_)
@@ -434,16 +445,16 @@ fn ang_generic_contains_self(args: &syn::AngleBracketedGenericArguments, path: &
     })
 }
 
-fn return_contains_self(ret: &syn::ReturnType, path: &TypePath) -> bool {
+fn return_contains_self(ret: &syn::ReturnType, path: &syn::TypePath) -> bool {
     match &ret {
         syn::ReturnType::Default => false,
-        syn::ReturnType::Type(_, ty) => contains_self(&ty, path),
+        syn::ReturnType::Type(_, ty) => contains_self(ty, path),
     }
 }
 
 fn bounds_contains_self<'b>(
     mut bounds: impl Iterator<Item = &'b syn::TypeParamBound>,
-    path: &TypePath,
+    path: &syn::TypePath,
 ) -> bool {
     bounds.any(|b| match b {
         syn::TypeParamBound::Trait(t) => path_args_contains_self(&t.path, path),
@@ -465,7 +476,26 @@ fn path_args_contains_self(path: &syn::Path, self_path: &syn::TypePath) -> bool 
         PathArguments::AngleBracketed(args) => ang_generic_contains_self(args, self_path),
         PathArguments::Parenthesized(args) => {
             return_contains_self(&args.output, self_path)
-                || args.inputs.iter().any(|i| contains_self(&i, self_path))
+                || args.inputs.iter().any(|i| contains_self(i, self_path))
         }
     }
+}
+
+fn implicit_ref_lifetime(ty: &mut syn::Type) -> Option<(syn::Lifetime, bool)> {
+    let span = ty.span();
+    let r = match ty {
+        syn::Type::Reference(r) => r,
+        _ => return None,
+    };
+
+    let lifetime = match &mut r.lifetime {
+        Some(lt) => (lt.clone(), false),
+        None => {
+            let lifetime = syn::Lifetime::new("'_faux_implicit_ref", span);
+            r.lifetime = Some(lifetime.clone());
+            (lifetime, true)
+        }
+    };
+
+    Some(lifetime)
 }

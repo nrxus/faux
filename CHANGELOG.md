@@ -1,6 +1,13 @@
 # CHANGELOG
 
 ## NEXT
+* Support mocking methods with `impl Trait` in return position.
+  * The limitations are similar to `impl Trait` in argument position:
+    The trait must be object-safe (i.e., convertable to `Box<dyn
+    Trait>`) and it cannot have multiple non-marker trait bounds. The
+    extra limitation is that `Box<dyn Trait>` must implement the trait
+    which is usually the case std traits.
+  * [test](/tests/generic_methods.rs)
 * Support generic types + lifetimes in methods.
   * Generic methods cannot be mocked "generically"; meaning that a
     separate mock must be provided for each *type* that the function

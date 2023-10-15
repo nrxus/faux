@@ -1,5 +1,7 @@
 mod morphed;
 mod receiver;
+mod when_arg;
+mod when_output;
 
 use crate::{create, self_type::SelfType};
 use darling::FromMeta;

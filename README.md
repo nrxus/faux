@@ -111,6 +111,7 @@ attributes should be gated to `#[cfg(test)]`.**
 * Generic struct methods
 * Methods with pointer self types (e.g., `self: Rc<Self>`)
 * Methods in external modules (but not external crates).
+* Generic methods (through generic parameters or `impl Trait`)
 
 `faux` also provides easy-to-use argument matchers.
 
@@ -186,13 +187,10 @@ fn run<'async>(&'async self, arg: Arg) -> Pin<Box<dyn std::future::Future<Output
 }
 ```
 
-Because `async-trait` adds explicit lifetimes to the method signature,
-which `faux` cannot handle, having `async-trait` do its expansion
-first breaks `faux`. Note that even if `faux` could handle explicit
-lifetimes, our signature is now so unwieldy that it would make mocks
-hard to work with. Because `async-trait` just wants an `async`
-function signature, and `faux` does not modify function signatures, it
-is okay for `faux` to expand first.
+`async-trait` modifies the method signature into something fairly
+unwieldy that makes mocks hard to work with. Because `async-trait`
+just wants an `async` function signature, and `faux` does not modify
+function signatures, it is okay for `faux` to expand first.
 
 ```rust ignore
 #[faux::methods]

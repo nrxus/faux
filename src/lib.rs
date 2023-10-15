@@ -40,14 +40,6 @@
 //! ## Simple
 //!
 //! ```
-//! # pub trait Serialize {}
-//! # pub trait Deserialize {}
-//! # #[derive(Debug, Clone, PartialEq)]
-//! # pub struct MyData { id: String }
-//! # #[derive(Clone, Debug, PartialEq)]
-//! # pub struct MyResponse { name: String }
-//! # impl Serialize for MyData {}
-//! # impl Deserialize for MyResponse {}
 //! // restrict faux to tests by using `#[cfg_attr(test, ...)]`
 //! // faux::create makes a struct mockable and generates an
 //! // associated `faux()` function
@@ -68,11 +60,6 @@
 //! # #[faux::methods]
 //! impl HttpClient {
 //!     pub fn get(&self, path: &str, headers: &Headers) -> String {
-//!         /* makes network calls that we'd rather not do in unit tests */
-//!         # unreachable!()
-//!     }
-//!
-//!     pub fn post<B: Serialize, T: Deserialize>(&self, path: &str, body: &B) -> T {
 //!         /* makes network calls that we'd rather not do in unit tests */
 //!         # unreachable!()
 //!     }
@@ -108,13 +95,6 @@
 //!   faux::when!(mock.get).then_return("OK".to_string());
 //!   let other_headers = Headers { authorization: "other-token".to_string() };
 //!   assert_eq!(mock.get("other/path", &other_headers), "OK");
-//!
-//!   // `faux` allows mocking generic methods but will
-//!   // generally require them to be explicitely named
-//!   let data = MyData { id: "my-id".to_owned() };
-//!   let expected_respone = MyResponse { name: "my name".to_owned() };
-//!   faux::when!(mock.post::<MyData, _>(_, data.clone())).then_return(expected_respone.clone());
-//!   assert_eq!(mock.post::<_, MyResponse>("/some/post/path", &data), expected_respone);
 //! }
 
 //! ```
@@ -202,6 +182,122 @@
 //! #   faux::when!(mock.post).then(|(path, _)| path.to_string().to_uppercase());
 //! #   assert_eq!(mock.post("another/path", &headers), "ANOTHER/PATH");
 //! #  }
+//! ```
+//!
+//! ## Stubbing generic methods
+//!
+//! Rust has two different syntaxes for generic methods: generic
+//! parameters and the `impl Trait` syntax. `faux` supports both of
+//! these kinds of generics but they have their own quirks.
+//!
+//! ### Generic arguments
+//!
+//! Methods of the form `fn my_fun<T, R>(&self, arg: T) -> R` are
+//! generic over the type parameters `T` and `R`. `faux` is able to
+//! mock these methods but it must do so for every type parameter
+//! explicitely. This means that there is no way mock `my_fun` for any
+//! `T` or any `R`, but instead the generic type must be explicitely
+//! specified when mocking the method (e.g.,
+//! `faux::when!(my_fun::<i32, &str>(_))`. Methods that are generic
+//! over unnameable types (i.e., closures) cannot be mocked as there
+//! is no way to specify the type when mocking. To mock these kinds of
+//! functions the `impl Trait` syntax should be used.
+//!
+//! #### Examples
+//!
+//! ```
+//! # pub trait Serialize {}
+//! # pub trait Deserialize {}
+//! # #[derive(Debug, Clone, PartialEq)]
+//! # pub struct MyData { id: String }
+//! # #[derive(Clone, Debug, PartialEq)]
+//! # pub struct MyResponse { name: String }
+//! # impl Serialize for MyData {}
+//! # impl Deserialize for MyResponse {}
+//! #[cfg_attr(test, faux::create)]
+//! # #[faux::create]
+//! pub struct HttpClient { /* */ }
+//!
+//! #[cfg_attr(test, faux::methods)]
+//! # #[faux::methods]
+//! impl HttpClient {
+//!     pub fn post<B: Serialize, T: Deserialize>(&self, path: &str, body: &B) -> T {
+//!         /* makes network calls that we'd rather not do in unit tests */
+//!         # unreachable!()
+//!     }
+//! }
+//!
+//! #[cfg(test)]
+//! #[test]
+//! fn test() {
+//! # }
+//! # fn main() {
+//!   let mut mock = HttpClient::faux();
+//!
+//!   // `faux` allows mocking generic methods but will
+//!   // generally require them to be explicitely named
+//!   let data = MyData { id: "my-id".to_owned() };
+//!   let expected_respone = MyResponse { name: "my name".to_owned() };
+//!   // mock post with <MyData, MyResponse> as the generic arguments
+//!   // `MyResponse` can be inferred thanks to the `then_return` method
+//!   // `MyData` needs to be explicit because the equal matcher is generic
+//!   faux::when!(mock.post::<MyData, _>(_, data.clone())).then_return(expected_respone.clone());
+//!   assert_eq!(mock.post::<_, MyResponse>("/some/post/path", &data), expected_respone);
+//! }
+//! ```
+//!
+//! ### `impl Trait`
+//!
+//! Methods of the form `fn my_fun(&self, arg: impl MyTrait) -> impl
+//! MyOtherTrait` are generic over an unnameable parameter that
+//! implements `MyTrait` and return an obscured type that implements
+//! `MyOtherTrait`. `faux` is able to mock these methods but only if
+//! the traits are object-safe (i.e., can be used as `dyn Trait`). One
+//! of the main restriction of `dyn Trait` is that [only a single
+//! non-marker trait can be
+//! used](https://github.com/rust-lang/rfcs/issues/2035). When using
+//! `impl Trait` in the return position the trait must also be
+//! implemented for `Box<T> where T: Trait` which is the case for most
+//! std traits. When mocking these kinds of methods, the generic
+//! arguments cannot be specified (as they are not generic parameters)
+//! which allows us to mock unnameable types (i.e., closures).
+//!
+//! #### Examples
+//!
+//! ```
+//! # pub trait Serialize {}
+//! # pub trait Deserialize {}
+//! # impl<T: ?Sized + Deserialize> Deserialize for Box<T> {}
+//! # #[derive(Debug, Clone, PartialEq)]
+//! # pub struct MyData { id: String }
+//! # #[derive(Clone, Debug, PartialEq)]
+//! # pub struct MyResponse { name: String }
+//! # impl Serialize for MyData {}
+//! # impl Deserialize for MyResponse {}
+//! #[cfg_attr(test, faux::create)]
+//! # #[faux::create]
+//! pub struct HttpClient { /* */ }
+//!
+//! #[cfg_attr(test, faux::methods)]
+//! # #[faux::methods]
+//! impl HttpClient {
+//!     pub fn post(&self, path: &str, body: &impl Serialize) -> impl Deserialize + '_ {
+//!         /* makes network calls that we'd rather not do in unit tests */
+//!         # MyResponse { name: todo!() }
+//!     }
+//! }
+//!
+//! #[cfg(test)]
+//! #[test]
+//! fn test() {
+//! # }
+//! # fn main() {
+//!   let mut mock = HttpClient::faux();
+//!
+//!   let data = MyData { id: "my-id".to_owned() };
+//!   let expected_response = MyResponse { name: "my name".to_owned() };
+//!   faux::when!(mock.post).once().then_return(Box::new(expected_response));
+//! }
 //! ```
 //!
 //! ## Stubbing with non-static data
@@ -1005,6 +1101,11 @@ impl<T> MaybeFaux<T> {
         MaybeFaux::Faux(Faux::new(name))
     }
 
+    #[doc(hidden)]
+    /// # Safety
+    ///
+    /// Do *NOT* call this function directly.
+    /// This should only be called by the generated code from #[faux::methods]
     pub unsafe fn call_stub<R, I, O>(
         &self,
         id: fn(R, I) -> O,

@@ -1,6 +1,37 @@
 #![allow(clippy::disallowed_names)]
 
-pub trait MyTrait {}
+pub trait MyTrait {
+    fn x(&self) -> u32;
+}
+
+pub trait MyOtherTrait {
+    fn x(&self) -> u32;
+}
+
+impl<T: ?Sized + MyTrait> MyTrait for Box<T> {
+    fn x(&self) -> u32 {
+        self.as_ref().x()
+    }
+}
+
+impl<T: ?Sized + MyOtherTrait> MyOtherTrait for Box<T> {
+    fn x(&self) -> u32 {
+        self.as_ref().x()
+    }
+}
+
+struct MyStruct {}
+impl MyTrait for MyStruct {
+    fn x(&self) -> u32 {
+        todo!()
+    }
+}
+
+impl MyOtherTrait for MyStruct {
+    fn x(&self) -> u32 {
+        todo!()
+    }
+}
 
 #[faux::create]
 pub struct Foo {}
@@ -26,6 +57,14 @@ impl Foo {
     pub fn gen_output<T>(&self) -> T {
         todo!()
     }
+
+    pub fn impl_out_impl_in(&self, _: &impl MyTrait) -> impl MyOtherTrait + '_ {
+        MyStruct {}
+    }
+
+    pub fn impl_out(&self) -> impl MyTrait {
+        MyStruct {}
+    }
 }
 
 #[test]
@@ -38,7 +77,11 @@ fn impl_generic() {
 #[test]
 fn impl_generic_reference() {
     struct MyStruct {}
-    impl MyTrait for MyStruct {}
+    impl MyTrait for MyStruct {
+        fn x(&self) -> u32 {
+            todo!()
+        }
+    }
 
     let mut foo = Foo::faux();
     faux::when!(foo.bar).then_return(3);
@@ -83,4 +126,36 @@ fn generic_output() {
     let mut foo = Foo::faux();
     faux::when!(foo.gen_output).then_return(32_i32);
     assert_eq!(foo.gen_output::<i32>(), 32);
+}
+
+struct MyTestStruct(u32);
+
+impl MyTrait for MyTestStruct {
+    fn x(&self) -> u32 {
+        self.0
+    }
+}
+
+impl MyOtherTrait for MyTestStruct {
+    fn x(&self) -> u32 {
+        self.0
+    }
+}
+
+#[test]
+fn impl_output() {
+    let mut foo = Foo::faux();
+    faux::when!(foo.impl_out)
+        .once()
+        .then_return(Box::new(MyTestStruct(42)));
+    assert_eq!(foo.impl_out().x(), 42);
+}
+
+#[test]
+fn impl_output_with_gen_input() {
+    let mut foo = Foo::faux();
+    faux::when!(foo.impl_out_impl_in)
+        .once()
+        .then_return(Box::new(MyTestStruct(2)));
+    assert_eq!(foo.impl_out_impl_in(&MyStruct {}).x(), 2);
 }
