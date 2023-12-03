@@ -24,6 +24,10 @@ impl Foo {
     pub fn ret_ref(&self, _: &u32) -> &u32 {
         &self.a
     }
+
+    fn private(&self, _: &u32) -> &u32 {
+        &self.a
+    }
 }
 
 fn load_a() -> Result<u32, Box<dyn std::error::Error>> {

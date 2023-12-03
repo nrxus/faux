@@ -53,13 +53,26 @@ impl From<Mockable> for proc_macro::TokenStream {
         let (impl_generics, ty_generics, where_clause) = real.generics.split_for_impl();
         let name = &morphed.ident;
         let name_str = name.to_string();
+        let real_name = &real.ident;
 
         proc_macro::TokenStream::from(quote! {
             #morphed
 
             impl #impl_generics #name #ty_generics #where_clause {
                 pub fn faux() -> Self {
-                    Self(faux::MaybeFaux::faux(#name_str))
+                    Self(::faux::MaybeFaux::faux(#name_str))
+                }
+            }
+
+            unsafe impl #impl_generics ::faux::MockWrapper for #name #ty_generics #where_clause {
+                type Inner = ::faux::MaybeFaux<#real_name #ty_generics>;
+
+                fn inner(self) -> Self::Inner {
+                    self.0
+                }
+
+                fn wrap(inner: Self::Inner) -> Self {
+                    Self(inner)
                 }
             }
 

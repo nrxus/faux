@@ -359,6 +359,9 @@
 
 pub mod matcher;
 pub mod when;
+mod faux_caller;
+mod mock_wrapper;
+mod into_maybe_faux;
 
 /// Transforms a struct into a mockable version of itself.
 ///
@@ -1151,6 +1154,24 @@ impl Faux {
     }
 
     #[doc(hidden)]
+    /// # Safety
+    ///
+    /// Do *NOT* call this function directly.
+    /// This should only be called by the generated code from #[faux::methods]
+    pub(crate) unsafe fn foo<R, I, O>(
+        &self,
+        id: fn(R, I) -> O,
+        fn_name: &'static str,
+        input: I,
+    ) -> O {
+        let output = unsafe { self.call_stub(id, fn_name, input) };
+        match output {
+            Ok(o) => o,
+            Err(e) => panic!("{e}"),
+        }
+    }
+
+    #[doc(hidden)]
     /// Attempt to call a stub for a given function and input.
     ///
     /// Stubs are attempted in the reverse order of how they were
@@ -1211,6 +1232,10 @@ impl fmt::Display for InvocationError {
         }
     }
 }
+
+pub use mock_wrapper::MockWrapper;
+pub use into_maybe_faux::IntoMaybeFaux;
+pub use faux_caller::FauxCaller;
 
 #[cfg(doc)]
 mod readme_tests;

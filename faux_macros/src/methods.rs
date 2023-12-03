@@ -3,11 +3,14 @@ mod receiver;
 mod when_arg;
 mod when_output;
 
-use crate::{create, self_type::SelfType};
+use std::collections::VecDeque;
+
 use darling::FromMeta;
 use morphed::Signature;
 use quote::quote;
 use syn::PathArguments;
+
+use crate::{create, self_type::SelfType};
 
 #[derive(Default, FromMeta)]
 #[darling(default)]
@@ -30,48 +33,32 @@ pub struct Mockable {
 }
 
 impl Mockable {
-    pub fn new(real: syn::ItemImpl, args: Args) -> darling::Result<Self> {
-        // check that we can support this impl
-        let morphed_ty = match real.self_ty.as_ref() {
-            syn::Type::Path(type_path) => type_path.clone(),
-            node => {
-                return Err(darling::Error::custom("#[faux::methods] does not support implementing types that are not a simple path").with_span(node));
-            }
-        };
+    pub fn new(mut original: syn::ItemImpl, args: Args) -> darling::Result<Self> {
+        let (morphed_ty, real_ty) = validate(original.self_ty.as_ref(), args.path)?;
+        let mut morphed = original.clone();
 
-        if let Some(segment) = morphed_ty
-            .path
-            .segments
-            .iter()
-            .find(|segment| segment.ident == "crate" || segment.ident == "super")
-        {
-            return Err(
-                darling::Error::custom(
-                    format!("#[faux::methods] does not support implementing types with '{segment}' in the path. Consider importing one level past '{segment}' and using #[faux::methods(path = \"{segment}\")]", segment = segment.ident)
-                ).with_span(segment)
-            );
-        }
-
-        // start transforming
-        let real_ty = real_ty(&morphed_ty, args.path);
-
-        let mut morphed = real.clone();
-
-        let mut methods = morphed.items.iter_mut().filter_map(|item| match item {
-            syn::ImplItem::Fn(m) => Some(m),
-            _ => None,
-        });
+        let mut funcs = morphed
+            .items
+            .iter_mut()
+            .zip(original.items.iter_mut())
+            .filter_map(|(morphed, real)| match (morphed, real) {
+                (syn::ImplItem::Fn(morphed), syn::ImplItem::Fn(real)) => Some((morphed, real)),
+                _ => None,
+            });
 
         let mut when_methods = vec![];
-        for func in &mut methods {
-            normalize_idents(&mut func.sig);
-            let signature = Signature::morph(
-                &func.sig,
-                real.trait_.as_ref().map(|(_, path, _)| path),
-                &func.vis,
+        for (morphed_func, real_func) in &mut funcs {
+            normalize_idents(&mut morphed_func.sig);
+
+            let signature = Signature::new(
+                &morphed_func.sig,
+                original.trait_.as_ref().map(|(_, path, _)| path),
+                &morphed_func.vis,
             );
-            func.block = signature.create_body(args.self_type, &real_ty, &morphed_ty)?;
+
+            morphed_func.block = signature.create_body(args.self_type, &real_ty, &morphed_ty)?;
             if let Some(methods) = signature.create_when() {
+                unify_arguments(&mut real_func.sig);
                 when_methods.extend(methods.into_iter().map(syn::ImplItem::Fn));
             }
         }
@@ -79,7 +66,7 @@ impl Mockable {
         let generics = match &morphed_ty.path.segments.last().unwrap().arguments {
             syn::PathArguments::AngleBracketed(generics_in_struct) => {
                 let generics_in_struct = &generics_in_struct.args;
-                let params: syn::punctuated::Punctuated<_, _> = real
+                let params: syn::punctuated::Punctuated<_, _> = original
                     .generics
                     .params
                     .iter()
@@ -104,7 +91,7 @@ impl Mockable {
                     .collect();
                 syn::Generics {
                     params,
-                    ..real.generics.clone()
+                    ..original.generics.clone()
                 }
             }
             _ => syn::Generics::default(),
@@ -119,12 +106,55 @@ impl Mockable {
         };
 
         Ok(Mockable {
-            real,
+            real: original,
             morphed,
             whens,
             real_ty,
             morphed_ty,
         })
+    }
+}
+
+fn unify_arguments(sig: &mut syn::Signature) {
+    let mut pats = VecDeque::new();
+    let mut tys = VecDeque::new();
+    let mut attributes = vec![];
+
+    while let Some(syn::FnArg::Typed(_)) = sig.inputs.last() {
+        let Some(syn::FnArg::Typed(arg)) = sig.inputs.pop().map(|t| t.into_value()) else {
+            unreachable!()
+        };
+        attributes.extend(arg.attrs);
+        pats.push_front(*arg.pat);
+        tys.push_front(*arg.ty);
+    }
+
+    let mut punc_pats = syn::punctuated::Punctuated::new();
+    punc_pats.extend(pats);
+    let mut ty_pats = syn::punctuated::Punctuated::new();
+    ty_pats.extend(tys);
+
+    if punc_pats.len() == 1 {
+        sig.inputs.push(syn::FnArg::Typed(syn::PatType {
+            attrs: attributes,
+            pat: Box::new(punc_pats.pop().unwrap().into_value()),
+            colon_token: syn::token::Colon::default(),
+            ty: Box::new(ty_pats.pop().unwrap().into_value()),
+        }))
+    } else {
+        sig.inputs.push(syn::FnArg::Typed(syn::PatType {
+            attrs: attributes,
+            pat: Box::new(syn::Pat::Tuple(syn::PatTuple {
+                attrs: vec![],
+                paren_token: syn::token::Paren::default(),
+                elems: punc_pats,
+            })),
+            colon_token: syn::token::Colon::default(),
+            ty: Box::new(syn::Type::Tuple(syn::TypeTuple {
+                paren_token: syn::token::Paren::default(),
+                elems: ty_pats,
+            })),
+        }));
     }
 }
 
@@ -225,28 +255,21 @@ impl From<Mockable> for proc_macro::TokenStream {
     }
 }
 
-fn real_ty(morphed_ty: &syn::TypePath, path: Option<syn::Path>) -> syn::TypePath {
-    let type_ident = &morphed_ty.path.segments.last().unwrap().ident;
+fn real_ty_path(mock_ty: &syn::TypePath, mod_path: Option<syn::Path>) -> syn::TypePath {
+    let type_ident = &mock_ty.path.segments.last().unwrap().ident;
+    let mut real_ty = mock_ty.clone();
+
     // combine a passed in path if given one
     // this will find the full path from the impl block to the morphed struct
-    let mut path_to_morph_from_here = match path {
-        None => morphed_ty.clone(),
-        Some(mut path) => {
-            let morphed_ty = morphed_ty.clone();
-            path.segments.extend(morphed_ty.path.segments);
-            syn::TypePath { path, ..morphed_ty }
-        }
-    };
+    if let Some(mod_path) = mod_path {
+        let path = std::mem::replace(&mut real_ty.path.segments, mod_path.segments);
+        real_ty.path.segments.extend(path);
+    }
 
     // now replace the last path segment with the original struct ident
     // this is now the path to the real struct from the impl block
-    path_to_morph_from_here
-        .path
-        .segments
-        .last_mut()
-        .unwrap()
-        .ident = create::real_struct_new_ident(type_ident);
-    path_to_morph_from_here
+    real_ty.path.segments.last_mut().unwrap().ident = create::real_struct_new_ident(type_ident);
+    real_ty
 }
 
 // makes methods in this impl block be at least visible to super
@@ -273,22 +296,83 @@ fn normalize_idents(signature: &mut syn::Signature) {
         .enumerate()
         .for_each(|(i, arg_pat)| match arg_pat {
             syn::Pat::Ident(pat_ident) => {
-                pat_ident.attrs = vec![];
                 pat_ident.by_ref = None;
                 pat_ident.mutability = None;
                 pat_ident.subpat = None;
             }
             non_ident => {
-                *non_ident = syn::Pat::Ident(syn::PatIdent {
-                    attrs: vec![],
-                    by_ref: None,
-                    mutability: None,
-                    subpat: None,
-                    ident: syn::Ident::new(
-                        &format!("_faux_arg_{i}"),
-                        proc_macro2::Span::call_site(),
-                    ),
-                })
+                let old = std::mem::replace(
+                    non_ident,
+                    syn::Pat::Ident(syn::PatIdent {
+                        attrs: vec![],
+                        by_ref: None,
+                        mutability: None,
+                        subpat: None,
+                        ident: syn::Ident::new(
+                            &format!("_faux_arg_{i}"),
+                            proc_macro2::Span::call_site(),
+                        ),
+                    }),
+                );
+
+                let attrs = match old {
+                    syn::Pat::Const(p) => p.attrs,
+                    syn::Pat::Ident(p) => p.attrs,
+                    syn::Pat::Lit(p) => p.attrs,
+                    syn::Pat::Macro(p) => p.attrs,
+                    syn::Pat::Or(p) => p.attrs,
+                    syn::Pat::Paren(p) => p.attrs,
+                    syn::Pat::Path(p) => p.attrs,
+                    syn::Pat::Range(p) => p.attrs,
+                    syn::Pat::Reference(p) => p.attrs,
+                    syn::Pat::Rest(p) => p.attrs,
+                    syn::Pat::Slice(p) => p.attrs,
+                    syn::Pat::Struct(p) => p.attrs,
+                    syn::Pat::Tuple(p) => p.attrs,
+                    syn::Pat::TupleStruct(p) => p.attrs,
+                    syn::Pat::Type(p) => p.attrs,
+                    syn::Pat::Wild(p) => p.attrs,
+                    _ => vec![],
+                };
+
+                let syn::Pat::Ident(new) = non_ident else {
+                    unreachable!()
+                };
+                new.attrs = attrs;
             }
         });
+}
+
+fn validate(
+    ty: &syn::Type,
+    real_ty_mod: Option<syn::Path>,
+) -> darling::Result<(syn::TypePath, syn::TypePath)> {
+    // check that we can support this impl
+    let morphed_ty = match ty {
+        syn::Type::Path(type_path) => type_path.clone(),
+        node => {
+            return Err(darling::Error::custom(
+                "#[faux::methods] does not support implementing types that are not a simple path",
+            )
+            .with_span(node));
+        }
+    };
+
+    if let Some(segment) = morphed_ty
+        .path
+        .segments
+        .iter()
+        .find(|segment| segment.ident == "crate" || segment.ident == "super")
+    {
+        return Err(
+                darling::Error::custom(
+                    format!("#[faux::methods] does not support implementing types with '{segment}' in the path. Consider importing one level past '{segment}' and using #[faux::methods(path = \"{segment}\")]", segment = segment.ident)
+                ).with_span(segment)
+            );
+    }
+
+    // start transforming
+    let real_ty = real_ty_path(&morphed_ty, real_ty_mod);
+
+    Ok((morphed_ty, real_ty))
 }

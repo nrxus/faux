@@ -80,7 +80,7 @@ impl MockData {
 }
 
 impl<'a> Signature<'a> {
-    pub fn morph(
+    pub fn new(
         signature: &'a syn::Signature,
         trait_path: Option<&'a syn::Path>,
         vis: &syn::Visibility,
@@ -136,89 +136,133 @@ impl<'a> Signature<'a> {
         real_ty: &syn::TypePath,
         morphed_ty: &syn::TypePath,
     ) -> darling::Result<syn::Block> {
+        let ret = self.create_body_inner(real_self, real_ty, morphed_ty)?;
+
+        Ok(syn::Block {
+            stmts: vec![syn::Stmt::Expr(ret, None)],
+            brace_token: Default::default(),
+        })
+    }
+
+    fn create_body_inner(
+        &self,
+        real_self: SelfType,
+        real_ty: &syn::TypePath,
+        morphed_ty: &syn::TypePath,
+    ) -> darling::Result<syn::Expr> {
+        let method_data = match &self.method_data {
+            // not a method - proxy to real as-is
+            None => {
+                let proxy_real =
+                    self.proxy_real(real_self, real_ty, morphed_ty, self.args.iter().map(|&p| p))?;
+
+                return Ok(syn::parse2(proxy_real).unwrap());
+            }
+            // else we can either proxy for real instances
+            // or call the mock store for faux instances
+            Some(method_data) => method_data,
+        };
+
+        // need to pass the real Self arg to the real method
+        let real_self_arg = syn::Pat::Ident(syn::PatIdent {
+            attrs: vec![],
+            by_ref: None,
+            mutability: None,
+            ident: syn::Ident::new("_maybe_faux_real", proc_macro2::Span::call_site()),
+            subpat: None,
+        });
+
+        let mock_data = match &method_data.mock_data {
+            None => {
+                let proxy_real = self.proxy_real(
+                    real_self,
+                    real_ty,
+                    morphed_ty,
+                    std::iter::once(&real_self_arg).chain(self.args.iter().map(|&p| p)),
+                )?;
+
+                let x: syn::Expr = syn::parse_quote! {{
+                    let wrapped = ::faux::MockWrapper::inner(self);
+                    let _maybe_faux_real = match ::faux::FauxCaller::try_into_real(wrapped) {
+                        Some(r) => r,
+                        None => panic!("faux error: private methods are not stubbable; and therefore not directly callable in a mock"),
+                    };
+
+                    #proxy_real
+                }};
+
+                return Ok(x);
+            }
+            Some(mock_data) => mock_data,
+        };
+
         let name = &self.name;
-        let args = &self.args;
+        let faux_ident =
+            syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
+
+        let mut args = self
+            .args
+            .iter()
+            .zip(mock_data.arg_types.iter())
+            .map(|(ident, when_arg)| {
+                if when_arg.dynamized {
+                    quote! {
+                        std::boxed::Box::new(#ident)
+                    }
+                } else {
+                    quote! { #ident }
+                }
+            });
+
+        let args: syn::Pat = if args.len() == 1 {
+            let arg = args.next().unwrap();
+            syn::parse_quote! { #arg }
+        } else {
+            syn::parse_quote! { (#(#args,)*) }
+        };
+
+        let mut proxy_real = self.proxy_real(
+            real_self,
+            real_ty,
+            morphed_ty,
+            [&real_self_arg, &args].into_iter(),
+        )?;
+
+        if mock_data.output.dynamized {
+            proxy_real = quote! { std::boxed::Box::new(#proxy_real) };
+        }
+
+        let call_stub = quote! { self.#faux_ident(#args) };
+
+        method_data
+            .self_kind
+            .method_body(real_self, proxy_real, call_stub)
+    }
+
+    fn proxy_real<'p>(
+        &self,
+        real_self: SelfType,
+        real_ty: &syn::TypePath,
+        morphed_ty: &syn::TypePath,
+        args: impl Iterator<Item = &'p syn::Pat>,
+    ) -> darling::Result<TokenStream> {
+        let name = &self.name;
 
         let proxy = match self.trait_path {
             None => quote! { <#real_ty>::#name },
             Some(path) => quote! { <#real_ty as #path>::#name },
         };
 
-        let real_self_arg = self.method_data.as_ref().map(|_| {
-            // need to pass the real Self arg to the real method
-            syn::Pat::Ident(syn::PatIdent {
-                attrs: vec![],
-                by_ref: None,
-                mutability: None,
-                ident: syn::Ident::new("_maybe_faux_real", proc_macro2::Span::call_site()),
-                subpat: None,
-            })
-        });
-        let real_self_arg = real_self_arg.as_ref();
-
-        let proxy_args = real_self_arg.iter().chain(args);
-        let mut proxy_real = quote! { #proxy(#(#proxy_args),*) };
+        let mut proxy = quote! { #proxy(#(#args),*) };
         if self.is_async {
-            proxy_real.extend(quote! { .await })
-        }
-        if let Some(wrapped_self) = self.wrap_self(morphed_ty, real_self, &proxy_real)? {
-            proxy_real = wrapped_self;
+            proxy.extend(quote! { .await })
         }
 
-        let ret = match &self.method_data {
-            // not a method - proxy to real as-is
-            None => syn::parse2(proxy_real).unwrap(),
-            // else we can either proxy for real instances
-            // or call the mock store for faux instances
-            Some(method_data) => {
-                let call_stub = match &method_data.mock_data {
-                    None => {
-                        quote! { panic!("faux error: private methods are not stubbable; and therefore not directly callable in a mock") }
-                    }
-                    Some(mock_data) => {
-                        if mock_data.output.dynamized {
-                            proxy_real = quote! { std::boxed::Box::new(#proxy_real) };
-                        }
-
-                        let faux_ident = syn::Ident::new(
-                            &format!("_faux_{}", name),
-                            proc_macro2::Span::call_site(),
-                        );
-
-                        let mut args =
-                            args.iter()
-                                .zip(mock_data.arg_types.iter())
-                                .map(|(ident, when_arg)| {
-                                    if when_arg.dynamized {
-                                        quote! {
-                                            std::boxed::Box::new(#ident)
-                                        }
-                                    } else {
-                                        quote! { #ident }
-                                    }
-                                });
-
-                        let args = if args.len() == 1 {
-                            let arg = args.next().unwrap();
-                            quote! { #arg }
-                        } else {
-                            quote! { (#(#args,)*) }
-                        };
-
-                        quote! { self.#faux_ident(#args) }
-                    }
-                };
-
-                method_data
-                    .self_kind
-                    .method_body(real_self, proxy_real, call_stub)?
-            }
-        };
-
-        Ok(syn::Block {
-            stmts: vec![syn::Stmt::Expr(ret, None)],
-            brace_token: Default::default(),
-        })
+        if let Some(proxy) = self.wrap_self(morphed_ty, real_self, &proxy)? {
+            Ok(proxy)
+        } else {
+            Ok(proxy)
+        }
     }
 
     pub fn create_when(&self) -> Option<Vec<syn::ImplItemFn>> {
