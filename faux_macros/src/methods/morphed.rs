@@ -232,11 +232,9 @@ impl<'a> Signature<'a> {
             proxy_real = quote! { std::boxed::Box::new(#proxy_real) };
         }
 
-        let call_stub = quote! { self.#faux_ident(#args) };
+        let call_stub = quote! { wrapper.#faux_ident(#args) };
 
-        method_data
-            .self_kind
-            .method_body(real_self, proxy_real, call_stub)
+        Ok(method_data.self_kind.method_body(proxy_real, call_stub))
     }
 
     fn proxy_real<'p>(

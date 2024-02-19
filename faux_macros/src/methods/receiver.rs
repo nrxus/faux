@@ -1,7 +1,4 @@
-use crate::self_type::SelfType;
-
 use proc_macro2::TokenStream;
-use quote::quote;
 
 use std::{
     boxed::Box,
@@ -44,146 +41,22 @@ impl SelfKind {
         }
     }
 
-    fn matchable_self(&self) -> darling::Result<TokenStream> {
-        let get_self = match self {
-            SelfKind::Owned
-            | SelfKind::Pointer(PointerKind::Ref)
-            | SelfKind::Pointer(PointerKind::MutRef) => {
-                quote! { self }
-            }
-            SelfKind::Pointer(PointerKind::Arc) | SelfKind::Pointer(PointerKind::Rc) => {
-                quote! { &*self }
-            }
-            SelfKind::Pointer(PointerKind::Box) => quote! { *self },
-            SelfKind::Pointer(PointerKind::Pin(p)) => {
-                let unpinned = quote! { unsafe { std::pin::Pin::into_inner_unchecked(self) } };
-                match **p {
-                    PointerKind::Ref | PointerKind::MutRef => unpinned,
-                    PointerKind::Rc | PointerKind::Arc => {
-                        let panic_msg = "faux tried to get a unique instance of Self and failed";
-                        let self_of_receiver = match **p {
-                            PointerKind::Arc => SelfType::Arc,
-                            PointerKind::Rc => SelfType::Rc,
-                            _ => unreachable!(),
-                        };
-                        let path = self_of_receiver.path().unwrap();
-                        quote! {{
-                            match #path::try_unwrap(#unpinned) {
-                                Ok(owned) => owned,
-                                Err(_) => panic!(#panic_msg),
-                            }
-                        }}
-                    }
-                    PointerKind::Box => quote! { *#unpinned },
-                    PointerKind::Pin(_) => {
-                        return Err(darling::Error::custom("faux does not support nest Pins"));
-                    }
+    pub fn method_body(&self, proxy_real: TokenStream, call_stub: TokenStream) -> syn::Expr {
+        syn::parse_quote! {{
+            use ::faux::MockWrapper;
+            let inner = self.inner();
+            if let Some(_) = ::faux::FauxCaller::<_>::try_as_faux(&inner) {
+                let wrapper = ::faux::MockWrapper::wrap(inner);
+                #call_stub
+            } else {
+                match ::faux::FauxCaller::<_>::try_into_real(inner) {
+                    Some(_maybe_faux_real) => {
+                        #proxy_real
+                    },
+                    None => unreachable!(),
                 }
             }
-        };
-
-        Ok(get_self)
-    }
-
-    pub fn method_body(
-        &self,
-        self_type: SelfType,
-        proxy_real: TokenStream,
-        call_stub: TokenStream,
-    ) -> darling::Result<syn::Expr> {
-        let get_self = self.matchable_self()?;
-
-        let project_real = match self.project_real(self_type) {
-            Ok(value) => value,
-            Err(value) => return value,
-        };
-
-        let proxy_real = quote! {
-            #project_real
-            #proxy_real
-        };
-
-        Ok(syn::parse_quote! {
-            match &self.0 {
-                faux::MaybeFaux::Faux(_) => { #call_stub },
-                _ => match #get_self {
-                    Self(faux::MaybeFaux::Real(_maybe_faux_real)) => { #proxy_real },
-                    Self(faux::MaybeFaux::Faux(_)) => unreachable!(),
-                }
-            }
-        })
-    }
-
-    fn project_real(&self, self_type: SelfType) -> Result<TokenStream, darling::Result<syn::Expr>> {
-        Ok(match (self, self_type) {
-            (SelfKind::Owned, SelfType::Owned)
-            | (SelfKind::Pointer(PointerKind::Ref), SelfType::Owned)
-            | (SelfKind::Pointer(PointerKind::MutRef), SelfType::Owned)
-            | (SelfKind::Pointer(PointerKind::Box), SelfType::Box) => quote! {},
-            (SelfKind::Pointer(PointerKind::Ref), _) => quote! {
-                let _maybe_faux_real = &*_maybe_faux_real;
-            },
-            (SelfKind::Pointer(PointerKind::MutRef), SelfType::Box) => quote! {
-                let _maybe_faux_real = &mut *_maybe_faux_real;
-            },
-            (SelfKind::Owned, SelfType::Box) => quote! {
-                let _maybe_faux_real = *_maybe_faux_real;
-            },
-            (SelfKind::Pointer(PointerKind::Box), SelfType::Owned) => quote! {
-                let _maybe_faux_real = std::boxed::Box::new(_maybe_faux_real);
-            },
-            (SelfKind::Pointer(PointerKind::Rc), SelfType::Rc)
-            | (SelfKind::Pointer(PointerKind::Arc), SelfType::Arc) => quote! {
-                    let _maybe_faux_real = _maybe_faux_real.clone();
-            },
-            (SelfKind::Pointer(PointerKind::Rc), SelfType::Owned)
-            | (SelfKind::Pointer(PointerKind::Arc), SelfType::Owned) => {
-                let self_of_receiver = match self {
-                    SelfKind::Pointer(PointerKind::Arc) => SelfType::Arc,
-                    SelfKind::Pointer(PointerKind::Rc) => SelfType::Rc,
-                    _ => unreachable!(),
-                };
-                let path = self_of_receiver.path();
-                let new_path = self_of_receiver.new_path().unwrap();
-                let panic_msg = format!("faux tried to get a unique instance of Self from  and failed. Consider adding a `self_type = \"{}\"` argument to both the #[create] and #[method] attributes tagging this struct and its impl.", self_of_receiver);
-
-                quote! {
-                    let owned = match #path::try_unwrap(self) {
-                        Ok(owned) => owned,
-                        Err(_) => panic!(#panic_msg),
-                    };
-
-                    let _maybe_faux_real = match owned {
-                        Self(faux::MaybeFaux::Real(_maybe_faux_real)) => #new_path(_maybe_faux_real),
-                        _ => unreachable!()
-                    };
-                }
-            }
-            (SelfKind::Pointer(PointerKind::Pin(pointer)), SelfType::Owned) => match **pointer {
-                PointerKind::Ref | PointerKind::MutRef => quote! {
-                    let _maybe_faux_real = unsafe { std::pin::Pin::new_unchecked(_maybe_faux_real) };
-                },
-                PointerKind::Box => quote! {
-                    let _maybe_faux_real = unsafe { std::pin::Pin::new_unchecked(std::boxed::Box::new(_maybe_faux_real)) };
-                },
-                PointerKind::Rc | PointerKind::Arc => {
-                    let self_of_receiver = match **pointer {
-                        PointerKind::Arc => SelfType::Arc,
-                        PointerKind::Rc => SelfType::Rc,
-                        _ => unreachable!(),
-                    };
-                    let new_path = self_of_receiver.new_path().unwrap();
-
-                    quote! {
-                        let _maybe_faux_real = unsafe { std::pin::Pin::new_unchecked(#new_path(_maybe_faux_real)) };
-                    }
-                }
-                PointerKind::Pin(_) => unreachable!(),
-            },
-            (receiver, specified) => {
-                return Err(Err(darling::Error::custom(format!("faux cannot convert from the receiver_type of this method: `{}`, into the self_type specified: `{}`", receiver, specified))));
-            }
-        })
+        }}
     }
 }
 

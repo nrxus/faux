@@ -14,6 +14,8 @@ pub struct Mockable {
     real: syn::ItemStruct,
     // the morphed definition, wraps the real struct around a MaybeFaux
     morphed: syn::ItemStruct,
+    // Whether the real object should be wrapped when putting it in MaybeFaux::Real
+    self_type: SelfType,
 }
 
 impl Mockable {
@@ -43,17 +45,34 @@ impl Mockable {
             syn::Fields::Unnamed(syn::parse_quote! { (#vis faux::MaybeFaux<#wrapped_self>) })
         };
 
-        Mockable { real, morphed }
+        Mockable {
+            real,
+            morphed,
+            self_type: args.self_type,
+        }
     }
 }
 
 impl From<Mockable> for proc_macro::TokenStream {
     fn from(mockable: Mockable) -> Self {
-        let Mockable { real, morphed } = mockable;
+        let Mockable {
+            real,
+            morphed,
+            self_type,
+        } = mockable;
         let (impl_generics, ty_generics, where_clause) = real.generics.split_for_impl();
         let name = &morphed.ident;
         let name_str = name.to_string();
         let real_name = &real.ident;
+
+        let inner = match self_type {
+            // TODO: deprecate Box
+            SelfType::Owned | SelfType::Box => {
+                quote! { ::faux::MaybeFaux<#real_name #ty_generics> }
+            }
+            SelfType::Rc => quote! { ::faux::MaybeFaux<Rc<#real_name #ty_generics>> },
+            SelfType::Arc => quote! { ::faux::MaybeFaux<Arc<#real_name #ty_generics>> },
+        };
 
         proc_macro::TokenStream::from(quote! {
             #morphed
@@ -65,7 +84,7 @@ impl From<Mockable> for proc_macro::TokenStream {
             }
 
             unsafe impl #impl_generics ::faux::MockWrapper for #name #ty_generics #where_clause {
-                type Inner = ::faux::MaybeFaux<#real_name #ty_generics>;
+                type Inner = #inner;
 
                 fn inner(self) -> Self::Inner {
                     self.0
