@@ -26,6 +26,8 @@ pub struct Mockable {
     morphed: syn::ItemImpl,
     // the _when_ methods in their own impl
     whens: syn::ItemImpl,
+    // the _faux_ methods in their own impl
+    fauxs: syn::ItemImpl,
     // path to real struct
     real_ty: syn::TypePath,
     // path to morphed struct
@@ -34,36 +36,47 @@ pub struct Mockable {
 
 impl Mockable {
     pub fn new(mut original: syn::ItemImpl, args: Args) -> darling::Result<Self> {
-        let (morphed_ty, real_ty) = validate(original.self_ty.as_ref(), args.path)?;
+        let (path_to_mock, path_to_real) = validate(original.self_ty.as_ref(), args.path)?;
         let mut morphed = original.clone();
 
+        // start transforming
         let mut funcs = morphed
             .items
             .iter_mut()
             .zip(original.items.iter_mut())
-            .filter_map(|(morphed, real)| match (morphed, real) {
-                (syn::ImplItem::Fn(morphed), syn::ImplItem::Fn(real)) => Some((morphed, real)),
+            .filter_map(|(morphed, original)| match (morphed, original) {
+                (syn::ImplItem::Fn(morphed), syn::ImplItem::Fn(original)) => {
+                    Some((morphed, original))
+                }
                 _ => None,
             });
 
         let mut when_methods = vec![];
+        let mut faux_methods = vec![];
         for (morphed_func, real_func) in &mut funcs {
             normalize_idents(&mut morphed_func.sig);
+            let trait_path = original.trait_.as_ref().map(|(_, path, _)| path);
 
             let signature = Signature::new(
                 &morphed_func.sig,
-                original.trait_.as_ref().map(|(_, path, _)| path),
+                trait_path,
                 &morphed_func.vis,
+                &path_to_mock,
+                &path_to_real,
             );
 
-            morphed_func.block = signature.create_body(args.self_type, &real_ty, &morphed_ty)?;
+            morphed_func.block = signature.create_body(args.self_type, &path_to_mock)?;
             if let Some(methods) = signature.create_when() {
-                unify_arguments(&mut real_func.sig);
-                when_methods.extend(methods.into_iter().map(syn::ImplItem::Fn));
+                let mut faux_method = real_func.clone();
+                let ident = &real_func.sig.ident;
+                faux_method.sig.ident = syn::Ident::new(&format!("_faux_{ident}"), ident.span());
+                unify_arguments(&mut faux_method.sig);
+                faux_methods.push(syn::ImplItem::Fn(faux_method));
+                when_methods.push(syn::ImplItem::Fn(methods));
             }
         }
 
-        let generics = match &morphed_ty.path.segments.last().unwrap().arguments {
+        let generics = match &path_to_mock.path.segments.last().unwrap().arguments {
             syn::PathArguments::AngleBracketed(generics_in_struct) => {
                 let generics_in_struct = &generics_in_struct.args;
                 let params: syn::punctuated::Punctuated<_, _> = original
@@ -100,8 +113,14 @@ impl Mockable {
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let whens = syn::parse_quote! {
-            impl #impl_generics #morphed_ty #where_clause {
+            impl #impl_generics #path_to_mock #where_clause {
                 #(#when_methods) *
+            }
+        };
+
+        let fauxs = syn::parse_quote! {
+            impl #impl_generics #path_to_real #where_clause {
+                #(#faux_methods) *
             }
         };
 
@@ -109,8 +128,9 @@ impl Mockable {
             real: original,
             morphed,
             whens,
-            real_ty,
-            morphed_ty,
+            fauxs,
+            real_ty: path_to_real,
+            morphed_ty: path_to_mock,
         })
     }
 }
@@ -166,6 +186,7 @@ impl From<Mockable> for proc_macro::TokenStream {
             whens,
             mut real_ty,
             morphed_ty,
+            fauxs,
         } = mockable;
 
         // create an identifier for the mod containing the real implementation
@@ -195,7 +216,7 @@ impl From<Mockable> for proc_macro::TokenStream {
         }
         let real = real;
 
-        // creates an alias `type Foo = path::to::RealFoo` that may be wrapped inside some mods
+        // creates an alias `use path::to::RealFoo as Foo` that may be wrapped inside some mods
         let alias = {
             let mut path_to_ty = morphed_ty.path.segments;
             let path_to_real_from_alias_mod = {
@@ -213,7 +234,6 @@ impl From<Mockable> for proc_macro::TokenStream {
                 }
             };
 
-            // type Foo = path::to::RealFoo
             let alias = {
                 // the alias has to be public up to the mod wrapping it
                 let pub_supers = if path_to_ty.len() < 2 {
@@ -250,6 +270,8 @@ impl From<Mockable> for proc_macro::TokenStream {
                 #alias
 
                 #real
+
+                #fauxs
             }
         })
     }
@@ -371,8 +393,6 @@ fn validate(
             );
     }
 
-    // start transforming
     let real_ty = real_ty_path(&morphed_ty, real_ty_mod);
-
     Ok((morphed_ty, real_ty))
 }

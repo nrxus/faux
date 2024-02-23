@@ -45,8 +45,8 @@ impl SelfKind {
         syn::parse_quote! {{
             use ::faux::MockWrapper;
             let inner = self.inner();
-            if let Some(_) = ::faux::FauxCaller::<_>::try_as_faux(&inner) {
-                let wrapper = ::faux::MockWrapper::wrap(inner);
+            inner.call()
+            if let Some(faux) = ::faux::FauxCaller::<_>::try_as_faux(&inner) {
                 #call_stub
             } else {
                 match ::faux::FauxCaller::<_>::try_into_real(inner) {

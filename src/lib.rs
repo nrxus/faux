@@ -357,11 +357,11 @@
 //!
 //! [mocks]: https://martinfowler.com/articles/mocksArentStubs.html
 
-pub mod matcher;
-pub mod when;
 mod faux_caller;
-mod mock_wrapper;
 mod into_maybe_faux;
+pub mod matcher;
+mod mock_wrapper;
+pub mod when;
 
 /// Transforms a struct into a mockable version of itself.
 ///
@@ -1233,9 +1233,9 @@ impl fmt::Display for InvocationError {
     }
 }
 
-pub use mock_wrapper::MockWrapper;
-pub use into_maybe_faux::IntoMaybeFaux;
 pub use faux_caller::FauxCaller;
+pub use into_maybe_faux::IntoMaybeFaux;
+pub use mock_wrapper::MockWrapper;
 
 #[cfg(doc)]
 mod readme_tests;

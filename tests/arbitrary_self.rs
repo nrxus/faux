@@ -20,7 +20,7 @@ impl Owned {
     pub fn by_ref(&self) {}
     pub fn by_mut_ref(&mut self) {}
     pub fn by_value(self) {}
-    q// #[allow(unused_mut)]
+    // #[allow(unused_mut)]
     // pub fn by_mut_value(mut self) {}
 
     // //self with a type

@@ -28,6 +28,8 @@ impl Foo {
     fn private(&self, _: &u32) -> &u32 {
         &self.a
     }
+
+    fn private_no_args(&self) {}
 }
 
 fn load_a() -> Result<u32, Box<dyn std::error::Error>> {

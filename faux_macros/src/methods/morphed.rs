@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, spanned::Spanned, PathArguments};
+use syn::{parse_quote, punctuated::Punctuated, spanned::Spanned, PathArguments};
 
 use crate::{
     methods::{when_arg::WhenArg, when_output::WhenOutput},
@@ -15,7 +15,7 @@ pub struct Signature<'a> {
     is_async: bool,
     output: Option<&'a syn::Type>,
     method_data: Option<MethodData>,
-    trait_path: Option<&'a syn::Path>,
+    qualified_real_fn: syn::ExprPath,
 }
 
 pub struct MethodData {
@@ -79,11 +79,63 @@ impl MockData {
     }
 }
 
+fn swap_types(ty: &mut syn::Type, old_ty: &syn::TypePath, new_ty: &syn::TypePath) {
+    match ty {
+        syn::Type::Path(syn::TypePath { path, .. }) => {
+            if path == &old_ty.path || path.is_ident("Self") {
+                *path = new_ty.path.clone();
+            }
+            match &mut path.segments.last_mut().unwrap().arguments {
+                PathArguments::None => {}
+                PathArguments::AngleBracketed(args) => {
+                    args.args.iter_mut().for_each(|arg| match arg {
+                        syn::GenericArgument::Type(ty)
+                        | syn::GenericArgument::AssocType(syn::AssocType { ty, .. }) => {
+                            swap_types(ty, old_ty, new_ty)
+                        }
+                        _ => {}
+                    });
+                }
+                PathArguments::Parenthesized(args) => {
+                    match &mut args.output {
+                        syn::ReturnType::Default => {}
+                        syn::ReturnType::Type(_, output) => swap_types(output, old_ty, new_ty),
+                    }
+                    args.inputs
+                        .iter_mut()
+                        .for_each(|i| swap_types(i, old_ty, new_ty));
+                }
+            }
+        }
+        syn::Type::Reference(syn::TypeReference { elem, .. })
+        | syn::Type::Array(syn::TypeArray { elem, .. })
+        | syn::Type::Group(syn::TypeGroup { elem, .. })
+        | syn::Type::Paren(syn::TypeParen { elem, .. })
+        | syn::Type::Ptr(syn::TypePtr { elem, .. })
+        | syn::Type::Slice(syn::TypeSlice { elem, .. }) => swap_types(elem, old_ty, new_ty),
+        syn::Type::BareFn(syn::TypeBareFn { inputs, output, .. }) => {
+            match output {
+                syn::ReturnType::Default => {}
+                syn::ReturnType::Type(_, output) => swap_types(output, old_ty, new_ty),
+            }
+            inputs
+                .iter_mut()
+                .for_each(|i| swap_types(&mut i.ty, old_ty, new_ty));
+        }
+        syn::Type::Tuple(syn::TypeTuple { elems, .. }) => {
+            elems.iter_mut().for_each(|i| swap_types(i, old_ty, new_ty));
+        }
+        _ => {}
+    }
+}
+
 impl<'a> Signature<'a> {
     pub fn new(
         signature: &'a syn::Signature,
         trait_path: Option<&'a syn::Path>,
         vis: &syn::Visibility,
+        mocked_ty: &syn::TypePath,
+        real_ty: &syn::TypePath,
     ) -> Signature<'a> {
         let output = match &signature.output {
             syn::ReturnType::Default => None,
@@ -95,13 +147,20 @@ impl<'a> Signature<'a> {
             syn::FnArg::Typed(_) => None,
         });
 
+        let name = &signature.ident;
+
+        let mut qualified_real_fn: Option<syn::ExprPath> = None;
         let method_data = receiver.map(|receiver| {
             let self_kind = SelfKind::new(receiver);
             let is_private = trait_path.is_none() && *vis == syn::Visibility::Inherited;
             let mock_data = if is_private {
                 None
             } else {
-                Some(MockData::new(receiver.ty.clone(), signature))
+                let ident = syn::Ident::new(&format!("_faux_{name}"), name.span());
+                qualified_real_fn = Some(parse_quote! { <#real_ty>::#ident });
+                let mut self_ty = receiver.ty.clone();
+                swap_types(&mut self_ty, mocked_ty, real_ty);
+                Some(MockData::new(self_ty, signature))
             };
 
             MethodData {
@@ -110,8 +169,13 @@ impl<'a> Signature<'a> {
             }
         });
 
+        let qualified_real_fn = qualified_real_fn.unwrap_or_else(|| match trait_path {
+            None => parse_quote! { <#real_ty>::#name },
+            Some(trait_path) => parse_quote! { <#real_ty as #trait_path>::#name },
+        });
+
         Signature {
-            name: &signature.ident,
+            name,
             args: signature
                 .inputs
                 .iter()
@@ -126,17 +190,16 @@ impl<'a> Signature<'a> {
             is_async: signature.asyncness.is_some(),
             output,
             method_data,
-            trait_path,
+            qualified_real_fn,
         }
     }
 
     pub fn create_body(
         &self,
         real_self: SelfType,
-        real_ty: &syn::TypePath,
         morphed_ty: &syn::TypePath,
     ) -> darling::Result<syn::Block> {
-        let ret = self.create_body_inner(real_self, real_ty, morphed_ty)?;
+        let ret = self.create_body_inner(real_self, morphed_ty)?;
 
         Ok(syn::Block {
             stmts: vec![syn::Stmt::Expr(ret, None)],
@@ -147,14 +210,13 @@ impl<'a> Signature<'a> {
     fn create_body_inner(
         &self,
         real_self: SelfType,
-        real_ty: &syn::TypePath,
         morphed_ty: &syn::TypePath,
     ) -> darling::Result<syn::Expr> {
         let method_data = match &self.method_data {
             // not a method - proxy to real as-is
             None => {
                 let proxy_real =
-                    self.proxy_real(real_self, real_ty, morphed_ty, self.args.iter().map(|&p| p))?;
+                    self.proxy_real(real_self, morphed_ty, self.args.iter().copied())?;
 
                 return Ok(syn::parse2(proxy_real).unwrap());
             }
@@ -176,12 +238,11 @@ impl<'a> Signature<'a> {
             None => {
                 let proxy_real = self.proxy_real(
                     real_self,
-                    real_ty,
                     morphed_ty,
-                    std::iter::once(&real_self_arg).chain(self.args.iter().map(|&p| p)),
+                    std::iter::once(&real_self_arg).chain(self.args.iter().copied()),
                 )?;
 
-                let x: syn::Expr = syn::parse_quote! {{
+                return Ok(syn::parse_quote! {{
                     let wrapped = ::faux::MockWrapper::inner(self);
                     let _maybe_faux_real = match ::faux::FauxCaller::try_into_real(wrapped) {
                         Some(r) => r,
@@ -189,16 +250,10 @@ impl<'a> Signature<'a> {
                     };
 
                     #proxy_real
-                }};
-
-                return Ok(x);
+                }});
             }
             Some(mock_data) => mock_data,
         };
-
-        let name = &self.name;
-        let faux_ident =
-            syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
 
         let mut args = self
             .args
@@ -221,53 +276,54 @@ impl<'a> Signature<'a> {
             syn::parse_quote! { (#(#args,)*) }
         };
 
-        let mut proxy_real = self.proxy_real(
-            real_self,
-            real_ty,
-            morphed_ty,
-            [&real_self_arg, &args].into_iter(),
-        )?;
+        // let mut proxy_real = self.proxy_real(
+        //     real_self,
+        //     real_fn,
+        //     morphed_ty,
+        //     [&real_self_arg, &args].into_iter(),
+        // )?;
 
-        if mock_data.output.dynamized {
-            proxy_real = quote! { std::boxed::Box::new(#proxy_real) };
-        }
+        // if mock_data.output.dynamized {
+        //     proxy_real = quote! { std::boxed::Box::new(#proxy_real) };
+        // }
 
-        let call_stub = quote! { wrapper.#faux_ident(#args) };
+        // let faux_ident =
+        // syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
+        // let call_stub = quote! { wrapper.#faux_ident(#args) };
 
-        Ok(method_data.self_kind.method_body(proxy_real, call_stub))
+        let real_fn = &self.qualified_real_fn;
+        let name = &self.name;
+        Ok(syn::parse_quote! {{
+            use ::faux::MockWrapper;
+            use ::faux::FauxCaller;
+
+            let inner = self.inner();
+            inner.call(#real_fn, stringify!(#name), #args)
+        }})
+        // Ok(method_data.self_kind.method_body(proxy_real, call_stub))
     }
 
     fn proxy_real<'p>(
         &self,
         real_self: SelfType,
-        real_ty: &syn::TypePath,
         morphed_ty: &syn::TypePath,
         args: impl Iterator<Item = &'p syn::Pat>,
     ) -> darling::Result<TokenStream> {
-        let name = &self.name;
-
-        let proxy = match self.trait_path {
-            None => quote! { <#real_ty>::#name },
-            Some(path) => quote! { <#real_ty as #path>::#name },
-        };
-
+        let proxy = &self.qualified_real_fn;
         let mut proxy = quote! { #proxy(#(#args),*) };
         if self.is_async {
             proxy.extend(quote! { .await })
         }
 
-        if let Some(proxy) = self.wrap_self(morphed_ty, real_self, &proxy)? {
-            Ok(proxy)
-        } else {
-            Ok(proxy)
-        }
+        self.wrap_self(morphed_ty, real_self, &proxy)
+            .map(|p| p.unwrap_or(proxy))
     }
 
-    pub fn create_when(&self) -> Option<Vec<syn::ImplItemFn>> {
+    pub fn create_when(&self) -> Option<syn::ImplItemFn> {
         self.method_data
             .as_ref()
             .and_then(|m| m.mock_data.as_ref())
-            .map(|m| m.create_when(self.name))
+            .map(|m| m.create_when(self.name, &self.qualified_real_fn))
     }
 
     fn wrap_self(
@@ -360,7 +416,7 @@ impl<'a> Signature<'a> {
 }
 
 impl MockData {
-    pub fn create_when(&self, name: &syn::Ident) -> Vec<syn::ImplItemFn> {
+    pub fn create_when(&self, name: &syn::Ident, real_fn: &syn::ExprPath) -> syn::ImplItemFn {
         let MockData {
             arg_types,
             self_ty,
@@ -371,17 +427,15 @@ impl MockData {
 
         let when_ident =
             syn::Ident::new(&format!("_when_{}", name), proc_macro2::Span::call_site());
-        let faux_ident =
-            syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
         let extra_when_lts = arg_types
             .iter()
             .flat_map(|a| &a.lifetimes)
             .map(|lt| syn::GenericParam::Lifetime(syn::LifetimeParam::new(lt.clone())));
 
         let name_str = name.to_string();
-        let mut generics = (*generics).clone();
-        generics.params.extend(extra_when_lts);
-        generics.params.extend(
+        let mut when_generics = (*generics).clone();
+        when_generics.params.extend(extra_when_lts);
+        when_generics.params.extend(
             output
                 .lifetimes
                 .iter()
@@ -394,33 +448,21 @@ impl MockData {
             bounds: Punctuated::new(),
         });
 
-        let mut when_generics = generics.clone();
         when_generics.params.push(faux_lifetime.clone());
         let (when_impl_generics, _, when_where_clause) = when_generics.split_for_impl();
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let when_method = syn::parse_quote! {
+        syn::parse_quote! {
             pub fn #when_ident #when_impl_generics(&#faux_lifetime mut self) -> faux::When<#faux_lifetime, #self_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #when_where_clause {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
-                        <Self>::#faux_ident,
+                        #real_fn,
                         #name_str,
                         _maybe_faux_faux
                     ),
                     faux::MaybeFaux::Real(_) => panic!("not allowed to stub a real instance!"),
                 }
             }
-        };
-
-        let faux_method = syn::parse_quote! {
-            #[allow(clippy::needless_arbitrary_self_type)]
-            #[allow(clippy::boxed_local)]
-            pub fn #faux_ident #impl_generics(self: #self_ty, input: (#(#arg_types),*)) -> #output #where_clause {
-                unsafe { self.0.call_stub(<Self>::#faux_ident, stringify!(#name), input) }
-            }
-        };
-
-        vec![when_method, faux_method]
+        }
     }
 }
 
