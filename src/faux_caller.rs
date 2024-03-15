@@ -1,4 +1,4 @@
-use std::{ops::Deref, pin::Pin, rc::Rc, sync::Arc};
+use std::{future::Future, ops::Deref, pin::Pin, rc::Rc, sync::Arc};
 
 use crate::{Faux, MaybeFaux};
 
@@ -12,6 +12,21 @@ pub trait FauxCaller<R>: Sized {
             .try_into_real()
             .expect("faux: bug! Should always be real");
         real_fn(real, input)
+    }
+
+    async fn async_call<I, F: Future>(
+        self,
+        real_fn: fn(R, I) -> F,
+        fn_name: &'static str,
+        input: I,
+    ) -> F::Output {
+        if let Some(fake) = self.try_as_faux() {
+            return unsafe { fake.async_foo(real_fn, fn_name, input) }.await;
+        }
+        let real = self
+            .try_into_real()
+            .expect("faux: bug! Should always be real");
+        real_fn(real, input).await
     }
 
     fn try_as_faux(&self) -> Option<&Faux>;

@@ -358,6 +358,7 @@
 //! [mocks]: https://martinfowler.com/articles/mocksArentStubs.html
 
 mod faux_caller;
+pub mod impl_when;
 mod into_maybe_faux;
 pub mod matcher;
 mod mock_wrapper;
@@ -1055,6 +1056,8 @@ mod mock;
 
 use core::fmt;
 use std::fmt::Formatter;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 /// What all mockable structs get transformed into.
@@ -1171,6 +1174,19 @@ impl Faux {
         }
     }
 
+    pub(crate) async unsafe fn async_foo<R, I, F: Future>(
+        &self,
+        id: fn(R, I) -> F,
+        fn_name: &'static str,
+        input: I,
+    ) -> F::Output {
+        let output = unsafe { self.async_call_stub(id, fn_name, input) }.await;
+        match output {
+            Ok(o) => o,
+            Err(e) => panic!("{e}"),
+        }
+    }
+
     #[doc(hidden)]
     /// Attempt to call a stub for a given function and input.
     ///
@@ -1196,6 +1212,21 @@ impl Faux {
             struct_name: self.store.struct_name,
             stub_error,
         })
+    }
+
+    pub async unsafe fn async_call_stub<R, I, F: Future>(
+        &self,
+        id: fn(R, I) -> F,
+        fn_name: &'static str,
+        input: I,
+    ) -> Result<F::Output, InvocationError> {
+        let mock = self.store.async_get(id, fn_name)?;
+        let answer = mock.call(input).map_err(|stub_error| InvocationError {
+            fn_name: mock.name(),
+            struct_name: self.store.struct_name,
+            stub_error,
+        })?;
+        Ok(answer.await)
     }
 }
 

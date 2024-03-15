@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, future::Future, pin::Pin};
 
 use crate::InvocationError;
 
@@ -37,6 +37,25 @@ impl<'stub> Store<'stub> {
         mock
     }
 
+    /// Returns a mutable reference to a [`Mock`] for a given function
+    ///
+    /// If the given function has not yet been mocked, an empty mock
+    /// is created for the function.
+    pub fn async_get_mut<R, I, F: Future>(
+        &mut self,
+        id: fn(R, I) -> F,
+        fn_name: &'static str,
+    ) -> &mut Mock<'stub, I, Pin<Box<dyn Future<Output = F::Output>>>> {
+        let mock = self.stubs.entry(id as usize).or_insert_with(|| {
+            let mock: Mock<I, Pin<Box<dyn Future<Output = F::Output>>>> = Mock::new(fn_name);
+            mock.into()
+        });
+
+        let mock = unsafe { mock.as_typed_mut() };
+        assert_name(mock, fn_name);
+        mock
+    }
+
     /// Returns a reference to a [`Mock`] for a given function
     ///
     /// `None` is returned if the function was never mocked
@@ -45,6 +64,24 @@ impl<'stub> Store<'stub> {
         id: fn(R, I) -> O,
         fn_name: &'static str,
     ) -> Result<&Mock<'stub, I, O>, InvocationError> {
+        match self.stubs.get(&(id as usize)).map(|m| m.as_typed()) {
+            Some(mock) => {
+                assert_name(mock, fn_name);
+                Ok(mock)
+            }
+            None => Err(InvocationError {
+                fn_name,
+                struct_name: self.struct_name,
+                stub_error: super::InvocationError::NeverStubbed,
+            }),
+        }
+    }
+
+    pub unsafe fn async_get<R, I, F: Future>(
+        &self,
+        id: fn(R, I) -> F,
+        fn_name: &'static str,
+    ) -> Result<&Mock<'stub, I, Pin<Box<dyn Future<Output = F::Output>>>>, InvocationError> {
         match self.stubs.get(&(id as usize)).map(|m| m.as_typed()) {
             Some(mock) => {
                 assert_name(mock, fn_name);

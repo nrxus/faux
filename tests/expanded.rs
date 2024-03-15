@@ -33,7 +33,9 @@ impl Foo {
             use ::faux::FauxCaller;
             use ::faux::MockWrapper;
             let inner = self.inner();
-            inner.call(<_FauxOriginal_Foo>::_faux_fetch, stringify!(fetch), ()).await
+            inner
+                .async_call(<_FauxOriginal_Foo>::_faux_fetch, stringify!(fetch), ())
+                .await
         }
     }
     async fn private(&self) -> i32 {
@@ -51,26 +53,29 @@ impl Foo {
 impl Foo {
     pub fn _when_fetch<'_faux_implicit_ref, '_faux_mock_lifetime>(
         &'_faux_mock_lifetime mut self,
-    ) -> faux::When<
+    ) -> faux::impl_when::AsyncWhen<
         '_faux_mock_lifetime,
         &'_faux_implicit_ref _FauxOriginal_Foo,
         (),
-        Pin<Box<dyn Future<Output = i32> + '_faux_implicit_ref + Send>>,
+        impl Future<Output = i32> + '_faux_implicit_ref,
         faux::matcher::AnyInvocation,
     > {
         match &mut self.0 {
             faux::MaybeFaux::Faux(_maybe_faux_faux) => {
-                faux::When::new(<_FauxOriginal_Foo>::_faux_fetch, "fetch", _maybe_faux_faux)
+                faux::impl_when::AsyncWhen::new(<_FauxOriginal_Foo>::_faux_fetch, "fetch", _maybe_faux_faux)
             }
             faux::MaybeFaux::Real(_) => panic!("not allowed to stub a real instance!"),
         }
     }
 }
+
 mod _faux_real_impl__FauxOriginal_Foo_f8735cebdbab45e49a5a80d951670009 {
     #[allow(non_camel_case_types)]
     #[allow(clippy::builtin_type_shadow)]
     use super::_FauxOriginal_Foo as Foo;
     use super::*;
+
+    #[automatically_derived]
     impl Foo {
         pub async fn new() -> Self {
             Foo {}
@@ -86,8 +91,8 @@ mod _faux_real_impl__FauxOriginal_Foo_f8735cebdbab45e49a5a80d951670009 {
         }
     }
     impl _FauxOriginal_Foo {
-        pub fn _faux_fetch<'s>(&'s self, (): ()) -> Pin<Box<dyn Future<Output = i32> + Send + 's>> {
-            Box::pin(<_FauxOriginal_Foo>::fetch(self))
+        pub async fn _faux_fetch<'s>(&'s self, (): ()) -> i32 {
+            <_FauxOriginal_Foo>::fetch(self).await
         }
     }
 }
@@ -95,9 +100,5 @@ mod _faux_real_impl__FauxOriginal_Foo_f8735cebdbab45e49a5a80d951670009 {
 #[test]
 fn test() {
     let mut foo = Foo::faux();
-    faux::when!(foo.fetch).once().then_return(Box::pin(x()));
-}
-
-async fn x() -> i32 {
-    4
+    faux::when!(foo.fetch).then_return(std::future::ready(4));
 }
