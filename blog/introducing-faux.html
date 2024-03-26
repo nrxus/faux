@@ -188,7 +188,7 @@ fn service_does_the_right_thing() {
     faux::when!(client.fetch_id_matching).then(|i| {
         // we want to test do_stuff(), which should always call
         // fetch_id_matching with the input 3.
-        assert_eq!(i, 3, &quot;expected service to send '3'&quot;);
+        assert_eq!(i, 3, "expected service to send '3'");
         // mock fetch_id_matching to always return 10
         10
     });
@@ -206,7 +206,7 @@ fn service_does_the_right_thing() {
 </span><span class="boring">
 </span><span class="boring">   // mock fetch_id_matching
 </span><span class="boring">   faux::when!(client.fetch_id_matching).then(|i| {
-</span><span class="boring">        assert_eq!(i, 3, &quot;expected service to send '3'&quot;);
+</span><span class="boring">        assert_eq!(i, 3, "expected service to send '3'");
 </span><span class="boring">        10
 </span><span class="boring">   });
 </span><span class="boring">

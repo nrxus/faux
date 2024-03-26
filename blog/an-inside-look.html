@@ -178,7 +178,7 @@ fn service_does_the_right_thing() {
     let mut client = NetworkClient::faux();
 
     faux::when!(client.fetch).then(|i| {
-        assert_eq!(i, 3, &quot;expected service to send '3'&quot;);
+        assert_eq!(i, 3, "expected service to send '3'");
         10
     });
 
@@ -191,7 +191,7 @@ fn service_does_the_right_thing() {
 </span><span class="boring">   let mut client = NetworkClient::faux();
 </span><span class="boring">
 </span><span class="boring">   faux::when!(client.fetch).then(|i| {
-</span><span class="boring">        assert_eq!(i, 3, &quot;expected service to send '3'&quot;);
+</span><span class="boring">        assert_eq!(i, 3, "expected service to send '3'");
 </span><span class="boring">        10
 </span><span class="boring">   });
 </span><span class="boring">
@@ -512,9 +512,9 @@ instance of the <code>NetworkClient</code> from nothing.</p>
             Self(MaybeNetworkClient::Fake(mock_store)) =&gt; {
                 mock_store
                     // retrieve the mock using the name of the function
-                    .get_mock(&quot;fetch&quot;)
+                    .get_mock("fetch")
                     // check the mock was setup; panic if it was not
-                    .expect(&quot;no mock found for method 'fetch'&quot;)
+                    .expect("no mock found for method 'fetch'")
                     // pass in fetch's parameter to the mocked method
                     .call(a)
             }
@@ -565,10 +565,10 @@ instance of the <code>NetworkClient</code> from nothing.</p>
         match &amp;mut self.0 {
             MaybeNetworkClient::Fake(store) =&gt; When {
                 store,
-                method_name: &quot;fetch&quot;,
+                method_name: "fetch",
                 _marker: std::marker::PhantomData,
             },
-            MaybeNetworkClient::Real(_) =&gt; panic!(&quot;cannot mock a real instance&quot;),
+            MaybeNetworkClient::Real(_) =&gt; panic!("cannot mock a real instance"),
         }
     }
 }
@@ -631,9 +631,9 @@ assert_eq!(fetched, 3);
 </span><span class="boring">            Self(MaybeNetworkClient::Fake(mock_store)) =&gt; {
 </span><span class="boring">                mock_store
 </span><span class="boring">                    // retrieve the mock using the name of the function
-</span><span class="boring">                    .get_mock(&quot;fetch&quot;)
+</span><span class="boring">                    .get_mock("fetch")
 </span><span class="boring">                    // check the mock was setup; panic if it was not
-</span><span class="boring">                    .expect(&quot;no mock found for method 'fetch'&quot;)
+</span><span class="boring">                    .expect("no mock found for method 'fetch'")
 </span><span class="boring">                    // pass in fetch's parameter to the mocked method
 </span><span class="boring">                    .call(a)
 </span><span class="boring">            }
@@ -646,10 +646,10 @@ assert_eq!(fetched, 3);
 </span><span class="boring">        match &amp;mut self.0 {
 </span><span class="boring">            MaybeNetworkClient::Fake(store) =&gt; When {
 </span><span class="boring">                store,
-</span><span class="boring">                method_name: &quot;fetch&quot;,
+</span><span class="boring">                method_name: "fetch",
 </span><span class="boring">                _marker: std::marker::PhantomData,
 </span><span class="boring">            },
-</span><span class="boring">            MaybeNetworkClient::Real(_) =&gt; panic!(&quot;cannot mock a real instance&quot;),
+</span><span class="boring">            MaybeNetworkClient::Real(_) =&gt; panic!("cannot mock a real instance"),
 </span><span class="boring">        }
 </span><span class="boring">    }
 </span><span class="boring">}

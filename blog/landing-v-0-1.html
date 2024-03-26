@@ -173,9 +173,9 @@ fn bus_stops() {
     let mut bus_client = bus::Client::faux();
 
     let expected_stops = vec![bus::StopInfo {
-        id: String::from(&quot;1_1234&quot;),
-        direction: String::from(&quot;N&quot;),
-        name: String::from(&quot;some bus&quot;),
+        id: String::from("1_1234"),
+        direction: String::from("N"),
+        name: String::from("some bus"),
         lat: 34.3199,
         lon: 23.12005,
     }];
@@ -212,7 +212,7 @@ fn bus_stops() {
 </span><span class="boring">
 </span><span class="boring">    let actual_stops = subject
 </span><span class="boring">        .bus_stops(&amp;area)
-</span><span class="boring">        .expect(&quot;expected a succesful bus stop response&quot;);
+</span><span class="boring">        .expect("expected a succesful bus stop response");
 </span><span class="boring">
 </span><span class="boring">    assert_eq!(actual_stops, expected_stops);
 </span>}
@@ -230,9 +230,9 @@ fn bus_stops() {
     let mut bus_client = bus::Client::faux();
 
     let expected_stops = vec![bus::StopInfo {
-        id: String::from(&quot;1_1234&quot;),
-        direction: String::from(&quot;N&quot;),
-        name: String::from(&quot;some bus&quot;),
+        id: String::from("1_1234"),
+        direction: String::from("N"),
+        name: String::from("some bus"),
         lat: 34.3199,
         lon: 23.12005,
     }];
@@ -262,7 +262,7 @@ fn bus_stops() {
 </span><span class="boring">
 </span><span class="boring">    let actual_stops = subject
 </span><span class="boring">        .bus_stops(&amp;area)
-</span><span class="boring">        .expect(&quot;expected a succesful bus stop response&quot;);
+</span><span class="boring">        .expect("expected a succesful bus stop response");
 </span><span class="boring">
 </span><span class="boring">    assert_eq!(actual_stops, expected_stops);
 </span>}

@@ -155,16 +155,16 @@ project, or even exposed to users of your library so they can mock
 your structs when testing their own library or application.</p>
 <blockquote>
 <p>The solution explored in this chapter applies not only to <code>faux</code> but
-to any &quot;test&quot; code you want to export across crates.</p>
+to any "test" code you want to export across crates.</p>
 </blockquote>
 <p>To better explain, let's start with an example. Let's say we are
 building a graphics rendering library, <code>testable-renderer</code>. As
 expected, <code>faux</code> is declared in <code>dev-dependencies</code></p>
 <pre><code class="language-toml">[package]
-name = &quot;testable-renderer&quot;
+name = "testable-renderer"
 
 [dev-dependencies]
-faux = &quot;^0.1&quot;
+faux = "^0.1"
 </code></pre>
 <p>And the code uses mocks:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">extern crate faux;
@@ -210,7 +210,7 @@ mod tests {
         faux::when!(renderer.render).then(|_| Ok(()));
 
         let subject = Texture {};
-        subject.render(&amp;mut renderer).expect(&quot;failed to render the texture&quot;)
+        subject.render(&amp;mut renderer).expect("failed to render the texture")
     }
 }
 <span class="boring">
@@ -218,7 +218,7 @@ mod tests {
 </span><span class="boring">    let mut renderer = Renderer::faux();
 </span><span class="boring">    faux::when!(renderer.render).then(|_| Ok(()));
 </span><span class="boring">    let subject = Texture {};
-</span><span class="boring">    subject.render(&amp;mut renderer).expect(&quot;failed to render the texture&quot;)
+</span><span class="boring">    subject.render(&amp;mut renderer).expect("failed to render the texture")
 </span><span class="boring">}</span></code></pre></pre>
 <h2 id="faux-as-a-feature"><a class="header" href="#faux-as-a-feature"><code>faux</code> as a feature</a></h2>
 <p>For the mocks to be exported, they need to be built even outside of
@@ -228,12 +228,12 @@ our dependency on <code>faux</code> optional:</p>
 <pre><code class="language-toml">[dependencies]
 # set up an optional feature outside of dev-dependencies so that users
 # of this library can use our mocks in their own tests
-faux = { version = &quot;^0.1&quot;, optional = true }
+faux = { version = "^0.1", optional = true }
 
 [dev-dependencies]
 # our tests still depend on faux; so add it again but do not make it
 # optional
-faux = &quot;^0.1&quot;
+faux = "^0.1"
 </code></pre>
 <p>Note that we still include <code>faux</code> in <code>dev-dependencies</code>. Our tests are
 always dependent on <code>faux</code>, since they use mocks, so the dependency is
@@ -246,14 +246,14 @@ enabled, which will be explained later.</p>
 created when that flag is turned on. This is accomplished using the
 <code>any</code> attribute:</p>
 <pre><pre class="playground"><code class="language-rust">// mocks are available for both test and the faux feature flag
-#[cfg_attr(any(test, feature = &quot;faux&quot;), faux::create)]
+#[cfg_attr(any(test, feature = "faux"), faux::create)]
 pub struct Renderer {
     /* snip */
 <span class="boring">    _inner: u8,
 </span>}
 
 // mocks are available for both test and the faux feature flag
-#[cfg_attr(any(test, feature = &quot;faux&quot;), faux::methods)]
+#[cfg_attr(any(test, feature = "faux"), faux::methods)]
 impl Renderer {
     pub fn new() -&gt; Renderer {
         /* snip */
@@ -273,7 +273,7 @@ impl Renderer {
 <pre><pre class="playground"><code class="language-rust">#[cfg_attr(test, ...)]
 <span class="boring">fn main()</span></code></pre></pre>
 <p>with</p>
-<pre><pre class="playground"><code class="language-rust">#[cfg_attr(any(test, feature = &quot;faux&quot;), ...)]
+<pre><pre class="playground"><code class="language-rust">#[cfg_attr(any(test, feature = "faux"), ...)]
 <span class="boring">fn main()</span></code></pre></pre>
 <p>This tells Rust to use the <code>faux</code> attributes (<code>create</code> and <code>methods</code>)
 for either <code>test</code> or the <code>faux</code> feature flag. You can learn more about
@@ -344,7 +344,7 @@ so we activate them by configuring the feature flag in our
 # important so features turned on by dev-dependencies don't infect the
 # binary when doing a normal build. This lets us have different feature
 # flags in dev-dependencies vs normal dependencies.
-resolver = &quot;2&quot;
+resolver = "2"
 
 [dependencies]
 # our normal dependency does not activate `faux`, thus keeping it out of
@@ -354,15 +354,15 @@ testable-renderer = * # some version
 [dev-dependencies]
 # for tests, we activate the `faux` feature in our dependency so that
 # we can use the exposed mocks
-testable-renderer = { version = &quot;*&quot;, features = [&quot;faux&quot;] }
+testable-renderer = { version = "*", features = ["faux"] }
 
 # still depend on `faux` so we can use setup the mocks
-faux = &quot;^0.1&quot;
+faux = "^0.1"
 </code></pre>
 <p>The important takeaways are:</p>
 <ul>
 <li>
-<p><code>resolver = &quot;2&quot;</code>. This is needed so <code>faux</code> stays out of our normal
+<p><code>resolver = "2"</code>. This is needed so <code>faux</code> stays out of our normal
 builds. See the <a href="https://doc.rust-lang.org/nightly/cargo/reference/features.html#feature-resolver-version-2">Cargo Reference</a>.</p>
 </li>
 <li>
@@ -383,7 +383,7 @@ mod tests {
         faux::when!(renderer.render).then(|_| Ok(()));
 
         let world = World::new();
-        world.render(&amp;mut renderer).expect(&quot;failed to render the world&quot;)
+        world.render(&amp;mut renderer).expect("failed to render the world")
     }
 }
 
@@ -403,7 +403,7 @@ feature flag is turned on.</p>
 to:</p>
 <ul>
 <li>
-<p>Change the feature resolver to &quot;2&quot; in its <code>Cargo.toml</code>. Be aware
+<p>Change the feature resolver to "2" in its <code>Cargo.toml</code>. Be aware
 that if you are using a workspace, this needs to be changed in the
 workspace's <code>Cargo.toml</code>.</p>
 </li>

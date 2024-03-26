@@ -146,7 +146,7 @@ recommended for use inside tests. Follow the steps below to configure
 <h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
 <p><code>faux</code> should be added under <code>[dev-dependencies]</code> in <code>Cargo.toml</code>.</p>
 <pre><code class="language-toml">[dev-dependencies]
-faux = &quot;^0.1&quot;
+faux = "^0.1"
 </code></pre>
 <p>This makes sure that <code>faux</code> only gets included when compiling and
 running tests, thus making it impossible to leak into production code.</p>
@@ -373,7 +373,7 @@ change is tagging it with the <code>faux</code> attributes.</p>
 </span><span class="boring">    let subject = Concierge::new(client);
 </span><span class="boring">    let options = Options { /* snip */ };
 </span><span class="boring">    let reservation = subject
-</span><span class="boring">        .reserve_matching(options).expect(&quot;expected successful reservation&quot;);
+</span><span class="boring">        .reserve_matching(options).expect("expected successful reservation");
 </span><span class="boring">
 </span><span class="boring">    assert_eq!(reservation, expected_reservation);
 </span><span class="boring">
@@ -385,7 +385,7 @@ change is tagging it with the <code>faux</code> attributes.</p>
 </span><span class="boring">    let options = Options { /* snip */ };
 </span><span class="boring">    let error = subject
 </span><span class="boring">        .reserve_matching(options)
-</span><span class="boring">        .expect_err(&quot;expected error reservation&quot;);
+</span><span class="boring">        .expect_err("expected error reservation");
 </span><span class="boring">
 </span><span class="boring">    assert!(matches!(error, Error::NoReservations));
 </span><span class="boring">}
@@ -417,7 +417,7 @@ mod tests {
         let options = Options { /* snip */ };
         let reservation = subject
             .reserve_matching(options)
-            .expect(&quot;expected successful reservation&quot;);
+            .expect("expected successful reservation");
 
         assert_eq!(reservation, expected_reservation);
     }
@@ -431,7 +431,7 @@ mod tests {
         let options = Options { /* snip */ };
         let error = subject
             .reserve_matching(options)
-            .expect_err(&quot;expected error reservation&quot;);
+            .expect_err("expected error reservation");
 
         assert!(matches!(error, Error::NoReservations));
     }
