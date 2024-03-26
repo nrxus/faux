@@ -40,7 +40,7 @@ impl MyStructToMock { /* methods to mock */ }
 mod client {
     // #[faux::create] makes a struct mockable and
     // generates an associated `faux` function
-    // e.g., `UserClient::faux()` will create a a mock `UserClient` instance
+    // e.g., `UserClient::faux()` will create a mock `UserClient` instance
     #[faux::create]
     pub struct UserClient { /* data of the client */ }
 
