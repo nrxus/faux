@@ -12,8 +12,6 @@ pub struct Foo {}
 #[faux::create]
 pub struct Bar {}
 
-
-
 #[faux::methods]
 impl Foo {
     pub fn foo<E: MyTrait>(&self, _e: E) -> E {
@@ -22,11 +20,19 @@ impl Foo {
     pub fn bar<E: MyTrait, F: MyTrait>(&self, _e: E, _f: F) -> Result<E, F> {
         todo!()
     }
-    pub fn baz<E>(&self, _e: E) -> E where E: MyTrait {
+    pub fn baz<E>(&self, _e: E) -> E
+    where
+        E: MyTrait,
+    {
+        todo!()
+    }
+    pub fn qux<E>(&self)
+    where
+        E: MyTrait,
+    {
         todo!()
     }
 }
-
 
 #[faux::create]
 struct AsyncFoo {}
@@ -38,11 +44,26 @@ impl AsyncFoo {
     pub async fn bar<E: MyTrait, F: MyTrait>(&self, _e: E, _f: F) -> Result<E, F> {
         todo!()
     }
-    pub async fn baz<E>(&self, _e: E) -> E where E: MyTrait {
+    pub async fn baz<E>(&self, _e: E) -> E
+    where
+        E: MyTrait,
+    {
+        todo!()
+    }
+    pub async fn qux<E>(&self)
+    where
+        E: MyTrait,
+    {
+        todo!()
+    }
+
+    pub async fn qux_with_arg<E>(&self, _arg: u32) -> u32
+    where
+        E: MyTrait,
+    {
         todo!()
     }
 }
-
 
 #[test]
 fn generics() {
@@ -57,6 +78,10 @@ fn generics() {
     let mut baz = Foo::faux();
     faux::when!(baz.baz).then_return(Entity {});
     assert_eq!(baz.baz(Entity {}), Entity {});
+
+    let mut qux = Foo::faux();
+    faux::when!(qux.qux::<Entity>()).then(|_| {});
+    qux.qux::<Entity>();
 }
 
 #[test]
@@ -69,9 +94,21 @@ fn generic_tests_async() {
 
     let mut baz = AsyncFoo::faux();
     faux::when!(baz.baz).then_return(Entity {});
+
+    let mut qux = AsyncFoo::faux();
+    faux::when!(qux.qux::<Entity>()).then(|_| {});
+
+    let mut qux_with_arg = AsyncFoo::faux();
+    faux::when!(qux_with_arg.qux_with_arg::<Entity>()).then(|_| 100);
+    faux::when!(qux_with_arg.qux_with_arg::<Entity>(42)).then(|_| 84);
+    faux::when!(qux_with_arg.qux_with_arg::<Entity>(43)).then(|_| 86);
     futures::executor::block_on(async {
         assert_eq!(foo.foo(Entity {}).await, Entity {});
         assert_eq!(bar.bar(Entity {}, Entity {}).await, Ok(Entity {}));
         assert_eq!(baz.baz(Entity {}).await, Entity {});
+        qux.qux::<Entity>().await;
+        assert_eq!(qux_with_arg.qux_with_arg::<Entity>(42).await, 84);
+        assert_eq!(qux_with_arg.qux_with_arg::<Entity>(43).await, 86);
+        assert_eq!(qux_with_arg.qux_with_arg::<Entity>(50).await, 100);
     });
 }
