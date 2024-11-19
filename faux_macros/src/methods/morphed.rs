@@ -14,6 +14,7 @@ pub struct Signature<'a> {
 
 pub struct MethodData<'a> {
     receiver: Receiver,
+    generics: syn::Generics,
     arg_types: Vec<WhenArg<'a>>,
     is_private: bool,
 }
@@ -89,6 +90,7 @@ impl<'a> Signature<'a> {
         vis: &syn::Visibility,
     ) -> Signature<'a> {
         let receiver = Receiver::from_signature(signature);
+        let generics = signature.generics.clone();
 
         let output = match &signature.output {
             syn::ReturnType::Default => None,
@@ -110,6 +112,7 @@ impl<'a> Signature<'a> {
 
             MethodData {
                 receiver,
+                generics,
                 arg_types,
                 is_private: trait_path.is_none() && *vis == syn::Visibility::Inherited,
             }
@@ -332,6 +335,7 @@ impl<'a> MethodData<'a> {
         let MethodData {
             arg_types,
             receiver,
+            generics,
             ..
         } = self;
         let receiver_ty = &receiver.ty;
@@ -345,8 +349,18 @@ impl<'a> MethodData<'a> {
         let output = output.unwrap_or(&empty);
         let name_str = name.to_string();
 
+        let generics_contents = &generics.params;
+
+        let maybe_comma = if generics_contents.is_empty() {
+            quote! {}
+        } else {
+            quote! { , }
+        };
+
+        let generics_where_clause = &generics.where_clause;
+
         let when_method = syn::parse_quote! {
-            pub fn #when_ident<'m>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
+            pub fn #when_ident<'m #maybe_comma #generics_contents>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #generics_where_clause {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
                         <Self>::#faux_ident,
@@ -362,7 +376,7 @@ impl<'a> MethodData<'a> {
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             #[allow(clippy::boxed_local)]
-            pub fn #faux_ident(self: #receiver_ty, _: (#(#arg_types),*)) -> #output {
+            pub fn #faux_ident #generics (self: #receiver_ty, _: (#(#arg_types),*)) -> #output #generics_where_clause {
                 panic!(#panic_message)
             }
         };
