@@ -6,6 +6,10 @@ pub trait MyTrait {}
 struct Entity {}
 impl MyTrait for Entity {}
 
+#[derive(Clone, PartialEq, Debug)]
+struct Entity2 {}
+impl MyTrait for Entity2 {}
+
 #[faux::create]
 pub struct Foo {}
 
@@ -111,4 +115,22 @@ fn generic_tests_async() {
         assert_eq!(qux_with_arg.qux_with_arg::<Entity>(43).await, 86);
         assert_eq!(qux_with_arg.qux_with_arg::<Entity>(50).await, 100);
     });
+}
+
+#[test]
+fn generic_two_different_impls() {
+    let mut qux_with_arg = AsyncFoo::faux();
+    faux::when!(qux_with_arg.qux_with_arg::<Entity>()).then(|_| 100);
+    faux::when!(qux_with_arg.qux_with_arg::<Entity2>()).then(|_| 200);
+    futures::executor::block_on(async {
+        assert_eq!(qux_with_arg.qux_with_arg::<Entity>(42).await, 100);
+        assert_eq!(qux_with_arg.qux_with_arg::<Entity2>(42).await, 200);
+    });
+}
+
+#[test]
+#[should_panic(expected = "`Foo::qux<E>` was called but never stubbed")]
+fn unmocked_faux_panics_with_generic_information() {
+    let foo = Foo::faux();
+    foo.qux::<Entity>();
 }

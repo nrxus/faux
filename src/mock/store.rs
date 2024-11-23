@@ -44,6 +44,7 @@ impl<'stub> Store<'stub> {
         &self,
         id: fn(R, I) -> O,
         fn_name: &'static str,
+        generics: &'static str,
     ) -> Result<&Mock<'stub, I, O>, InvocationError> {
         match self.stubs.get(&(id as usize)).map(|m| m.as_typed()) {
             Some(mock) => {
@@ -53,6 +54,7 @@ impl<'stub> Store<'stub> {
             None => Err(InvocationError {
                 fn_name,
                 struct_name: self.struct_name,
+                generics,
                 stub_error: super::InvocationError::NeverStubbed,
             }),
         }
