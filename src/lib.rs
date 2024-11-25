@@ -1003,7 +1003,7 @@ impl Faux {
     ) -> Result<O, InvocationError> {
         let mock = self.store.get(id, fn_name, generics)?;
         mock.call(input).map_err(|stub_error| InvocationError {
-            fn_name: fn_name,
+            fn_name: mock.name(),
             struct_name: self.store.struct_name,
             generics,
             stub_error,

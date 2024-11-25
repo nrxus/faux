@@ -363,12 +363,11 @@ impl<'a> MethodData<'a> {
         let output = output.unwrap_or(&empty);
         let name_str = name.to_string();
 
-        let generics_contents = &generics.params;
-
-        let maybe_comma = if generics_contents.is_empty() {
-            quote! {}
+        let generics_contents = if generics.params.is_empty() {
+            None
         } else {
-            quote! { , }
+            let params = &generics.params;
+            Some(quote! { , #params })
         };
 
         let generics_where_clause = &generics.where_clause;
@@ -377,7 +376,7 @@ impl<'a> MethodData<'a> {
         let turbofish = turbofish(&generic_idents);
 
         let when_method = syn::parse_quote! {
-            pub fn #when_ident<'m #maybe_comma #generics_contents>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #generics_where_clause {
+            pub fn #when_ident<'m #generics_contents>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #generics_where_clause {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
                         <Self>::#faux_ident #turbofish,
