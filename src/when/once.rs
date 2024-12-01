@@ -181,7 +181,8 @@ impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> Once<'m, R, I, O, M>
     pub unsafe fn then_unchecked(self, stub: impl FnOnce(I) -> O + Send) {
         let stub: Box<dyn FnOnce(I) -> O + Send> = Box::new(stub);
         // pretend the lifetime is 'static
-        self.add_stub(std::mem::transmute(stub));
+        let stub: Box<_> = std::mem::transmute(stub);
+        self.add_stub(stub);
     }
 
     fn add_stub(self, stub: Box<dyn FnOnce(I) -> O + Send + 'static>) {

@@ -70,7 +70,7 @@ impl<'stub, I, O> From<Mock<'stub, I, O>> for Unchecked<'stub> {
         // * as_checked_mut: already marked as `unsafe`
         // * debug format: does not look into the unsafe fields
         unsafe {
-            let unsafe_mock = std::mem::transmute(mock);
+            let unsafe_mock: Mock<_, _> = std::mem::transmute(mock);
             Self {
                 unsafe_mock,
                 debug_repr,

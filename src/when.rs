@@ -326,7 +326,8 @@ impl<'m, R, I, O, M: InvocationMatcher<I> + Send + 'static> When<'m, R, I, O, M>
     pub unsafe fn then_unchecked(self, stub: impl FnMut(I) -> O + Send) {
         let stub: Box<dyn FnMut(I) -> O + Send> = Box::new(stub);
         // pretend the lifetime is 'static
-        self.add_stub(std::mem::transmute(stub));
+        let stub: Box<_> = std::mem::transmute(stub);
+        self.add_stub(stub);
     }
 
     /// Limits the number of calls for which a mock is active.

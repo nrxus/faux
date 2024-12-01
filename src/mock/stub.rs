@@ -72,7 +72,7 @@ impl<'a, I, O> Stub<'a, I, O> {
     }
 }
 
-impl<'a, I, O> Answer<'a, I, O> {
+impl<I, O> Answer<'_, I, O> {
     fn call(&mut self, input: I) -> Result<O, (I, Error)> {
         // no need to replace if we can keep decrementing
         if let Answer::Many { stub, times } = self {
@@ -91,7 +91,7 @@ impl<'a, I, O> Answer<'a, I, O> {
     }
 }
 
-impl<'a, I, O> fmt::Debug for Stub<'a, I, O> {
+impl<I, O> fmt::Debug for Stub<'_, I, O> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Stub")
             // TODO: Add debug information for InvocationMatcher

@@ -72,7 +72,7 @@ pub fn replace_impl_trait(ty: &syn::Type) -> Option<syn::Type> {
     }
 }
 
-impl<'a> ToTokens for WhenArg<'a> {
+impl ToTokens for WhenArg<'_> {
     fn to_tokens(&self, token_stream: &mut proc_macro2::TokenStream) {
         match replace_impl_trait(self.0) {
             None => self.0.to_tokens(token_stream),
@@ -340,7 +340,7 @@ impl<'a> Signature<'a> {
     }
 }
 
-impl<'a> MethodData<'a> {
+impl MethodData<'_> {
     pub fn create_when(
         &self,
         output: Option<&syn::Type>,
@@ -464,7 +464,7 @@ fn ang_generic_contains_self(args: &syn::AngleBracketedGenericArguments, path: &
 fn return_contains_self(ret: &syn::ReturnType, path: &TypePath) -> bool {
     match &ret {
         syn::ReturnType::Default => false,
-        syn::ReturnType::Type(_, ty) => contains_self(&ty, path),
+        syn::ReturnType::Type(_, ty) => contains_self(ty, path),
     }
 }
 
@@ -492,19 +492,14 @@ fn path_args_contains_self(path: &syn::Path, self_path: &syn::TypePath) -> bool 
         PathArguments::AngleBracketed(args) => ang_generic_contains_self(args, self_path),
         PathArguments::Parenthesized(args) => {
             return_contains_self(&args.output, self_path)
-                || args.inputs.iter().any(|i| contains_self(&i, self_path))
+                || args.inputs.iter().any(|i| contains_self(i, self_path))
         }
     }
 }
 
 fn generic_type_idents(generics: Option<Generics>) -> Vec<Ident> {
     generics
-        .map(|g| {
-            g.type_params()
-                .into_iter()
-                .map(|tp| tp.ident.clone())
-                .collect()
-        })
+        .map(|g| g.type_params().map(|tp| tp.ident.clone()).collect())
         .unwrap_or_default()
 }
 

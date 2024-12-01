@@ -14,14 +14,14 @@
 //! At a high level, `faux` is split into:
 //!
 //! * [`#[create]`](create): transforms a struct into a mockable
-//! equivalent
+//!   equivalent
 //! * [`#[methods]`](methods): transforms the methods in an `impl`
-//! block into their mockable equivalents
+//!   block into their mockable equivalents
 //! * [`when!`]: initializes a method stub by returning a
-//! [`When`]. Passing optional argument matchers restricts which
-//! arguments will invoke the stub.
+//!   [`When`]. Passing optional argument matchers restricts which
+//!   arguments will invoke the stub.
 //! * [`When`]: lets you stub a method's return value or
-//! implementation
+//!   implementation
 //!
 //! # Getting Started
 //!
@@ -244,7 +244,7 @@
 //! * Methods with pointer self types (e.g., `self: Rc<Self>`)
 //! * Methods in external modules
 //! * Support for `Debug`, `Default`, `Clone`, `Send`, and `Sync`
-//! derive/auto traits.
+//!   derive/auto traits.
 //!
 //! `faux` also provides easy-to-use argument matchers.
 //!
@@ -653,9 +653,9 @@ pub use faux_macros::create;
 /// * Returning the struct itself (e.g., `fn new() -> Self`)
 ///
 /// * Returning the struct wrapped directly in: `Rc`, `Arc`, `Box`,
-/// `Result`, or `Option`. For `Result`, referring to the struct is
-/// only allowed if it's the `Ok` variant of the result. (e.g., `fn
-/// load() -> Result<Self, Error>`)
+///   `Result`, or `Option`. For `Result`, referring to the struct is
+///   only allowed if it's the `Ok` variant of the result. (e.g., `fn
+///   load() -> Result<Self, Error>`)
 ///
 /// Any other kind of return type that refers to the mocked struct is
 /// not supported by `faux`. Please file an issue if you have a use
