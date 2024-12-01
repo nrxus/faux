@@ -69,7 +69,7 @@ fn faux_ref_output() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "`Foo::get_stuff` was called but never stubbed")]
 fn unmocked_faux_panics() {
     let mock = Foo::faux();
     mock.get_stuff();

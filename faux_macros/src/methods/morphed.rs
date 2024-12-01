@@ -1,7 +1,7 @@
 use crate::{methods::receiver::Receiver, self_type::SelfType};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{spanned::Spanned, PathArguments, Type, TypePath};
+use syn::{spanned::Spanned, Generics, Ident, PathArguments, Type, TypePath};
 
 pub struct Signature<'a> {
     name: &'a syn::Ident,
@@ -14,6 +14,7 @@ pub struct Signature<'a> {
 
 pub struct MethodData<'a> {
     receiver: Receiver,
+    generics: syn::Generics,
     arg_types: Vec<WhenArg<'a>>,
     is_private: bool,
 }
@@ -89,6 +90,7 @@ impl<'a> Signature<'a> {
         vis: &syn::Visibility,
     ) -> Signature<'a> {
         let receiver = Receiver::from_signature(signature);
+        let generics = signature.generics.clone();
 
         let output = match &signature.output {
             syn::ReturnType::Default => None,
@@ -110,6 +112,7 @@ impl<'a> Signature<'a> {
 
             MethodData {
                 receiver,
+                generics,
                 arg_types,
                 is_private: trait_path.is_none() && *vis == syn::Visibility::Inherited,
             }
@@ -144,9 +147,17 @@ impl<'a> Signature<'a> {
         let name = &self.name;
         let args = &self.args;
 
+        let generics = self
+            .method_data
+            .as_ref()
+            .map(|method_data| method_data.generics.clone());
+
+        let generic_idents = generic_type_idents(generics);
+        let turbofish = turbofish(&generic_idents);
+
         let proxy = match self.trait_path {
-            None => quote! { <#real_ty>::#name },
-            Some(path) => quote! { <#real_ty as #path>::#name },
+            None => quote! { <#real_ty>::#name #turbofish },
+            Some(path) => quote! { <#real_ty as #path>::#name #turbofish },
         };
 
         let real_self_arg = self.method_data.as_ref().map(|_| {
@@ -204,10 +215,16 @@ impl<'a> Signature<'a> {
                     };
 
                     let fn_name = name.to_string();
+                    let mut generics_str = generic_idents
+                        .into_iter()
+                        .map(|i| i.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    generics_str.retain(|c| !c.is_whitespace());
 
                     quote! {
                         unsafe {
-                            match _maybe_faux_faux.call_stub(<Self>::#faux_ident, #fn_name, #args) {
+                            match _maybe_faux_faux.call_stub(<Self>::#faux_ident #turbofish, #fn_name, #args, #generics_str) {
                                 std::result::Result::Ok(o) => o,
                                 std::result::Result::Err(e) => panic!("{}", e),
                             }
@@ -332,6 +349,7 @@ impl<'a> MethodData<'a> {
         let MethodData {
             arg_types,
             receiver,
+            generics,
             ..
         } = self;
         let receiver_ty = &receiver.ty;
@@ -345,11 +363,23 @@ impl<'a> MethodData<'a> {
         let output = output.unwrap_or(&empty);
         let name_str = name.to_string();
 
+        let generics_contents = if generics.params.is_empty() {
+            None
+        } else {
+            let params = &generics.params;
+            Some(quote! { , #params })
+        };
+
+        let generics_where_clause = &generics.where_clause;
+
+        let generic_idents = generic_type_idents(Some(generics.clone()));
+        let turbofish = turbofish(&generic_idents);
+
         let when_method = syn::parse_quote! {
-            pub fn #when_ident<'m>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> {
+            pub fn #when_ident<'m #generics_contents>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #generics_where_clause {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
-                        <Self>::#faux_ident,
+                        <Self>::#faux_ident #turbofish,
                         #name_str,
                         _maybe_faux_faux
                     ),
@@ -362,7 +392,7 @@ impl<'a> MethodData<'a> {
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             #[allow(clippy::boxed_local)]
-            pub fn #faux_ident(self: #receiver_ty, _: (#(#arg_types),*)) -> #output {
+            pub fn #faux_ident #generics (self: #receiver_ty, _: (#(#arg_types),*)) -> #output #generics_where_clause {
                 panic!(#panic_message)
             }
         };
@@ -464,5 +494,24 @@ fn path_args_contains_self(path: &syn::Path, self_path: &syn::TypePath) -> bool 
             return_contains_self(&args.output, self_path)
                 || args.inputs.iter().any(|i| contains_self(&i, self_path))
         }
+    }
+}
+
+fn generic_type_idents(generics: Option<Generics>) -> Vec<Ident> {
+    generics
+        .map(|g| {
+            g.type_params()
+                .into_iter()
+                .map(|tp| tp.ident.clone())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn turbofish(idents: &[Ident]) -> TokenStream {
+    if idents.is_empty() {
+        quote! {}
+    } else {
+        quote! { :: < #(#idents),* > }
     }
 }

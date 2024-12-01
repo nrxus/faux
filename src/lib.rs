@@ -999,11 +999,13 @@ impl Faux {
         id: fn(R, I) -> O,
         fn_name: &'static str,
         input: I,
+        generics: &'static str,
     ) -> Result<O, InvocationError> {
-        let mock = self.store.get(id, fn_name)?;
+        let mock = self.store.get(id, fn_name, generics)?;
         mock.call(input).map_err(|stub_error| InvocationError {
             fn_name: mock.name(),
             struct_name: self.store.struct_name,
+            generics,
             stub_error,
         })
     }
@@ -1012,22 +1014,30 @@ impl Faux {
 pub struct InvocationError {
     struct_name: &'static str,
     fn_name: &'static str,
+    generics: &'static str,
     stub_error: mock::InvocationError,
 }
 
 impl fmt::Display for InvocationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let generics = if self.generics.is_empty() {
+            String::new()
+        } else {
+            format!("<{}>", self.generics)
+        };
         match &self.stub_error {
-            mock::InvocationError::NeverStubbed => write!(
-                f,
-                "`{}::{}` was called but never stubbed",
-                self.struct_name, self.fn_name
-            ),
+            mock::InvocationError::NeverStubbed => {
+                write!(
+                    f,
+                    "`{}::{}{}` was called but never stubbed",
+                    self.struct_name, self.fn_name, generics
+                )
+            }
             mock::InvocationError::Stub(errors) => {
                 writeln!(
                     f,
-                    "`{}::{}` had no suitable stubs. Existing stubs failed because:",
-                    self.struct_name, self.fn_name
+                    "`{}::{}{}` had no suitable stubs. Existing stubs failed because:",
+                    self.struct_name, self.fn_name, generics
                 )?;
                 let mut errors = errors.iter();
                 if let Some(e) = errors.next() {

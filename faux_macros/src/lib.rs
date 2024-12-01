@@ -58,6 +58,7 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             receiver,
             method,
             args,
+            turbofish,
             ..
         }) => {
             let when = quote::format_ident!("_when_{}", method);
@@ -69,7 +70,8 @@ pub fn when(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             match args {
                 Err(e) => e.write_errors().into(),
-                Ok(args) => TokenStream::from(quote!({ #receiver.#when().with_args((#(#args,)*)) }))
+                Ok(args) if args.is_empty() => { TokenStream::from(quote!({ #receiver.#when #turbofish() }))}
+                Ok(args) => { TokenStream::from(quote!({ #receiver.#when #turbofish().with_args((#(#args,)*)) }))}
             }
         }
         expr => darling::Error::custom("faux::when! only accepts arguments in the format of: `when!(receiver.method)` or `receiver.method(args...)`")

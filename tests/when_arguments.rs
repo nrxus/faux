@@ -28,9 +28,6 @@ impl Foo {
     }
 }
 
-#[derive(Debug)]
-struct Bar(i32);
-
 #[test]
 fn no_args() {
     let mut mock = Foo::faux();
