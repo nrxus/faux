@@ -388,12 +388,15 @@ impl MethodData<'_> {
             }
         };
 
-        let panic_message = format!("do not call this ({})", name);
+        let proxy = quote! { <Self>::#faux_ident #turbofish };
+
+        let panic_message = format!("do not call this ({proxy})");
+
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             #[allow(clippy::boxed_local)]
             pub fn #faux_ident #generics (self: #receiver_ty, _: (#(#arg_types),*)) -> #output #generics_where_clause {
-                panic!(#panic_message)
+                panic!(concat!(#panic_message, "{:?}"), #proxy as *const ())
             }
         };
 
