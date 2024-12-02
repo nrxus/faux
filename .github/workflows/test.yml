@@ -16,10 +16,10 @@ jobs:
     - name: test stable --release
       run: cargo +stable test --release --verbose
     # MSRV
-    - uses: dtolnay/rust-toolchain@1.58.1
+    - uses: dtolnay/rust-toolchain@1.63.0
     - name: build MSRV
-      run: cargo +1.58.1 build --verbose
+      run: cargo +1.63.0 build --verbose
     - name: test MSRV
-      run: cargo +1.58.1 test --verbose
+      run: cargo +1.63.0 test --verbose
     - name: test MSRV --release
-      run: cargo +1.58.1 test --release --verbose
+      run: cargo +1.63.0 test --release --verbose

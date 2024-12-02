@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## NEXT
+* Add support for mocking methods with generic parameters
+  * [test](/tests/generic_method_return.rs)
+* Bump MSRV as v1.63
+
 ## v0.1.10
 * Fix issue where methods that returned a type with a name that
   contains the name of the mocked struct would fail to compile.

@@ -3,11 +3,12 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use std::fmt::{self, Formatter};
 
-#[derive(FromMeta, PartialEq, Eq, Copy, Clone)]
+#[derive(FromMeta, PartialEq, Eq, Copy, Clone, Default)]
 #[darling(rename_all = "PascalCase")]
 pub enum SelfType {
     Rc,
     #[darling(rename = "owned")]
+    #[default]
     Owned,
     Arc,
     Box,
@@ -27,12 +28,6 @@ impl SelfType {
             SelfType::Box => Some(quote!(std::boxed::Box)),
             SelfType::Arc => Some(quote!(std::sync::Arc)),
         }
-    }
-}
-
-impl Default for SelfType {
-    fn default() -> Self {
-        SelfType::Owned
     }
 }
 

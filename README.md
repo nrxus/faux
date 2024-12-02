@@ -1,4 +1,4 @@
-# faux &emsp; [![Latest Version]][crates.io] [![rustc 1.58+]][Rust 1.58] [![docs]][api docs] ![][build]
+# faux &emsp; [![Latest Version]][crates.io] [![rustc 1.63+]][Rust 1.63] [![docs]][api docs] ![][build]
 
 A library to create [mocks] out of structs.
 
@@ -227,8 +227,8 @@ methods in structs.
 
 [Latest Version]: https://img.shields.io/crates/v/faux.svg
 [crates.io]: https://crates.io/crates/faux
-[rustc 1.58+]: https://img.shields.io/badge/rustc-1.58+-blue.svg
-[Rust 1.58]: https://blog.rust-lang.org/2022/01/13/Rust-1.58.0.html
+[rustc 1.63+]: https://img.shields.io/badge/rustc-1.63+-blue.svg
+[Rust 1.63]: https://blog.rust-lang.org/2022/08/11/Rust-1.63.0.html
 [Latest Version]: https://img.shields.io/crates/v/faux.svg
 [docs]: https://img.shields.io/badge/api-docs-blue.svg
 [api docs]: https://docs.rs/faux/
