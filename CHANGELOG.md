@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## NEXT
+## v0.1.11
 * Add support for mocking methods with generic parameters
   * [test](/tests/generic_method_return.rs)
 * Bump MSRV as v1.63
