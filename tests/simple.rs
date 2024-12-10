@@ -24,6 +24,14 @@ impl Foo {
     pub fn ret_ref(&self, _: &u32) -> &u32 {
         &self.a
     }
+
+    pub fn ret_wrapped(&self, _: &u32) -> Option<&u32> {
+        Some(&self.a)
+    }
+
+    pub fn ret_wrapped_twice(&self, _: &u32) -> Option<Option<&u32>> {
+        Some(Some(&self.a))
+    }
 }
 
 fn load_a() -> Result<u32, Box<dyn std::error::Error>> {
@@ -66,6 +74,16 @@ fn faux_ref_output() {
     unsafe { faux::when!(mock.ret_ref).then_unchecked(|a| a) };
     let x = 30 + 30;
     assert_eq!(*mock.ret_ref(&x), 60);
+}
+
+#[test]
+fn faux_ref_wrapped_output() {
+    let mut mock = Foo::faux();
+    unsafe { faux::when!(mock.ret_wrapped).then_unchecked(|a| Some(a)) };
+    unsafe { faux::when!(mock.ret_wrapped_twice).then_unchecked(|a| Some(Some(a))) };
+    let x = 30 + 30;
+    assert_eq!(*mock.ret_wrapped(&x).unwrap(), 60);
+    assert_eq!(*mock.ret_wrapped_twice(&x).unwrap().unwrap(), 60);
 }
 
 #[test]
