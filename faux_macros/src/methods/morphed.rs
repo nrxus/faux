@@ -1,7 +1,10 @@
 use crate::{methods::receiver::Receiver, self_type::SelfType};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{spanned::Spanned, Generics, Ident, PathArguments, Type, TypePath};
+use syn::{
+    spanned::Spanned, GenericArgument, Generics, Ident, Lifetime, PathArguments, PathSegment, Type,
+    TypePath,
+};
 
 pub struct Signature<'a> {
     name: &'a syn::Ident,
@@ -352,7 +355,18 @@ impl MethodData<'_> {
             generics,
             ..
         } = self;
-        let receiver_ty = &receiver.ty;
+        let mut receiver_ty = receiver.ty.clone();
+        add_lifetime(&mut receiver_ty, &syn::parse(quote! { 'm }.into()).unwrap());
+
+        let arg_types = arg_types
+            .iter()
+            .map(|arg_type| {
+                let mut typ = arg_type.0.clone();
+                add_lifetime(&mut typ, &syn::parse(quote! { '_ }.into()).unwrap());
+                let new_arg_type = WhenArg(&typ);
+                quote! { #new_arg_type }
+            })
+            .collect::<Vec<_>>();
 
         let when_ident =
             syn::Ident::new(&format!("_when_{}", name), proc_macro2::Span::call_site());
@@ -360,15 +374,13 @@ impl MethodData<'_> {
             syn::Ident::new(&format!("_faux_{}", name), proc_macro2::Span::call_site());
 
         let empty = syn::parse_quote! { () };
-        let output = output.unwrap_or(&empty);
+        let mut output = output.unwrap_or(&empty).clone();
+        add_lifetime(&mut output, &syn::parse(quote! { '_ }.into()).unwrap());
+
         let name_str = name.to_string();
 
-        let generics_contents = if generics.params.is_empty() {
-            None
-        } else {
-            let params = &generics.params;
-            Some(quote! { , #params })
-        };
+        let generic_params = &generics.params;
+        let generics_contents = quote! { 'm, #generic_params };
 
         let generics_where_clause = &generics.where_clause;
 
@@ -376,7 +388,7 @@ impl MethodData<'_> {
         let turbofish = turbofish(&generic_idents);
 
         let when_method = syn::parse_quote! {
-            pub fn #when_ident<'m #generics_contents>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #generics_where_clause {
+            pub fn #when_ident<#generics_contents>(&'m mut self) -> faux::When<'m, #receiver_ty, (#(#arg_types),*), #output, faux::matcher::AnyInvocation> #generics_where_clause {
                 match &mut self.0 {
                     faux::MaybeFaux::Faux(_maybe_faux_faux) => faux::When::new(
                         <Self>::#faux_ident #turbofish,
@@ -395,12 +407,45 @@ impl MethodData<'_> {
         let faux_method = syn::parse_quote! {
             #[allow(clippy::needless_arbitrary_self_type)]
             #[allow(clippy::boxed_local)]
-            pub fn #faux_ident #generics (self: #receiver_ty, _: (#(#arg_types),*)) -> #output #generics_where_clause {
+            pub fn #faux_ident <#generics_contents> (self: #receiver_ty, _: (#(#arg_types),*)) -> #output #generics_where_clause {
                 panic!(concat!(#panic_message, "{:?}"), #proxy as *const ())
             }
         };
 
         vec![when_method, faux_method]
+    }
+}
+
+// traverse a type, and add the provided lifetime references that don't have any lifetime yet.
+// Eg(pseudocode): `add_lifetime(Result<Option<&str>, ()>, 'a)`
+// will return
+// `Result<Option<&'a str>, ()>`
+fn add_lifetime(t: &mut Type, new_lifetime: &Lifetime) {
+    match t {
+        Type::Reference(ref mut reference) => {
+            let lifetime = &mut reference.lifetime;
+            if lifetime.is_none() {
+                lifetime.replace(new_lifetime.clone());
+            }
+        }
+        Type::Path(TypePath {
+            path: syn::Path { segments, .. },
+            ..
+        }) => {
+            if let Some(PathSegment {
+                arguments: syn::PathArguments::AngleBracketed(ref mut args),
+                ..
+            }) = segments.last_mut()
+            {
+                if let Some(first_arg) = args.args.first_mut() {
+                    match first_arg {
+                        GenericArgument::Type(t) => add_lifetime(t, new_lifetime),
+                        _ => {}
+                    }
+                }
+            };
+        }
+        _ => {}
     }
 }
 
