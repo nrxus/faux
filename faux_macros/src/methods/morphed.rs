@@ -416,7 +416,7 @@ impl MethodData<'_> {
     }
 }
 
-// traverse a type, and add the provided lifetime references that don't have any lifetime yet.
+// traverse a type, and add the provided lifetime to references that don't have any lifetime yet.
 // Eg(pseudocode): `add_lifetime(Result<Option<&str>, ()>, 'a)`
 // will return
 // `Result<Option<&'a str>, ()>`
