@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.12
+* Fix warnings about elided lifetimes already named in generated code
+
 ## v0.1.11
 * Add support for mocking methods with generic parameters
   * [test](/tests/generic_method_return.rs)
