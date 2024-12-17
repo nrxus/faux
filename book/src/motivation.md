@@ -24,7 +24,7 @@ forcing you write unnecessary abstractions.
 ## Mocking behavior
 
 faux is designed to mock *visibile behavior*. In Rust terms, faux is
-designed to mock *pubic methods*. Private methods are not visible and
+designed to mock *public methods*. Private methods are not visible and
 thus not mockable using faux. Fields of a struct are not behavior and
 thus not mockable using faux.
 
