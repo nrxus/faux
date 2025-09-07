@@ -1,17 +1,16 @@
 [package]
-name = "faux_macros"
+name = "faux_macros_impl"
 version = "0.1.12"
 authors = ["Andres <andresnrx@gmail.com>"]
 edition = "2021"
 license = "MIT"
-description = "Api for #[create], #[methods], when!"
+description = "Implementations for #[create], #[methods], when!"
 homepage = "https://github.com/nrxus/faux"
 repository = "https://github.com/nrxus/faux"
 keywords = ["mock", "mocking", "test", "testing", "faux"]
 rust-version = "1.63"
 
 [dependencies]
-faux_macros_impl  = { path = "../faux_macros_impl" }
 syn = { version = "2", features = ["full", "extra-traits"] }
 quote = "1"
 proc-macro2 = "1"
