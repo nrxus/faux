@@ -126,7 +126,7 @@ impl Mockable {
     }
 }
 
-impl From<Mockable> for proc_macro::TokenStream {
+impl From<Mockable> for proc_macro2::TokenStream {
     fn from(mockable: Mockable) -> Self {
         let Mockable {
             real,
@@ -206,7 +206,7 @@ impl From<Mockable> for proc_macro::TokenStream {
             })
         };
 
-        proc_macro::TokenStream::from(quote! {
+        quote! {
             #morphed
 
             #whens
@@ -219,7 +219,7 @@ impl From<Mockable> for proc_macro::TokenStream {
 
                 #real
             }
-        })
+        }
     }
 }
 
