@@ -11,7 +11,7 @@ keywords = ["mock", "mocking", "test", "testing", "faux"]
 rust-version = "1.63"
 
 [dependencies]
-faux_macros_impl  = { path = "../faux_macros_impl" }
+faux_macros_impl = { path = "../faux_macros_impl" }
 syn = { version = "2", features = ["full", "extra-traits"] }
 quote = "1"
 proc-macro2 = "1"

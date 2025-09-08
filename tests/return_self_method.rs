@@ -53,6 +53,14 @@ impl Foo {
         Some(Foo { a: 2 })
     }
 
+    pub fn new_tuple() -> (Foo, i32) {
+        (Foo { a: 4 }, 4)
+    }
+
+    pub fn new_tuple_multiple() -> (Foo, i32, Foo) {
+        (Foo { a: 4 }, 4, Foo { a: 8 })
+    }
+
     pub fn similar_name() -> FooError {
         FooError {}
     }
