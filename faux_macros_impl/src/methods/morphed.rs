@@ -291,6 +291,10 @@ impl<'a> Signature<'a> {
             output => return Err(unhandled_self_return(output)),
         };
 
+        Self::wrap_self_custom(morphed_ty, real_self, block, output)
+    }
+
+    fn wrap_self_custom(morphed_ty: &TypePath, real_self: SelfType, block: &TokenStream, output: &TypePath) -> Result<Option<TokenStream>, darling::Error> {
         let wrapped = if Self::is_self(output, morphed_ty) {
             Self::wrap_self_simple(real_self, block)
         } else {
@@ -315,12 +319,18 @@ impl<'a> Signature<'a> {
                 let index = syn::Index::from(e.0);
                 let ty = e.1;
 
-                let wrapped = Self::wrap_self_specific(ty, morphed_ty, real_self, block);
+                let ty = match ty {
+                    Type::Path(type_path) => type_path,
+                    _ => todo!(),
+                };
+
+                let tuple_index = quote! { tuple.#index };
+                let wrapped = Self::wrap_self_custom(morphed_ty, real_self, &tuple_index, ty);
 
                 match wrapped {
-                    Ok(Some(self_type)) => quote! { Self(faux::MaybeFaux::Real(tuple.#index)) },
+                    Ok(Some(self_type)) => self_type,
                     Ok(None) => quote! { tuple.#index },
-                    Err(_) => todo!(),
+                    Err(_) => quote! { tuple.#index }
                 }
             });
         

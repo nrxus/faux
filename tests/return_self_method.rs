@@ -53,12 +53,16 @@ impl Foo {
         Some(Foo { a: 2 })
     }
 
-    pub fn new_tuple() -> (Foo, i32) {
+    pub fn new_tuple() -> (Self, i32) {
         (Foo { a: 4 }, 4)
     }
 
-    pub fn new_tuple_multiple() -> (Foo, i32, Foo) {
+    pub fn new_tuple_multiple() -> (Self, i32, Self) {
         (Foo { a: 4 }, 4, Foo { a: 8 })
+    }
+
+    pub fn new_tuple_boxed() -> (Self, Box<Foo>) {
+        (Foo { a: 4}, Box::new(Foo { a: 8 }))
     }
 
     pub fn similar_name() -> FooError {
