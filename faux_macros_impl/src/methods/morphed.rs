@@ -254,7 +254,7 @@ impl<'a> Signature<'a> {
             .map(|m| m.create_when(self.output, self.name))
     }
 
-    fn is_self(ty: &syn::TypePath, morphed_ty: &syn::TypePath) -> bool {
+        fn is_self(ty: &syn::TypePath, morphed_ty: &syn::TypePath) -> bool {
         ty == morphed_ty || (ty.qself.is_none() && ty.path.is_ident("Self"))
     }
 
@@ -292,11 +292,63 @@ impl<'a> Signature<'a> {
         };
 
         let wrapped = if Self::is_self(output, morphed_ty) {
-            Self::wrap_self_simple(real_self, block)
+            match real_self {
+                SelfType::Owned => quote! { Self(faux::MaybeFaux::Real(#block)) },
+                generic => {
+                    let new_path = generic
+                        .new_path()
+                        .expect("Generic self should have new() function");
+                    quote! { Self(faux::MaybeFaux::Real(#new_path(#block))) }
+                }
+            }
         } else {
-            match Self::wrap_self_generic(real_self, block, morphed_ty, output) {
-                Ok(value) => value,
-                Err(value) => return value,
+            let unpathed_output = output.path.segments.last().unwrap();
+            let generics = match &unpathed_output.arguments {
+                syn::PathArguments::AngleBracketed(args) => args,
+                g => return Err(unhandled_self_return(g)),
+            };
+            let first_arg = generics
+                .args
+                .first()
+                .expect("faux bug: no generic arguments but expected at least one");
+            let first_arg = match first_arg {
+                syn::GenericArgument::Type(syn::Type::Path(ty)) => ty,
+                _ => return Err(unhandled_self_return(generics)),
+            };
+
+            if !Self::is_self(first_arg, morphed_ty) {
+                return Err(unhandled_self_return(generics));
+            }
+
+            let output_ident = &unpathed_output.ident;
+            match real_self {
+                SelfType::Rc if output_ident == "Rc" => {
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(#block))) }
+                }
+                SelfType::Arc if output_ident == "Arc" => {
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(#block))) }
+                }
+                SelfType::Box if output_ident == "Box" => {
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(#block))) }
+                }
+                SelfType::Owned if output_ident == "Result" || output_ident == "Option" => {
+                    quote! { { #block }.map(faux::MaybeFaux::Real).map(Self) }
+                }
+                SelfType::Owned if output_ident == "Box" => {
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(*#block))) }
+                }
+                SelfType::Owned if output_ident == "Rc" || output_ident == "Arc" => {
+                    let ungenerified = {
+                        // clone so we don't modify the original output
+                        let mut output = output.clone();
+                        output.path.segments.last_mut().unwrap().arguments = PathArguments::None;
+                        output
+                    };
+                    quote! { <#output>::new(Self(faux::MaybeFaux::Real(
+                        #ungenerified::try_unwrap(#block).ok().expect("faux: failed to grab value from reference counter because it was not unique.")
+                    ))) }
+                }
+                _ => return Err(unhandled_self_return(output)),
             }
         };
 
@@ -330,67 +382,6 @@ impl<'a> Signature<'a> {
            
             (# ( #elements),*)
         }}
-    }
-
-    fn wrap_self_simple(real_self: SelfType, block: &TokenStream) -> TokenStream {
-        match real_self {
-            SelfType::Owned => quote! { Self(faux::MaybeFaux::Real(#block)) },
-            generic => {
-                let new_path = generic
-                    .new_path()
-                    .expect("Generic self should have new() function");
-                quote! { Self(faux::MaybeFaux::Real(#new_path(#block))) }
-            }
-        }
-    }
-
-    fn wrap_self_generic(real_self: SelfType, block: &TokenStream, morphed_ty: &syn::TypePath, output: &TypePath) -> Result<TokenStream, Result<Option<TokenStream>, darling::Error>> {
-        let unpathed_output = output.path.segments.last().unwrap();
-        let generics = match &unpathed_output.arguments {
-            syn::PathArguments::AngleBracketed(args) => args,
-            g => return Err(Err(unhandled_self_return(g))),
-        };
-        let first_arg = generics
-            .args
-            .first()
-            .expect("faux bug: no generic arguments but expected at least one");
-        let first_arg = match first_arg {
-            syn::GenericArgument::Type(syn::Type::Path(ty)) => ty,
-            _ => return Err(Err(unhandled_self_return(generics))),
-        };
-        if !Self::is_self(first_arg, morphed_ty) {
-            return Err(Err(unhandled_self_return(generics)));
-        }
-        let output_ident = &unpathed_output.ident;
-        Ok(match real_self {
-            SelfType::Rc if output_ident == "Rc" => {
-                quote! { <#output>::new(Self(faux::MaybeFaux::Real(#block))) }
-            }
-            SelfType::Arc if output_ident == "Arc" => {
-                quote! { <#output>::new(Self(faux::MaybeFaux::Real(#block))) }
-            }
-            SelfType::Box if output_ident == "Box" => {
-                quote! { <#output>::new(Self(faux::MaybeFaux::Real(#block))) }
-            }
-            SelfType::Owned if output_ident == "Result" || output_ident == "Option" => {
-                quote! { { #block }.map(faux::MaybeFaux::Real).map(Self) }
-            }
-            SelfType::Owned if output_ident == "Box" => {
-                quote! { <#output>::new(Self(faux::MaybeFaux::Real(*#block))) }
-            }
-            SelfType::Owned if output_ident == "Rc" || output_ident == "Arc" => {
-                let ungenerified = {
-                    // clone so we don't modify the original output
-                    let mut output = output.clone();
-                    output.path.segments.last_mut().unwrap().arguments = PathArguments::None;
-                    output
-                };
-                quote! { <#output>::new(Self(faux::MaybeFaux::Real(
-                    #ungenerified::try_unwrap(#block).ok().expect("faux: failed to grab value from reference counter because it was not unique.")
-                ))) }
-            }
-            _ => return Err(Err(unhandled_self_return(output))),
-        })
     }
 }
 
