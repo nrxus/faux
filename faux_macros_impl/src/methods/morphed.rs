@@ -286,7 +286,7 @@ impl<'a> Signature<'a> {
         let output = match ty {
             syn::Type::Path(output) => output,
             syn::Type::Tuple(tuple) => {
-                return Ok(Some(Self::wrap_self_tuple(block, tuple, morphed_ty, real_self)));
+                return Self::wrap_self_tuple(block, tuple, morphed_ty, real_self);
             },
             output => return Err(unhandled_self_return(output)),
         };
@@ -359,7 +359,7 @@ impl<'a> Signature<'a> {
         block: &TokenStream, 
         tuple: &syn::TypeTuple, 
         morphed_ty: &syn::TypePath,
-        real_self: SelfType) -> TokenStream {
+        real_self: SelfType) -> darling::Result<Option<TokenStream>> {
         let elements = tuple.elems
             .iter()
             .enumerate()
@@ -368,20 +368,17 @@ impl<'a> Signature<'a> {
                 let ty = e.1;
 
                 let tuple_index = quote! { tuple.#index };
-                let wrapped = Self::wrap_self_specific(ty, morphed_ty, real_self, &tuple_index);
+                let wrapped = Self::wrap_self_specific(ty, morphed_ty, real_self, &tuple_index)?;
 
-                match wrapped {
-                    Ok(Some(self_type)) => self_type,
-                    Ok(None) => quote! { tuple.#index },
-                    Err(_) => quote! { tuple.#index }
-                }
-            });
+                Ok(wrapped.unwrap_or(tuple_index))
+            })
+            .collect::<darling::Result<Vec<TokenStream>>>()?;
         
-        quote! {{ 
+        Ok(Some(quote! {{ 
             let tuple = #block;
            
             (# ( #elements),*)
-        }}
+        }}))
     }
 }
 
