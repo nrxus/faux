@@ -47,14 +47,14 @@ impl Mockable {
     }
 }
 
-impl From<Mockable> for proc_macro2::TokenStream {
+impl From<Mockable> for proc_macro::TokenStream {
     fn from(mockable: Mockable) -> Self {
         let Mockable { real, morphed } = mockable;
         let (impl_generics, ty_generics, where_clause) = real.generics.split_for_impl();
         let name = &morphed.ident;
         let name_str = name.to_string();
 
-        quote! {
+        proc_macro::TokenStream::from(quote! {
             #morphed
 
             impl #impl_generics #name #ty_generics #where_clause {
@@ -65,7 +65,7 @@ impl From<Mockable> for proc_macro2::TokenStream {
 
             #[allow(non_camel_case_types)]
             #real
-        }
+        })
     }
 }
 
