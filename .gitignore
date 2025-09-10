@@ -1,5 +1,3 @@
 /target
 **/*.rs.bk
 Cargo.lock
-.passivate
-.vscode/launch.json
