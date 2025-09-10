@@ -254,10 +254,6 @@ impl<'a> Signature<'a> {
             .map(|m| m.create_when(self.output, self.name))
     }
 
-        fn is_self(ty: &syn::TypePath, morphed_ty: &syn::TypePath) -> bool {
-        ty == morphed_ty || (ty.qself.is_none() && ty.path.is_ident("Self"))
-    }
-
     fn wrap_self(
         &self,
         morphed_ty: &syn::TypePath,
@@ -283,6 +279,10 @@ impl<'a> Signature<'a> {
             return Ok(None);
         }
 
+        let is_self = |ty: &syn::TypePath| {
+            ty == morphed_ty || (ty.qself.is_none() && ty.path.is_ident("Self"))
+        };
+
         let output = match ty {
             syn::Type::Path(output) => output,
             syn::Type::Tuple(tuple) => {
@@ -291,7 +291,7 @@ impl<'a> Signature<'a> {
             output => return Err(unhandled_self_return(output)),
         };
 
-        let wrapped = if Self::is_self(output, morphed_ty) {
+        let wrapped = if is_self(output) {
             match real_self {
                 SelfType::Owned => quote! { Self(faux::MaybeFaux::Real(#block)) },
                 generic => {
@@ -316,7 +316,7 @@ impl<'a> Signature<'a> {
                 _ => return Err(unhandled_self_return(generics)),
             };
 
-            if !Self::is_self(first_arg, morphed_ty) {
+            if !is_self(first_arg) {
                 return Err(unhandled_self_return(generics));
             }
 
