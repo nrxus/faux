@@ -180,8 +180,11 @@ impl<'a> Signature<'a> {
         if self.is_async {
             proxy_real.extend(quote! { .await })
         }
-        if let Some(wrapped_self) = self.wrap_self(morphed_ty, real_self, &proxy_real)? {
-            proxy_real = wrapped_self;
+
+        if let Some(output) = self.output {
+            if let Some(wrapped_self) = Self::wrap_self(output, morphed_ty, real_self, &proxy_real)? {
+                proxy_real = wrapped_self;
+            }
         }
 
         let ret = match &self.method_data {
@@ -255,21 +258,6 @@ impl<'a> Signature<'a> {
     }
 
     fn wrap_self(
-        &self,
-        morphed_ty: &syn::TypePath,
-        real_self: SelfType,
-        block: &TokenStream,
-    ) -> darling::Result<Option<TokenStream>> {
-        // TODO: use let-else once we bump MSRV to 1.65.0
-        let output = match self.output {
-            Some(output) => output,
-            None => return Ok(None),
-        };
-        
-        Self::wrap_self_specific(output, morphed_ty, real_self, block)
-    }
-
-    fn wrap_self_specific(
         ty: &Type,
         morphed_ty: &syn::TypePath,
         real_self: SelfType,
@@ -368,7 +356,7 @@ impl<'a> Signature<'a> {
                 let ty = e.1;
 
                 let tuple_index = quote! { tuple.#index };
-                let wrapped = Self::wrap_self_specific(ty, morphed_ty, real_self, &tuple_index)?;
+                let wrapped = Self::wrap_self(ty, morphed_ty, real_self, &tuple_index)?;
 
                 Ok(wrapped.unwrap_or(tuple_index))
             })
