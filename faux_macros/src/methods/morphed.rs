@@ -180,8 +180,11 @@ impl<'a> Signature<'a> {
         if self.is_async {
             proxy_real.extend(quote! { .await })
         }
-        if let Some(wrapped_self) = self.wrap_self(morphed_ty, real_self, &proxy_real)? {
-            proxy_real = wrapped_self;
+
+        if let Some(output) = self.output {
+            if let Some(wrapped_self) = Self::wrap_self(output, morphed_ty, real_self, &proxy_real)? {
+                proxy_real = wrapped_self;
+            }
         }
 
         let ret = match &self.method_data {
@@ -255,17 +258,12 @@ impl<'a> Signature<'a> {
     }
 
     fn wrap_self(
-        &self,
+        ty: &Type,
         morphed_ty: &syn::TypePath,
         real_self: SelfType,
         block: &TokenStream,
     ) -> darling::Result<Option<TokenStream>> {
-        // TODO: use let-else once we bump MSRV to 1.65.0
-        let output = match self.output {
-            Some(output) => output,
-            None => return Ok(None),
-        };
-        if !contains_self(output, morphed_ty) {
+        if !contains_self(ty, morphed_ty) {
             return Ok(None);
         }
 
@@ -273,8 +271,11 @@ impl<'a> Signature<'a> {
             ty == morphed_ty || (ty.qself.is_none() && ty.path.is_ident("Self"))
         };
 
-        let output = match output {
+        let output = match ty {
             syn::Type::Path(output) => output,
+            syn::Type::Tuple(tuple) => {
+                return Self::wrap_self_tuple(block, tuple, morphed_ty, real_self);
+            },
             output => return Err(unhandled_self_return(output)),
         };
 
@@ -340,6 +341,32 @@ impl<'a> Signature<'a> {
         };
 
         Ok(Some(wrapped))
+    }
+
+    fn wrap_self_tuple(
+        block: &TokenStream, 
+        tuple: &syn::TypeTuple, 
+        morphed_ty: &syn::TypePath,
+        real_self: SelfType) -> darling::Result<Option<TokenStream>> {
+        let elements = tuple.elems
+            .iter()
+            .enumerate()
+            .map(|e| {
+                let index = syn::Index::from(e.0);
+                let ty = e.1;
+
+                let tuple_index = quote! { tuple.#index };
+                let wrapped = Self::wrap_self(ty, morphed_ty, real_self, &tuple_index)?;
+
+                Ok(wrapped.unwrap_or(tuple_index))
+            })
+            .collect::<darling::Result<Vec<TokenStream>>>()?;
+        
+        Ok(Some(quote! {{ 
+            let tuple = #block;
+           
+            (# ( #elements),*)
+        }}))
     }
 }
 
