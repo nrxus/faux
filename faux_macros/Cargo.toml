@@ -1,6 +1,6 @@
 [package]
 name = "faux_macros"
-version = "0.1.12"
+version = "0.1.13"
 authors = ["Andres <andresnrx@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -8,13 +8,13 @@ description = "Implementations for #[create], #[methods], when!"
 homepage = "https://github.com/nrxus/faux"
 repository = "https://github.com/nrxus/faux"
 keywords = ["mock", "mocking", "test", "testing", "faux"]
-rust-version = "1.63"
+rust-version = "1.65"
 
 [dependencies]
 syn = { version = "2", features = ["full", "extra-traits"] }
 quote = "1"
 proc-macro2 = "1"
-darling = "0.20"
+darling = "0.21"
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]

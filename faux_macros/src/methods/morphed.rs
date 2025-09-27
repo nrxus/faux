@@ -182,7 +182,8 @@ impl<'a> Signature<'a> {
         }
 
         if let Some(output) = self.output {
-            if let Some(wrapped_self) = Self::wrap_self(output, morphed_ty, real_self, &proxy_real)? {
+            if let Some(wrapped_self) = Self::wrap_self(output, morphed_ty, real_self, &proxy_real)?
+            {
                 proxy_real = wrapped_self;
             }
         }
@@ -275,7 +276,7 @@ impl<'a> Signature<'a> {
             syn::Type::Path(output) => output,
             syn::Type::Tuple(tuple) => {
                 return Self::wrap_self_tuple(block, tuple, morphed_ty, real_self);
-            },
+            }
             output => return Err(unhandled_self_return(output)),
         };
 
@@ -344,11 +345,13 @@ impl<'a> Signature<'a> {
     }
 
     fn wrap_self_tuple(
-        block: &TokenStream, 
-        tuple: &syn::TypeTuple, 
+        block: &TokenStream,
+        tuple: &syn::TypeTuple,
         morphed_ty: &syn::TypePath,
-        real_self: SelfType) -> darling::Result<Option<TokenStream>> {
-        let elements = tuple.elems
+        real_self: SelfType,
+    ) -> darling::Result<Option<TokenStream>> {
+        let elements = tuple
+            .elems
             .iter()
             .enumerate()
             .map(|e| {
@@ -361,10 +364,10 @@ impl<'a> Signature<'a> {
                 Ok(wrapped.unwrap_or(tuple_index))
             })
             .collect::<darling::Result<Vec<TokenStream>>>()?;
-        
-        Ok(Some(quote! {{ 
+
+        Ok(Some(quote! {{
             let tuple = #block;
-           
+
             (# ( #elements),*)
         }}))
     }
@@ -464,11 +467,8 @@ fn add_lifetime(t: &mut Type, new_lifetime: &Lifetime) {
                 ..
             }) = segments.last_mut()
             {
-                if let Some(first_arg) = args.args.first_mut() {
-                    match first_arg {
-                        GenericArgument::Type(t) => add_lifetime(t, new_lifetime),
-                        _ => {}
-                    }
+                if let Some(GenericArgument::Type(t)) = args.args.first_mut() {
+                    add_lifetime(t, new_lifetime)
                 }
             };
         }
@@ -522,10 +522,8 @@ fn ang_generic_contains_self(args: &syn::AngleBracketedGenericArguments, path: &
             if contains_self(&assoc.ty, path) {
                 return true;
             }
-            // TODO: use let-else once we bump MSRV to 1.65.0
-            let args = match &assoc.generics {
-                Some(args) => args,
-                None => return false,
+            let Some(args) = &assoc.generics else {
+                return false;
             };
             ang_generic_contains_self(args, path)
         }

@@ -1,6 +1,6 @@
 [package]
 name = "faux"
-version = "0.1.12"
+version = "0.1.13"
 authors = ["Andres <andresnrx@gmail.com>"]
 license = "MIT"
 description = "A library to mock structs"
@@ -9,10 +9,10 @@ repository = "https://github.com/nrxus/faux"
 edition = "2021"
 keywords = ["mock", "mocking", "test", "testing", "faux"]
 readme = "README.md"
-rust-version = "1.63"
+rust-version = "1.65"
 
 [dependencies]
-faux_macros = { path = "faux_macros", version = "0.1.12" }
+faux_macros = { path = "faux_macros", version = "0.1.13" }
 paste = "1.0.4"
 
 [dev-dependencies]

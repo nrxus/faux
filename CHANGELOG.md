@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.1.13
+* Add support methods that return Self as part of a tuple
+  * [test](/tests/return_self_tuple.rs)
+* Bumped MSRV to 1.65
+
 ## v0.1.12
 * Fix warnings about elided lifetimes already named in generated code
 

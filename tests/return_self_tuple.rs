@@ -1,7 +1,4 @@
-use std::sync::Arc;
-use std::rc::Rc;
-use std::result::Result;
-use std::error::Error;
+use std::{error::Error, rc::Rc, result::Result, sync::Arc};
 
 #[faux::create]
 pub struct Foo;
