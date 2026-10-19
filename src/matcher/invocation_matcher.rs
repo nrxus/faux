@@ -1,5 +1,4 @@
 use core::fmt;
-use paste::paste;
 
 use super::ArgMatcher;
 
@@ -65,7 +64,7 @@ impl<Arg: fmt::Debug, AM: ArgMatcher<Arg>> InvocationMatcher<Arg> for (AM,) {
         } else {
             Err(format!(
                 "Argument did not match.
-Expected: {}
+    Expected: {}
 Actual:   {:?}",
                 self.0, arg
             ))
@@ -81,74 +80,108 @@ macro_rules! trues {
 
 // (a,b,c) => tuple!(b,c)
 macro_rules! peel {
-    ($idx:tt, $($other:tt,)+) => (tuple! { $($other,)+ })
+    ($first:tt, $($other:tt,)+) => (tuple! { $($other,)+ })
 }
 
 // implement InvocationMatcher for tuples for ArgMatchers
 macro_rules! tuple {
-    ($idx:tt,) => ();
-    ($($idx:tt,)+) => (
-        paste! {
-            impl<$([<A $idx>]: fmt::Debug),+,$([<AM $idx>]: ArgMatcher<[<A $idx>]>),+> InvocationMatcher<($([<A $idx>],)+)> for ($([<AM $idx>],)+) {
-                /// Succeeds if every argument matches its corresponding [`ArgMatcher`].
-                fn matches(&self, ($([<a $idx>]),+): &($([<A $idx>],)+)) -> Result<(), String> {
-                    let ($([<am $idx>]),+) = &self;
-                    let matches = match ($([<am $idx>].matches([<a $idx>])),+) {
-                        trues!($($idx),+) => return Ok(()),
-                        ($([<a $idx>]),+) => [$([<a $idx>]),+],
-                    };
-                    let expected = [
-                        $([<am $idx>].to_string()),+
-                    ];
-                    let actual = [
-                        $(format!("{:?}", [<a $idx>])),+
-                    ];
+    ($first:tt,) => ();
+    ($(($idx:tt, $A:ident, $AM:ident, $a:ident, $am:ident),)+) => (
+        impl<$($A: fmt::Debug),+,$($AM: ArgMatcher<$A>),+> InvocationMatcher<($($A,)+)> for ($($AM,)+) {
+            /// Succeeds if every argument matches its corresponding [`ArgMatcher`].
+            fn matches(&self, ($($a),+): &($($A,)+)) -> Result<(), String> {
+                let ($($am),+) = &self;
+                let matches = match ($($am.matches($a)),+) {
+                    trues!($($idx),+) => return Ok(()),
+                    ($($a),+) => [$($a),+],
+                };
+                let expected = [
+                    $($am.to_string()),+
+                ];
+                let actual = [
+                    $(format!("{:?}", $a)),+
+                ];
 
-                    let mut widths = [
-                        $(expected[$idx].len().max(actual[$idx].len())),+
-                    ];
+                let mut widths = [
+                    $(expected[$idx].len().max(actual[$idx].len())),+
+                ];
 
-                    widths.reverse();
+                widths.reverse();
 
-                    let mut expected = [
-                        $(format!("{:>width$}", expected[$idx], width = widths[$idx])),+
-                    ];
+                let mut expected = [
+                    $(format!("{:>width$}", expected[$idx], width = widths[$idx])),+
+                ];
 
-                    expected.reverse();
+                expected.reverse();
 
-                    let mut actual = [
-                        $(format!("{:>width$}", actual[$idx], width = widths[$idx])),+
-                    ];
+                let mut actual = [
+                    $(format!("{:>width$}", actual[$idx], width = widths[$idx])),+
+                ];
 
-                    actual.reverse();
+                actual.reverse();
 
-                    let argument_errors: Vec<_> = matches
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(i, &passed)| if passed { None } else { Some(i) })
-                        .map(|pos| format!("  Argument {}:
+                let argument_errors: Vec<_> = matches
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, &passed)| if passed { None } else { Some(i) })
+                    .map(|pos| format!("  Argument {}:
     Expected: {}
     Actual:   {}",
-                            pos, expected[pos], actual[pos]
-                        ))
-                        .collect();
+                        pos, expected[pos], actual[pos]
+                    ))
+                    .collect();
 
-                    let argument_errors = argument_errors.join("\n");
-                    let expected = expected.join(", ");
-                    let actual = actual.join(", ");
+                let argument_errors = argument_errors.join("\n");
+                let expected = expected.join(", ");
+                let actual = actual.join(", ");
 
-                    Err(format!("Arguments did not match
+                Err(format!("Arguments did not match
   Expected: [{}]
   Actual:   [{}]
 
 {}",
-                        expected, actual, argument_errors
-                    ))
-                }
+                    expected, actual, argument_errors
+                ))
             }
         }
-        peel! { $($idx,)+ }
+        peel! { $(($idx, $A, $AM, $a, $am),)+ }
     )
 }
 
-tuple! { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, }
+tuple! {
+    (9, A9, AM9, a9, am9),
+    (8, A8, AM8, a8, am8),
+    (7, A7, AM7, a7, am7),
+    (6, A6, AM6, a6, am6),
+    (5, A5, AM5, a5, am5),
+    (4, A4, AM4, a4, am4),
+    (3, A3, AM3, a3, am3),
+    (2, A2, AM2, a2, am2),
+    (1, A1, AM1, a1, am1),
+    (0, A0, AM0, a0, am0),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::matcher;
+
+    #[test]
+    fn tuple_mismatch_message() {
+        let matcher = (matcher::eq(100), matcher::any(), matcher::eq("x"));
+        let err = matcher.matches(&(3, 42, "long value")).unwrap_err();
+        assert_eq!(
+            err,
+            r#"Arguments did not match
+  Expected: [100,  _,          "x"]
+  Actual:   [  3, 42, "long value"]
+
+  Argument 0:
+    Expected: 100
+    Actual:     3
+  Argument 2:
+    Expected:          "x"
+    Actual:   "long value""#
+        );
+    }
+}
